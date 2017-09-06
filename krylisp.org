@@ -1,0 +1,17 @@
+# -*- mode: org; coding: utf-8; -*-
+# Time-stamp: <2017-09-04 20:26:55 krylon>
+
+
+* kryLisp
+** Parser
+   Ich dachte erst, ich könnte ja beim Parser aus dem
+   Go-Interpreterbuch abgucken, aber der ist für die simple Syntax,
+   die Lisp braucht, eigentlich schon wieder overkill.
+   Ich hatte ja schon mal einen Lisp-Interpreter in Python
+   geschrieben, der funktionierte grundsätzlich gut.
+   Aber da gab es auch eine sehr gute Bibliothek zum Bau von Parsern.
+   In Go gibt es in der Standardbibliothek den ganzen Kram, den wohl
+   auch der Go-Compiler benutzt, aber das wird entsprechend auch sehr
+   Go-spezifisch sein.
+   Es gibt ja auch Gocc, das ist wohl grob äquivalent zu bison für C.
+   Oder ANTLR. Aber das ist doch eigentlich alle overkill, oder?
