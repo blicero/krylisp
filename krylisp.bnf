@@ -1,0 +1,56 @@
+/* Time-stamp: <2017-09-06 16:52:32 krylon>
+ * Lexical elements
+ *
+ * Mittwoch, 06. 09. 2017, 13:49
+ * Ein Vorteil von Lisp ist, dass die Syntax so einfach ist.
+ * Wenn ich Makros einbauen will, wird es ein wenig komplexer,
+ * aber eins nach dem Anderen.
+ */
+
+_digit : '0'-'9' ;
+_number : '1'-'9' {_digit} ;
+
+_lparen : '(' ;
+_rparen : ')' ;
+
+_letter : 'a'-'z' | 'A'-'Z' | 'ä' | 'ö' | 'ü' | 'Ä' | 'Ö' | 'Ü' | 'ß' ;
+
+_symbolchar : _letter | ':' | '_' | '-' | '+' | '-' | '*' | '%' | '!' | '?' | 
+             '/' | '$' | '=' ;
+
+_symbol : _symbolchar {_symbolchar} ;
+
+_string : '"' {.} '"' ;
+
+_atom: _number | _symbol | _string ;
+
+!whitespace : ' ' | '\t' | '\n' | '\r' ;
+
+!comment : ';' {.} '\n' ;
+
+// _list: _lparen {_expression} _rparen ;
+
+// _expression: _list | _atom ;
+
+/* Syntax elements */
+
+<<
+        import (
+               "krylisp/token"
+               "krylisp/util"
+        )
+>>
+
+List
+        : _lparen {Expression} _rparen
+        ;
+
+Number
+        : _number               << util.IntValue($0.(*token.Token).Lit) >>
+        ;
+
+String 
+       : _string                 << $0.(*token.Token).Lit >>
+       ;
+
+
