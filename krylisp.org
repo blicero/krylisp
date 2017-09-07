@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-09-04 20:26:55 krylon>
+# Time-stamp: <2017-09-06 16:56:17 krylon>
 
 
 * kryLisp
@@ -13,5 +13,11 @@
    In Go gibt es in der Standardbibliothek den ganzen Kram, den wohl
    auch der Go-Compiler benutzt, aber das wird entsprechend auch sehr
    Go-spezifisch sein.
-   Es gibt ja auch Gocc, das ist wohl grob äquivalent zu bison für C.
-   Oder ANTLR. Aber das ist doch eigentlich alle overkill, oder?
+   Es gibt ja auch _gocc_, das ist wohl grob äquivalent zu bison für C.
+   Oder _ANTLR_. Aber das ist doch eigentlich alle overkill, oder?
+   Eventuell kann ich auch mal PEG ausprobieren.
+*** gocc
+    Ich probiere jetzt erstmal gocc aus, das macht so beim Lesen der
+    Doku einen guten Eindruck. Hat nur das Problem, das ich für die
+    BNF-Dateien, die ich dafür schreiben muss, keine
+    Syntax-Unterstützung von Emacs habe.

@@ -1,4 +1,4 @@
-/* Time-stamp: <2017-09-06 16:52:32 krylon>
+/* Time-stamp: <2017-09-06 17:11:53 krylon>
  * Lexical elements
  *
  * Mittwoch, 06. 09. 2017, 13:49
@@ -12,6 +12,8 @@ _number : '1'-'9' {_digit} ;
 
 _lparen : '(' ;
 _rparen : ')' ;
+
+_apostrophe : '\'';
 
 _letter : 'a'-'z' | 'A'-'Z' | 'ä' | 'ö' | 'ü' | 'Ä' | 'Ö' | 'Ü' | 'ß' ;
 
@@ -53,4 +55,14 @@ String
        : _string                 << $0.(*token.Token).Lit >>
        ;
 
+Symbol 
+       : _symbol                 << $0.(*token.Token).Lit >>
+       ;
 
+// Mittwoch, 06. 09. 2017, 17:06
+// Listen könnte ich schon direkt hier in Cons-Listen parsen.
+// Aber ich muss noch einen Datentyp dafür definieren. :-|
+
+Expression
+        : List
+        | Atom
