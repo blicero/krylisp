@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-07 14:08:16 krylon>
+// Time-stamp: <2017-09-07 15:33:31 krylon>
 
 package value
 
@@ -118,3 +118,63 @@ func TestIsList(t *testing.T) {
 		}
 	}
 } // func TestIsList(t *testing.T)
+
+func TestListString(t *testing.T) {
+	type testValue struct {
+		input    *List
+		expected string
+	}
+
+	var testData = []testValue{
+		testValue{
+			input:    &List{},
+			expected: "nil",
+		},
+		testValue{
+			input: &List{
+				Car:    &ConsCell{IntValue(1), nil},
+				Length: 1,
+			},
+			expected: "(1)",
+		},
+		testValue{
+			input: &List{
+				Car: &ConsCell{
+					Car: IntValue(42),
+					Cdr: &ConsCell{Car: IntValue(23)},
+				},
+				Length: 2,
+			},
+			expected: "(42 23)",
+		},
+	}
+
+	for idx, val := range testData {
+		var s = val.input.String()
+
+		if s != val.expected {
+			t.Errorf("Invalid string (%d): Expected \"%s\", got \"%s\"",
+				idx,
+				val.expected,
+				s)
+		}
+	}
+} // func TestListString(t *testing.T)
+
+// func TestListPush(t *testing.T) {
+// 	// Mmmh, this is kind of tricky to express in terms of a table...
+// 	type testValue struct {
+// 		before *List
+// 		item LispValue
+// 	}
+
+// 	var testData = []testValue{
+// 		testValue{
+// 			before: &List{},
+// 			item: IntValue(1),
+// 		},
+// 		testValue{
+// 			before: &List{
+// 		},
+// 	}
+// } // func TestListPush(t *testing.T)

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-07 14:12:23 krylon>
+// Time-stamp: <2017-09-07 15:49:09 krylon>
 
 package value
 
@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"krylisp/types"
 	"strconv"
+	"strings"
 )
 
 // LispValue is the "abstract base class", so to speak, for Lisp data.
@@ -116,3 +117,100 @@ func (s *ConsCell) IsList() bool {
 	// aus denen ich um C++ nach Kräften einen Bogen mache.
 	return true
 } // func (s *ConsCell) IsList() bool
+
+// List is ... well, a singly-linked list, the kind that is so common in Lisp
+// they named the language after it.
+// We define a separate type for lists because there are some distinctions
+// between a simple CONS cell and a proper list.
+// If Go was an object-oriented language, we could implement this as a subclass
+// of ConsCell. Whatever.
+// While we're at it, we can stuff some other fields into the struct that might
+// come in handy. Length, for example. Although I am not 100% certain if it is a
+// good idea to rely on that. ???
+type List struct {
+	Car    *ConsCell
+	Length int
+}
+
+// Type returns the type ID of the receiver.
+// (In this case, types.List
+func (l *List) Type() types.ID {
+	return types.List
+} // func (l *List) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (l *List) String() string {
+	if l == nil {
+		return "nil"
+	} else if l.Car == nil {
+		return "nil"
+	}
+
+	var elements = make([]string, l.Length)
+	var idx = 0
+	var cell = l.Car
+
+	for ; cell != nil; idx++ {
+		if cell.Car != nil {
+			elements[idx] = cell.Car.String()
+		} else {
+			elements[idx] = "nil"
+		}
+
+		if cell.Cdr != nil {
+			cell = cell.Cdr.(*ConsCell)
+		} else {
+			cell = nil
+		}
+	}
+
+	return "(" + strings.Join(elements, " ") + ")"
+} // func (l *List) String() string
+
+// Cdr returns a new List instance that is the CDR of the receiver.
+func (l *List) Cdr() *List {
+	return &List{
+		l.Car.Cdr.(*ConsCell),
+		l.Length - 1,
+	}
+} // func (l *List) Cdr() *List
+
+// Push adds a LispValue to the front of the List.
+// Semantically, this method should work like CONS in Common Lisp.
+func (l *List) Push(v LispValue) *List {
+	var cdr = l.Car
+	l.Car = &ConsCell{
+		v,
+		cdr,
+	}
+	l.Length++
+
+	return l
+} // func (l *List) Push(v LispValue) *List
+
+// Pop removes the first element of the List destructively and
+// returns it.
+func (l *List) Pop() LispValue {
+	// XXX I should check for null-ness and such.
+	if l.Car == nil {
+		return nil
+	}
+
+	var car = l.Car.Car
+
+	if l.Car.Cdr != nil {
+		l.Car = l.Car.Cdr.(*ConsCell)
+		l.Length--
+	} else {
+		l.Length = 0
+		l.Car = nil
+	}
+
+	return car
+} // func (l *List) Pop() LispValue
+
+// Eq return true if the receiver and the argument are the same, i.e. if both
+// lists' Car member points to the same ConsCell.
+func (l *List) Eq(other *List) bool {
+	return l.Car == other.Car
+} // func (l *List) Eq(other *List) bool
