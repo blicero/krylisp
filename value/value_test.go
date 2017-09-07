@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-07 15:33:31 krylon>
+// Time-stamp: <2017-09-07 17:33:18 krylon>
 
 package value
 
@@ -56,7 +56,7 @@ func TestString(t *testing.T) {
 		},
 		testValue{
 			StringValue("Wer das liest, ist doof."),
-			"Wer das liest, ist doof.",
+			"\"Wer das liest, ist doof.\"",
 		},
 		testValue{
 			&ConsCell{IntValue(23), IntValue(42)},
@@ -147,6 +147,34 @@ func TestListString(t *testing.T) {
 			},
 			expected: "(42 23)",
 		},
+		testValue{
+			input: &List{
+				Car: &ConsCell{
+					Car: IntValue(1),
+					Cdr: &ConsCell{
+						Car: StringValue("Hallo"),
+						Cdr: &ConsCell{
+							Car: &List{
+								Car: &ConsCell{
+									Car: IntValue(-2),
+									Cdr: &ConsCell{
+										Car: IntValue(107),
+										Cdr: nil,
+									},
+								},
+								Length: 2,
+							},
+							Cdr: &ConsCell{
+								Car: IntValue(42),
+								Cdr: nil,
+							},
+						},
+					},
+				},
+				Length: 4,
+			},
+			expected: `(1 "Hallo" (-2 107) 42)`,
+		},
 	}
 
 	for idx, val := range testData {
@@ -161,20 +189,95 @@ func TestListString(t *testing.T) {
 	}
 } // func TestListString(t *testing.T)
 
-// func TestListPush(t *testing.T) {
-// 	// Mmmh, this is kind of tricky to express in terms of a table...
-// 	type testValue struct {
-// 		before *List
-// 		item LispValue
-// 	}
+func TestListPush(t *testing.T) {
+	var l = &List{}
+	var cnt int
 
-// 	var testData = []testValue{
-// 		testValue{
-// 			before: &List{},
-// 			item: IntValue(1),
-// 		},
-// 		testValue{
-// 			before: &List{
-// 		},
-// 	}
-// } // func TestListPush(t *testing.T)
+	l.Push(StringValue("doof"))
+	if l.Length != 1 {
+		t.Fatalf("Unexpected length after pushing one value: %d (expected 1)",
+			l.Length)
+	} else if cnt = listLength(l); cnt != l.Length {
+		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
+			l.Length,
+			cnt)
+	}
+
+	l.Push(StringValue("war"))
+	if l.Length != 2 {
+		t.Fatalf("Unexpected length after pushing second value: %d (expected 2)",
+			l.Length)
+	} else if cnt = listLength(l); cnt != l.Length {
+		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
+			l.Length,
+			cnt)
+	}
+
+	var v = l.Pop()
+
+	if v == nil {
+		t.Fatal("l.Pop returned nil!")
+	} else if v.Type() != types.String {
+		t.Fatalf("l.Pop returned unexpected type: %s (expected String)",
+			v.Type().String())
+	} else if v.(StringValue) != "war" {
+		t.Fatalf("l.Pop returned unexpected value: %s (expected \"war\")",
+			v)
+	} else if l.Length != 1 {
+		t.Fatalf("Unexpected length after popping one value: %d (expected 1)",
+			l.Length)
+	} else if cnt = listLength(l); cnt != l.Length {
+		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
+			l.Length,
+			cnt)
+	}
+
+	l.Push(StringValue("ist"))
+	if l.Length != 2 {
+		t.Fatalf("Unexpected length after pushing another value: %d (expected 2)",
+			l.Length)
+	} else if cnt = listLength(l); cnt != l.Length {
+		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
+			l.Length,
+			cnt)
+	}
+
+	for _, item := range []string{"liest", "das", "Wer"} {
+		l.Push(StringValue(item))
+	}
+
+	if l.Length != 5 {
+		t.Fatalf("Unexpected length after pushing remaining values: %d (expected 5)",
+			l.Length)
+	} else if cnt = listLength(l); cnt != l.Length {
+		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
+			l.Length,
+			cnt)
+	}
+} // func TestListPush(t *testing.T)
+
+///////////////////
+//// Utilities ////
+///////////////////
+
+func listLength(l *List) int {
+	if l == nil {
+		return 0
+	} else if l.Car == nil {
+		return 1
+	}
+
+	var cnt = 0
+	var cell = l.Car
+
+	for cell != nil {
+		cnt++
+		if cell.Cdr != nil {
+			cell = cell.Cdr.(*ConsCell)
+		} else {
+			cell = nil
+		}
+	}
+
+	return cnt
+} // func listLength(l *List) int
