@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-07 17:55:07 krylon>
+// Time-stamp: <2017-09-08 16:09:30 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:51
 // I am going to need some way of handling errors properly.
@@ -25,3 +25,9 @@ func IntValue(s string) value.IntValue {
 		return value.IntValue(n)
 	}
 } // func IntValue(s string) int
+
+// StringValue takes a string token and return a Lisp string,
+// minus the double quotes.
+func StringValue(s []byte) value.StringValue {
+	return value.StringValue(s[1 : len(s)-1])
+} // func StringValue(s []byte) value.StringValue

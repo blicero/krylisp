@@ -1,4 +1,4 @@
-/* Time-stamp: <2017-09-07 20:37:57 krylon>
+/* Time-stamp: <2017-09-08 16:54:53 krylon>
  * Lexical elements
  *
  * Mittwoch, 06. 09. 2017, 13:49
@@ -14,17 +14,17 @@ lparen : '(' ;
 rparen : ')' ;
 
 apostrophe : '\'';
+_doubleQuote : '"';
 
 _letter : 'a'-'z' | 'A'-'Z' | 'ä' | 'ö' | 'ü' | 'Ä' | 'Ö' | 'Ü' | 'ß' ;
 
-_symbolchar : _letter | ':' | '_' | '-' | '+' | '-' | '*' | '%' | '!' | '?' | 
-             '/' | '$' | '=' ;
+_symbolchar : _letter | ':' | '_' | '-' | '+' | '-' | '*' | '%' | '!' | '?' | '/' | '$' | '=' | '~' ;
+
+/* _symchar_or_digit: _symbolchar | _digit; */
 
 symbol : _symbolchar {_symbolchar} ;
 
-string : '"' {.} '"' ;
-
-// _atom: _number | _symbol | _string ;
+string :  _doubleQuote {.} _doubleQuote ;
 
 !whitespace : ' ' | '\t' | '\n' | '\r' ;
 
@@ -41,44 +41,51 @@ string : '"' {.} '"' ;
         )
 >>
 
-Number
-        : integer                               << pu.IntValue($0.(*token.Token).Lit) >>
+Program
+        : Expression                    << []value.LispValue{ $0.(value.LispValue) }, nil >>
+        | Program Expression            << append($0.([]value.LispValue), $1.(value.LispValue)), nil >>
         ;
-
-String 
-       : string                                << value.StringValue($0.(*token.Token).Lit) >>
-       ;
-
-Symbol 
-       : symbol                                << value.Symbol(strings.ToUpper($0.(*token.Token).Lit)) >>
-       ;
-
-Atom
-        : Number
-        | String
-        | Symbol
-        ;
-
-// Mittwoch, 06. 09. 2017, 17:06
-// Listen könnte ich schon direkt hier in Cons-Listen parsen.
-// Aber ich muss noch einen Datentyp dafür definieren. :-|
 
 Expression
         : List
         | Atom
-        | apostrophe Expression
+        | apostrophe Expression                << &value.List{
+                                                        Car: &value.ConsCell{
+                                                             Car: value.Symbol("QUOTE"),
+                                                             Cdr: &value.ConsCell{
+                                                                  Car: $1.(value.LispValue),
+                                                                  Cdr: nil,
+                                                             },
+                                                        },
+                                                        Length: 2,
+                                                  }, nil
+                                                >>
         ;
 
+Atom
+        : Number
+        | String
+        | Symbol ;
+
+Number
+        : integer                               << pu.IntValue(string($0.(*token.Token).Lit)), nil >>
+        ;
+
+String 
+       : string                                << pu.StringValue($0.(*token.Token).Lit), nil >>
+       ;
+
+Symbol 
+       : symbol                                << value.Symbol(strings.ToUpper(string($0.(*token.Token).Lit))), nil >>
+       ;
+
 List
-        : lparen ListBody rparen << &value.List{ Car: $1 } >>
+        : lparen ListBody rparen        << &value.List{ Car: $1.(*value.ConsCell), Length: $1.(*value.ConsCell).ActualLength() }, nil >>
+        | lparen rparen                 << &value.List{ Car: nil, Length: 0 }, nil >>
         ;
 
 ListBody
-        : Expression                    << &value.ConsCell{ Car: $0 } >>
-        | Expression ListBody           << &value.ConsCell{ Car: $0, Cdr: $1 } >>
+        : Expression                    << &value.ConsCell{ Car: $0.(value.LispValue) }, nil >>
+        | Expression ListBody           << &value.ConsCell{ Car: $0.(value.LispValue), Cdr: $1.(*value.ConsCell) }, nil >>
         ;
 
-Program
-        : Expression
-        | Expression Program
-        ;

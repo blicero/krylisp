@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-07 17:38:46 krylon>
+// Time-stamp: <2017-09-08 16:50:14 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -125,6 +125,34 @@ func (s *ConsCell) IsList() bool {
 	return true
 } // func (s *ConsCell) IsList() bool
 
+// ActualLength returns the length of a cons'ed structure.
+func (s *ConsCell) ActualLength() int {
+	if s == nil {
+		return 0
+	} else if s.Car == nil && s.Cdr == nil {
+		return 0
+	}
+
+	var cnt = 0
+	var cell = s
+
+	for cell != nil {
+		cnt++
+		if cell.Cdr != nil {
+			switch v := cell.Cdr.(type) {
+			case *ConsCell:
+				cell = v
+			default:
+				cell = nil
+			}
+		} else {
+			cell = nil
+		}
+	}
+
+	return cnt
+} // func (s *ConsCell) ActualLength() int
+
 // List is ... well, a singly-linked list, the kind that is so common in Lisp
 // they named the language after it.
 // We define a separate type for lists because there are some distinctions
@@ -222,6 +250,33 @@ func (l *List) Eq(other *List) bool {
 	return l.Car == other.Car
 } // func (l *List) Eq(other *List) bool
 
+// ActualLength counts the number of elements in the list and returns the
+// result. The main purpose is for debugging/testing, but it is also used
+// in the parser.
+func (l *List) ActualLength() int {
+	if l == nil {
+		return 0
+	} else if l.Car == nil {
+		return 0
+	}
+
+	var cnt = 0
+	var cell = l.Car
+
+	for cell != nil {
+		cnt++
+		if cell.Cdr != nil {
+			cell = cell.Cdr.(*ConsCell)
+		} else {
+			cell = nil
+		}
+	}
+
+	l.Length = cnt
+
+	return cnt
+} // func (l *List) ActualLength() int
+
 // I am not sure if should represent symbols as plain strings.
 // But for now I cannot think of a good reason not to.
 // If I were to intern symbols so I only need to compare
@@ -232,10 +287,12 @@ func (l *List) Eq(other *List) bool {
 // Symbol represents a Lisp symbol.
 type Symbol string
 
+// Type returns the value's type ID, in this case types.Symbol
 func (s Symbol) Type() types.ID {
 	return types.Symbol
 } // func (s Symbol) Type() types.ID
 
+// String returns a string representation of the Lisp value.
 func (s Symbol) String() string {
 	return string(s)
 } // func (s Symbol) String() string

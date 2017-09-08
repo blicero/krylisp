@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-07 17:33:18 krylon>
+// Time-stamp: <2017-09-08 16:43:24 krylon>
 
 package value
 
@@ -197,7 +197,7 @@ func TestListPush(t *testing.T) {
 	if l.Length != 1 {
 		t.Fatalf("Unexpected length after pushing one value: %d (expected 1)",
 			l.Length)
-	} else if cnt = listLength(l); cnt != l.Length {
+	} else if cnt = l.ActualLength(); cnt != l.Length {
 		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
 			l.Length,
 			cnt)
@@ -207,7 +207,7 @@ func TestListPush(t *testing.T) {
 	if l.Length != 2 {
 		t.Fatalf("Unexpected length after pushing second value: %d (expected 2)",
 			l.Length)
-	} else if cnt = listLength(l); cnt != l.Length {
+	} else if cnt = l.ActualLength(); cnt != l.Length {
 		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
 			l.Length,
 			cnt)
@@ -226,7 +226,7 @@ func TestListPush(t *testing.T) {
 	} else if l.Length != 1 {
 		t.Fatalf("Unexpected length after popping one value: %d (expected 1)",
 			l.Length)
-	} else if cnt = listLength(l); cnt != l.Length {
+	} else if cnt = l.ActualLength(); cnt != l.Length {
 		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
 			l.Length,
 			cnt)
@@ -236,7 +236,7 @@ func TestListPush(t *testing.T) {
 	if l.Length != 2 {
 		t.Fatalf("Unexpected length after pushing another value: %d (expected 2)",
 			l.Length)
-	} else if cnt = listLength(l); cnt != l.Length {
+	} else if cnt = l.ActualLength(); cnt != l.Length {
 		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
 			l.Length,
 			cnt)
@@ -249,7 +249,7 @@ func TestListPush(t *testing.T) {
 	if l.Length != 5 {
 		t.Fatalf("Unexpected length after pushing remaining values: %d (expected 5)",
 			l.Length)
-	} else if cnt = listLength(l); cnt != l.Length {
+	} else if cnt = l.ActualLength(); cnt != l.Length {
 		t.Fatalf("Length field and actual count are different: Length = %d, Actual = %d",
 			l.Length,
 			cnt)
@@ -259,25 +259,3 @@ func TestListPush(t *testing.T) {
 ///////////////////
 //// Utilities ////
 ///////////////////
-
-func listLength(l *List) int {
-	if l == nil {
-		return 0
-	} else if l.Car == nil {
-		return 1
-	}
-
-	var cnt = 0
-	var cell = l.Car
-
-	for cell != nil {
-		cnt++
-		if cell.Cdr != nil {
-			cell = cell.Cdr.(*ConsCell)
-		} else {
-			cell = nil
-		}
-	}
-
-	return cnt
-} // func listLength(l *List) int
