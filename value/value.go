@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 16:50:14 krylon>
+// Time-stamp: <2017-09-08 17:00:55 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -65,6 +65,26 @@ func (s StringValue) Type() types.ID {
 func (s StringValue) String() string {
 	return `"` + string(s) + `"`
 } // func (s StringValue) String() string
+
+// I am not sure if should represent symbols as plain strings.
+// But for now I cannot think of a good reason not to.
+// If I were to intern symbols so I only need to compare
+// hash codes or something, it might make sense. For now,
+// I have no clue, yet, how well or badly my Lisp interpreter
+// is going to perform, so I will use a plain string.
+
+// Symbol represents a Lisp symbol.
+type Symbol string
+
+// Type returns the value's type ID, in this case types.Symbol
+func (s Symbol) Type() types.ID {
+	return types.Symbol
+} // func (s Symbol) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (s Symbol) String() string {
+	return string(s)
+} // func (s Symbol) String() string
 
 // ConsCell is a pair of two Lisp values, used mainly for constructing lists.
 type ConsCell struct {
@@ -276,23 +296,3 @@ func (l *List) ActualLength() int {
 
 	return cnt
 } // func (l *List) ActualLength() int
-
-// I am not sure if should represent symbols as plain strings.
-// But for now I cannot think of a good reason not to.
-// If I were to intern symbols so I only need to compare
-// hash codes or something, it might make sense. For now,
-// I have no clue, yet, how well or badly my Lisp interpreter
-// is going to perform, so I will use a plain string.
-
-// Symbol represents a Lisp symbol.
-type Symbol string
-
-// Type returns the value's type ID, in this case types.Symbol
-func (s Symbol) Type() types.ID {
-	return types.Symbol
-} // func (s Symbol) Type() types.ID
-
-// String returns a string representation of the Lisp value.
-func (s Symbol) String() string {
-	return string(s)
-} // func (s Symbol) String() string

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 16:38:12 krylon>
+// Time-stamp: <2017-09-08 17:01:03 krylon>
 
 package ast
 
@@ -13,7 +13,6 @@ import (
 	"krylisp/types"
 	"krylisp/value"
 	"testing"
-	"time"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -158,23 +157,12 @@ func TestParseList(t *testing.T) {
 			t.Errorf("Error parsing input [%s]: %s",
 				test.input,
 				err.Error())
-			printSep()
-			continue
 		} else if prog, ok = result.([]value.LispValue); !ok {
 			t.Errorf("Parsing input [%s] yielded unexpected type: %T (%s)",
 				test.input,
 				result,
 				spew.Sdump(result))
-			printSep()
-			continue
-		}
-
-		fmt.Println("-------------------------------")
-		spew.Dump(prog)
-		fmt.Println("-------------------------------")
-		time.Sleep(time.Millisecond * 250)
-
-		if len(prog) != 1 {
+		} else if len(prog) != 1 {
 			t.Errorf("Unexpected program length: %d elements (expected 1)",
 				len(prog))
 		} else if prog[0].Type() != test.expectedType {
