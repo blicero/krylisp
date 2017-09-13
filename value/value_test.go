@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 16:43:24 krylon>
+// Time-stamp: <2017-09-13 19:26:16 krylon>
 
 package value
 
@@ -128,7 +128,7 @@ func TestListString(t *testing.T) {
 	var testData = []testValue{
 		testValue{
 			input:    &List{},
-			expected: "nil",
+			expected: "NIL",
 		},
 		testValue{
 			input: &List{
@@ -255,6 +255,55 @@ func TestListPush(t *testing.T) {
 			cnt)
 	}
 } // func TestListPush(t *testing.T)
+
+func TestListNth(t *testing.T) {
+	type nthTest struct {
+		list          *List
+		index         int
+		expectedValue LispValue
+		expectedError bool
+	}
+
+	var testCases = []nthTest{
+		nthTest{
+			list:          nil,
+			index:         3,
+			expectedValue: nil,
+			expectedError: true,
+		},
+		nthTest{
+			list: &List{
+				Car: &ConsCell{
+					Car: IntValue(1),
+					Cdr: &ConsCell{
+						Car: IntValue(2),
+						Cdr: NIL,
+					},
+				},
+				Length: 2,
+			},
+			index:         1,
+			expectedValue: IntValue(2),
+		},
+	}
+
+	for idx, test := range testCases {
+		var val LispValue
+		var err error
+
+		if val, err = test.list.Nth(test.index); err != nil {
+			if !test.expectedError {
+				t.Errorf("Unexpected error in test case #%d: %s",
+					idx+1,
+					err.Error())
+			}
+		} else if !test.expectedValue.Eq(val) {
+			t.Errorf("Unexpected value returned from list: %s (expected %s)",
+				val.String(),
+				test.expectedValue.String())
+		}
+	}
+} // func TestListNth(t *testing.T)
 
 ///////////////////
 //// Utilities ////

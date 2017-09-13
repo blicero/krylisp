@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 17:01:03 krylon>
+// Time-stamp: <2017-09-09 15:36:55 krylon>
 
 package ast
 
@@ -139,6 +139,12 @@ func TestParseList(t *testing.T) {
 			expectedType:   types.List,
 			expectedLength: 4,
 			expectedString: "(2 5 17 29)",
+		},
+		parseListTest{
+			input:          "(2 3 (4 5 (6 7)) 8 9)",
+			expectedType:   types.List,
+			expectedLength: 5,
+			expectedString: "(2 3 (4 5 (6 7)) 8 9)",
 		},
 	}
 	var err error

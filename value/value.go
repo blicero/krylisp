@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 17:00:55 krylon>
+// Time-stamp: <2017-09-13 19:25:29 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -14,6 +14,8 @@
 package value
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"krylisp/types"
 	"strconv"
@@ -25,7 +27,48 @@ import (
 type LispValue interface {
 	Type() types.ID
 	String() string
+	Bool() bool
+	Eq(other LispValue) bool
 }
+
+// A NilValue represents nil, the strange list-symbol duality.
+type NilValue int
+
+// Type returns the type ID of the Lisp value, in this case types.Nil
+func (n NilValue) Type() types.ID {
+	return types.Nil
+} // func (n NilValue) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (n NilValue) String() string {
+	return "NIL"
+} // func (n NilValue) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (n NilValue) Bool() bool {
+	return false
+} // func (n NilValue) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (n NilValue) Eq(other LispValue) bool {
+	if other == nil {
+		return true
+	} else if other.Type() == types.List {
+		var l = other.(*List)
+
+		if l.Length == 0 || l.Car == nil {
+			return true
+		}
+	} else if other.Type() == types.Nil {
+		return true
+	}
+
+	return false
+} // func (n NilValue) Eq(other LispValue) bool
+
+// NIL is the canonical nil value. In theory, we could get away with just
+// having a single value.
+const NIL NilValue = 1
 
 // IntValue is an integer.
 // At this point, a signed, 64-bit integer is the only numeric type supported.
@@ -50,6 +93,22 @@ func (i IntValue) String() string {
 	return strconv.FormatInt(int64(i), 10)
 } // func (i IntValue) String() string
 
+// Bool returns the "truthiness" of a Lisp value.
+func (i IntValue) Bool() bool {
+	return true
+} // func (i IntValue) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (i IntValue) Eq(other LispValue) bool {
+	if other == nil {
+		return false
+	} else if other.Type() != types.Number {
+		return false
+	}
+
+	return i == other.(IntValue)
+} // func (i IntValue) Eq(other LispValue) bool
+
 // StringValue is a string. Strings are implemented in terms of Go strings, so
 // the same rules and restrictions apply: Strings are encoded in UTF-8 and
 // immutable.
@@ -65,6 +124,22 @@ func (s StringValue) Type() types.ID {
 func (s StringValue) String() string {
 	return `"` + string(s) + `"`
 } // func (s StringValue) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (s StringValue) Bool() bool {
+	return true
+} // func (s StringValue) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (s StringValue) Eq(other LispValue) bool {
+	if other == nil {
+		return false
+	} else if other.Type() != types.String {
+		return false
+	}
+
+	return s == other.(StringValue)
+} // func (s StringValue) Eq(other LispValue) bool
 
 // I am not sure if should represent symbols as plain strings.
 // But for now I cannot think of a good reason not to.
@@ -85,6 +160,37 @@ func (s Symbol) Type() types.ID {
 func (s Symbol) String() string {
 	return string(s)
 } // func (s Symbol) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (s Symbol) Bool() bool {
+	return s != "NIL"
+} // func (s Symbol) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (s Symbol) Eq(other LispValue) bool {
+	if other == nil {
+		return s == "NIL"
+	}
+
+	switch v := other.(type) {
+	case NilValue:
+		return s == "NIL"
+	case *List:
+		return (s == "NIL") && (v.Length == 0 || v.Car == nil)
+	case Symbol:
+		return s == v
+	default:
+		return false
+	}
+} // func (s Symbol) Eq(other LispValue) bool
+
+// IsKeyword returns true if the symbol gets special treatment by the
+// interpreter.
+// Usually, this is either because some primitives need to be implemented
+// outside Lisp, or because of efficiency considerations.
+func (s Symbol) IsKeyword() bool {
+	return s[0] == ':'
+} // func (s Symbol) IsKeyword() bool
 
 // ConsCell is a pair of two Lisp values, used mainly for constructing lists.
 type ConsCell struct {
@@ -117,7 +223,12 @@ func (s *ConsCell) String() string {
 	return fmt.Sprintf("(%s . %s)",
 		s1,
 		s2)
-} // func (s ConsCell) String() string
+} // func (s *ConsCell) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (s *ConsCell) Bool() bool {
+	return true
+} // func (s *ConsCell) Bool() bool
 
 // IsList returns true if the receiver is a proper list.
 // Semantically, this should work the same as listp in Common Lisp.
@@ -127,7 +238,7 @@ func (s *ConsCell) IsList() bool {
 	for cell != nil {
 		// I wonder what is more efficient - calling the Type method
 		// or using a type switch.
-		if cell.Cdr == nil {
+		if cell.Cdr == NIL || cell.Cdr == nil {
 			return true
 		} else if cell.Cdr.Type() != types.ConsCell {
 			return false
@@ -158,7 +269,7 @@ func (s *ConsCell) ActualLength() int {
 
 	for cell != nil {
 		cnt++
-		if cell.Cdr != nil {
+		if cell.Cdr != NIL {
 			switch v := cell.Cdr.(type) {
 			case *ConsCell:
 				cell = v
@@ -172,6 +283,23 @@ func (s *ConsCell) ActualLength() int {
 
 	return cnt
 } // func (s *ConsCell) ActualLength() int
+
+// Eq compares the receiver with the argument for identity.
+func (s *ConsCell) Eq(other LispValue) bool {
+	// Do I compare for equality (i.e. equivalent values) or identity?
+	// My first thought was to have Equal be the equivalent to Lisp's eq
+	// operator, which does compare for identity, except for integers and
+	// floats.
+	// ... I'll have this method be Eq, once I have implemented it for all types,
+	// I will rename it to Eq for clarity.
+	if other == nil {
+		return s == nil
+	} else if c, ok := other.(*ConsCell); ok && s == c {
+		return true
+	}
+
+	return false
+} // func (s *ConsCell) Eq(other LispValue) bool
 
 // List is ... well, a singly-linked list, the kind that is so common in Lisp
 // they named the language after it.
@@ -196,9 +324,9 @@ func (l *List) Type() types.ID {
 // String returns a string representation of the Lisp value.
 func (l *List) String() string {
 	if l == nil {
-		return "nil"
+		return "NIL"
 	} else if l.Car == nil {
-		return "nil"
+		return "NIL"
 	}
 
 	var elements = make([]string, l.Length)
@@ -209,10 +337,10 @@ func (l *List) String() string {
 		if cell.Car != nil {
 			elements[idx] = cell.Car.String()
 		} else {
-			elements[idx] = "nil"
+			elements[idx] = "NIL"
 		}
 
-		if cell.Cdr != nil {
+		if !(cell.Cdr == nil || cell.Cdr == NIL) {
 			cell = cell.Cdr.(*ConsCell)
 		} else {
 			cell = nil
@@ -221,6 +349,11 @@ func (l *List) String() string {
 
 	return "(" + strings.Join(elements, " ") + ")"
 } // func (l *List) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (l *List) Bool() bool {
+	return l.Car != nil
+} // func (l *List) Bool() bool
 
 // Cdr returns a new List instance that is the CDR of the receiver.
 func (l *List) Cdr() *List {
@@ -248,7 +381,7 @@ func (l *List) Push(v LispValue) *List {
 func (l *List) Pop() LispValue {
 	// XXX I should check for null-ness and such.
 	if l.Car == nil {
-		return nil
+		return NIL
 	}
 
 	var car = l.Car.Car
@@ -264,11 +397,35 @@ func (l *List) Pop() LispValue {
 	return car
 } // func (l *List) Pop() LispValue
 
+// IsLambda returns true if the given list is a lambda list.
+// This method recognizes any method as a lambda list whose
+// first element is the symbol lambda, and whose second element is a list.
+func (l *List) IsLambda() bool {
+	if l.Car == nil || l.Car.Car == nil {
+		return false
+	}
+
+	return l.Car.Car.Type() == types.Symbol &&
+		l.Car.Car.(Symbol) == Symbol("LAMBDA") &&
+		l.Car.Cdr.(*ConsCell).Car.Type() == types.List
+} // func (l *List) IsLambda() bool
+
+// Eq compares the receiver with the argument for identity.
+func (l *List) Eq(other LispValue) bool {
+	if other == nil {
+		return false
+	} else if other.Type() != types.List {
+		return false
+	}
+
+	return l.Car == other.(*List).Car
+} // func (l *List) Eq(other LispValue) bool
+
 // Eq return true if the receiver and the argument are the same, i.e. if both
 // lists' Car member points to the same ConsCell.
-func (l *List) Eq(other *List) bool {
-	return l.Car == other.Car
-} // func (l *List) Eq(other *List) bool
+// func (l *List) Eq(other *List) bool {
+// 	return l.Car == other.Car
+// } // func (l *List) Eq(other *List) bool
 
 // ActualLength counts the number of elements in the list and returns the
 // result. The main purpose is for debugging/testing, but it is also used
@@ -285,7 +442,7 @@ func (l *List) ActualLength() int {
 
 	for cell != nil {
 		cnt++
-		if cell.Cdr != nil {
+		if !(cell.Cdr == nil || cell.Cdr == NIL) {
 			cell = cell.Cdr.(*ConsCell)
 		} else {
 			cell = nil
@@ -296,3 +453,77 @@ func (l *List) ActualLength() int {
 
 	return cnt
 } // func (l *List) ActualLength() int
+
+// Nth returns the nth element of a List.
+func (l *List) Nth(n int) (LispValue, error) {
+	if l == nil {
+		return NIL, errors.New("Receiver is NIL")
+	}
+	if n < 0 || n >= l.Length {
+		return NIL, fmt.Errorf("Index is out of range: %d (valid: [0 - %d])",
+			n,
+			l.Length-1)
+	}
+
+	var elt = l.Car
+
+	for idx := 0; idx < n; idx++ {
+		elt = elt.Cdr.(*ConsCell)
+	}
+
+	return elt.Car, nil
+} // func (l *List) Nth(n int) (LispValue, error)
+
+// Function represents a Lisp function.
+// Technically, one could implement functions purely in terms of lists,
+// but for efficiency reasons - and functions are used a *lot* in Lisp,
+// obviously - they get their own type.
+type Function struct {
+	Env  *Environment
+	Args []Symbol
+	Body []LispValue
+}
+
+// Type returns the type ID of the value, in this case types.Function
+func (f *Function) Type() types.ID {
+	return types.Function
+} // func (f *Function) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (f *Function) String() string {
+	var out bytes.Buffer
+	var argCnt = len(f.Args)
+
+	out.WriteString("(lambda (")
+	for i := 0; i < argCnt; i++ {
+		out.WriteString(f.Args[i].String())
+		if i < argCnt-1 {
+			out.WriteString(" ")
+		}
+	}
+	out.WriteString(") ")
+
+	for _, exp := range f.Body {
+		out.WriteString(exp.String())
+		out.WriteString("\n")
+	}
+
+	out.WriteString(")")
+	return out.String()
+} // func (f *Function) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (f *Function) Bool() bool {
+	return true
+} // func (f *Function) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (f *Function) Eq(other LispValue) bool {
+	if other == nil {
+		return false
+	} else if v, ok := other.(*Function); ok && v == f {
+		return true
+	}
+
+	return false
+} // func (f *Function) Eq(other LispValue) bool

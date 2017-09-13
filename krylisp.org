@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-09-06 16:56:17 krylon>
+# Time-stamp: <2017-09-10 02:57:05 krylon>
 
 
 * kryLisp
@@ -21,3 +21,18 @@
     Doku einen guten Eindruck. Hat nur das Problem, das ich für die
     BNF-Dateien, die ich dafür schreiben muss, keine
     Syntax-Unterstützung von Emacs habe.
+*** Funktionen
+    [2017-09-10 So 02:53]
+    Ich habe nach einigem Nachdenken beschlossen, Funktionen einen
+    eigenen Datentypen zu geben, aber jetzt frage ich mich, an welcher
+    Stelle aus einer Liste eine Funktion wird.
+    Mein erster Gedanke war das im Parser unterzubringen, aber das
+    wird nichts.
+    Dann fiel mir ein, dass ich ja zumindest mittelfristig das Ziel
+    habe Makros in den Interpreter einzubauen, und damit die sinnvoll
+    sind, muss ich einmal am Anfang den AST abklappern und alle Makros
+    expandieren.
+    Bei der Gelegenheit könnte ich dann auch Lambda-Listen durch
+    Funktions-Objekte ersetzen.
+    Das klingt nach einer vernünftigen Idee. Womöglich kann ich auf
+    dem Wege auch ein paar Optimierungen einbauen? Irgendwann mal.

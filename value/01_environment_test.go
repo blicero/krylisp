@@ -2,12 +2,11 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 21:53:39 krylon>
+// Time-stamp: <2017-09-10 01:43:07 krylon>
 
-package interpreter
+package value
 
 import (
-	"krylisp/value"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
@@ -32,12 +31,12 @@ func TestFreshEnv(t *testing.T) {
 } // func TestFreshEnv(t *testing.T)
 
 func TestSet(t *testing.T) {
-	myEnv.Set("x", value.IntValue(10))
-	myEnv.Set("y", value.StringValue("Hallo, Welt"))
+	myEnv.Set("x", IntValue(10))
+	myEnv.Set("y", StringValue("Hallo, Welt"))
 
 	if v, ok := myEnv.Get("x"); !ok {
 		t.Fatalf("Could not find key \"x\" after I just set it to 10!")
-	} else if i, ok := v.(value.IntValue); !ok {
+	} else if i, ok := v.(IntValue); !ok {
 		t.Fatalf("Lookup of key \"x\" should have return an IntValue, not a %T (%s)",
 			v,
 			spew.Sdump(v))
@@ -48,7 +47,7 @@ func TestSet(t *testing.T) {
 
 	if v, ok := myEnv.Get("y"); !ok {
 		t.Fatalf("Could not find key \"y\" after I just set it")
-	} else if s, ok := v.(value.StringValue); !ok {
+	} else if s, ok := v.(StringValue); !ok {
 		t.Fatalf("Lookup of key \"y\" should have return a StringValue, not a %T (%s)",
 			v,
 			spew.Sdump(v))
@@ -63,7 +62,7 @@ func TestLookupChain(t *testing.T) {
 
 	if v, ok := child.Get("x"); !ok {
 		t.Fatalf("Could not find key \"x\" after I just set it to 10!")
-	} else if i, ok := v.(value.IntValue); !ok {
+	} else if i, ok := v.(IntValue); !ok {
 		t.Fatalf("Lookup of key \"x\" should have return an IntValue, not a %T (%s)",
 			v,
 			spew.Sdump(v))
@@ -74,7 +73,7 @@ func TestLookupChain(t *testing.T) {
 
 	if v, ok := child.Get("y"); !ok {
 		t.Fatalf("Could not find key \"y\" after I just set it")
-	} else if s, ok := v.(value.StringValue); !ok {
+	} else if s, ok := v.(StringValue); !ok {
 		t.Fatalf("Lookup of key \"y\" should have return a StringValue, not a %T (%s)",
 			v,
 			spew.Sdump(v))
@@ -87,17 +86,17 @@ func TestLookupChain(t *testing.T) {
 func TestSetChain(t *testing.T) {
 	var child = NewEnvironment(myEnv)
 
-	child.Set("x", value.IntValue(42))
+	child.Set("x", IntValue(42))
 
 	if _, ok := child.Data["x"]; ok {
 		t.Fatal("Binding should have been set in parent Environment, not in current")
 	}
 
-	child.Ins("x", value.IntValue(128))
+	child.Ins("x", IntValue(128))
 
 	if v, ok := child.Get("x"); !ok {
 		t.Fatal("After inserting new binding for \"x\", no binding for \"x\" was found")
-	} else if i, ok := v.(value.IntValue); !ok {
+	} else if i, ok := v.(IntValue); !ok {
 		t.Fatalf("Binding for \"x\" should be an IntValue, not a %T (%s)",
 			v,
 			spew.Sdump(v))
@@ -110,7 +109,7 @@ func TestSetChain(t *testing.T) {
 
 	if v, ok := child.Get("x"); !ok {
 		t.Fatal("After deleting new binding for \"x\", no binding for \"x\" was found")
-	} else if i, ok := v.(value.IntValue); !ok {
+	} else if i, ok := v.(IntValue); !ok {
 		t.Fatalf("Binding for \"x\" should be an IntValue, not a %T (%s)",
 			v,
 			spew.Sdump(v))

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 21:32:43 krylon>
+// Time-stamp: <2017-09-13 19:39:04 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -12,10 +12,392 @@
 // generating byte code?
 package interpreter
 
-import "krylisp/value"
+import (
+	"errors"
+	"fmt"
+	"krylib"
+	"krylisp/types"
+	"krylisp/value"
+)
+
+// specialSymbols refer to values or syntactic constructs that are defined in the
+// Interpreter itself, not in Lisp.
+var specialSymbols = map[string]bool{
+	"t":      true,
+	"nil":    true,
+	"+":      true,
+	"-":      true,
+	"*":      true,
+	"/":      true,
+	"defun":  true,
+	"if":     true,
+	"let":    true,
+	"do":     true,
+	"print":  true,
+	"cons":   true,
+	"car":    true,
+	"cdr":    true,
+	"set!":   true,
+	"define": true,
+	"goto":   true,
+}
+
+// IsSpecial returns true if the given symbols has special significance
+// to the Lisp Interpreter.
+func IsSpecial(s fmt.Stringer) bool {
+	_, ok := specialSymbols[s.String()]
+	return ok
+} // func IsSpecial(s value.Symbol) bool
 
 // Interpreter is my first shot at a tree-walking interpreter for my
 // toy Lisp dialect.
 type Interpreter struct {
-	program []value.LispValue
+	debug         bool
+	gensymCounter int
+	env           *value.Environment
+	fnEnv         *value.Environment
 }
+
+// Eval evaluates a Lisp value and returns the result.
+func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
+	switch v := lval.(type) {
+	case value.IntValue:
+		return v, nil
+	case value.StringValue:
+		return v, nil
+	case value.Symbol:
+		return inter.evalSymbol(v)
+	case *value.List:
+		if v.Car.Car.Type() == types.Symbol {
+			if IsSpecial(v.Car.Car.(value.Symbol)) {
+				return inter.evalSpecialForm(v)
+			}
+		}
+
+		return inter.evalFuncall(v)
+	default:
+		return nil, &TypeError{
+			expected: "Atom or List",
+			actual:   v.Type().String(),
+		}
+	}
+} // func (inter *Interpreter) Eval(v value.LispValue) (value.LispValue, error)
+
+func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error) {
+	//return nil, krylib.NotImplemented
+	var sym = l.Car.Car.(value.Symbol)
+
+	// This is going to be tedious...
+	switch sym {
+	case "IF":
+		return inter.evalIf(l)
+	case "+":
+		return inter.evalPlus(l)
+	case "-":
+		return inter.evalMinus(l)
+	case "*":
+		return inter.evalMultiply(l)
+	case "/":
+		return inter.evalDivide(l)
+	}
+
+	return nil, krylib.NotImplemented
+} // func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error) {
+	if s.IsKeyword() {
+		// Keyword symbols evaluate to themselves:
+		return s, nil
+	} else if s == "NIL" {
+		return s, nil
+	}
+
+	/*else if IsSpecial(s) {
+		// If we are evaluating just the symbol, an entire if-block or
+		// something, I am not sure I need any special rules.
+		return nil, krylib.NotImplemented
+	}*/
+
+	var v value.LispValue
+	var found bool
+
+	if v, found = inter.env.Get(string(s)); found {
+		return v, nil
+	}
+
+	return nil, &NoBindingError{sym: s}
+} // func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error)
+
+func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
+	if lst == nil || lst.Car == nil || lst.Car.Car == nil {
+		return nil, errors.New("Argument is not a lambda list")
+	} else if lst.Car.Car.Type() != types.Symbol || lst.Car.Car.(value.Symbol) != "LAMBDA" {
+		return nil, errors.New("Argument is not a lambda list")
+	} else if lst.Car.Cdr.(*value.ConsCell).Car.Type() != types.List {
+		return nil, errors.New("Second element in List should be a list (of arguments)")
+	}
+
+	var args = lst.Car.Cdr.(*value.ConsCell).Car.(*value.List)
+	var idx = 0
+
+	var fn = &value.Function{
+		Env:  inter.env,
+		Args: make([]value.Symbol, args.Length),
+	}
+
+	for symlist := args.Car; symlist != nil; symlist = symlist.Cdr.(*value.ConsCell) {
+		if symlist.Car.Type() != types.Symbol {
+			return nil, &TypeError{
+				expected: types.Symbol.String(),
+				actual:   symlist.Car.Type().String(),
+			}
+		}
+
+		var car = symlist.Car.(value.Symbol)
+
+		fn.Args[idx] = car
+		idx++
+	}
+
+	var body = lst.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
+	var len = body.ActualLength()
+	fn.Body = make([]value.LispValue, len)
+
+	idx = 0
+
+	for ; body != nil; body = body.Cdr.(*value.ConsCell) {
+		fn.Body[idx] = body.Car
+		idx++
+	}
+
+	return fn, nil
+} // func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error)
+
+// nolint: gocyclo
+func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) {
+	var fn *value.Function
+	var err error
+
+	if inv == nil || inv.Car == nil {
+		return nil, nil
+	}
+
+	// Sonntag, 10. 09. 2017, 18:55
+	// I need to handle lists, too. Scheme allows a lambda list at the first
+	// position. I would like to support that, too.
+	// One day...
+	switch f := inv.Car.Car.(type) {
+	case *value.Function:
+		fn = f
+	case value.Symbol:
+		if v, ok := inter.fnEnv.Get(string(f)); ok {
+			fn = v.(*value.Function)
+		} else {
+			return nil, MissingFunctionError(f)
+		}
+	case *value.List:
+		if f.IsLambda() {
+			if fn, err = inter.evalLambda(f); err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, &TypeError{
+				expected: "Lambda List",
+				actual:   "Not a Lambda List",
+			}
+		}
+	default:
+		return nil, &TypeError{
+			expected: "Symbol or function literal",
+			actual:   fmt.Sprintf("%T", f),
+		}
+	}
+
+	// So, if we arrive here, we have a function object, next we should
+	// check out the arguments.
+
+	var argList *value.ConsCell = inv.Car.Cdr.(*value.ConsCell)
+	var argCnt, idx int
+
+	if argCnt = argList.ActualLength(); argCnt != len(fn.Args) {
+		return nil, fmt.Errorf("Wrong number of arguments: Expected %d, got %d",
+			len(fn.Args),
+			argCnt)
+	}
+
+	var env = value.NewEnvironment(inter.env)
+
+	for ; argList != nil; argList = argList.Cdr.(*value.ConsCell) {
+		var sym = fn.Args[idx]
+		var val value.LispValue
+
+		if val, err = inter.Eval(argList.Car); err != nil {
+			return nil, err
+		}
+
+		env.Data[string(sym)] = val
+		idx++
+	}
+
+	// Once we have environment put together, it's just walking over the
+	// body and evaluating each element in turn, returning the value of the
+	// last element.
+
+	inter.env = env
+	var res value.LispValue
+
+	for _, exp := range fn.Body {
+		if res, err = inter.Eval(exp); err != nil {
+			return nil, err
+		}
+	}
+
+	inter.env = inter.env.Parent
+	return res, nil
+} // func (inter *Interpreter) evalFuncall(fun value.Function) (value.LispValue, errror)
+
+func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
+	if l.Length < 3 || l.Length > 4 {
+		return nil, SyntaxError(fmt.Sprintf("Invalid number of elements for IF-clause: %d (expected 3 or 4)", l.Length))
+	}
+
+	var cond = l.Car.Cdr.(*value.ConsCell).Car.Bool()
+
+	if cond {
+		return inter.Eval(l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car)
+	} else if l.Length == 4 {
+		return inter.Eval(l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car)
+	}
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
+	var cnt value.IntValue
+
+	for v := l.Car.Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
+		if v.(*value.ConsCell).Car == nil {
+			return nil, &TypeError{expected: "Number", actual: "nil"}
+		} else if v.(*value.ConsCell).Car.Type() != types.Number {
+			return nil, &TypeError{expected: "Number", actual: "nil"}
+		}
+
+		cnt += v.(*value.ConsCell).Car.(value.IntValue)
+	}
+
+	return cnt, nil
+} // func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
+	var cnt value.IntValue
+
+	if l.Length < 2 {
+		return nil, SyntaxError("Too few arguments für -")
+	} else if l.Length == 2 {
+		if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Number {
+			return nil, &TypeError{
+				expected: "Number",
+				actual:   l.Car.Cdr.(*value.ConsCell).Car.Type().String(),
+			}
+		}
+
+		return -(l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)), nil
+	}
+
+	cnt = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
+
+	for v := l.Car.Cdr.(*value.ConsCell).Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
+		if v.(*value.ConsCell).Car.Type() == types.Number {
+			cnt -= v.(*value.ConsCell).Car.(value.IntValue)
+		} else {
+			return nil, &TypeError{
+				expected: "Number",
+				actual:   v.(*value.ConsCell).Car.Type().String(),
+			}
+		}
+	}
+
+	return cnt, nil
+} // func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
+	if l.Length == 1 {
+		return value.IntValue(1), nil
+	} else if l.Length == 2 {
+		return l.Car.Cdr.(*value.ConsCell).Car, nil
+	}
+
+	var res = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
+
+	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
+		if v.Car.Type() == types.Number {
+			res *= v.Car.(value.IntValue)
+		} else {
+			return nil, &TypeError{
+				expected: "Number",
+				actual:   v.Car.Type().String(),
+			}
+		}
+	}
+
+	return res, nil
+} // func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
+	// Montag, 11. 09. 2017, 20:12
+	// In Common Lisp and Scheme, passing a single argument x returns
+	// 1/x, as a rational number. We do not support rational numbers, yet.
+	if l.Length < 3 {
+		return nil, SyntaxError("Too few arguments for division (need at least 2)")
+	}
+
+	var res = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
+
+	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
+		if v.Car.Type() == types.Number {
+			var n = v.Car.(value.IntValue)
+			if n != 0 {
+				res /= n
+			} else {
+				return nil, &ValueError{n}
+			}
+		} else {
+			return nil, &TypeError{
+				expected: "Number",
+				actual:   v.Car.Type().String(),
+			}
+		}
+	}
+
+	return res, nil
+} // func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
+	// (defun square (x) (* x x))
+	var fn *value.Function
+	var err error
+	var ok bool
+	var name value.Symbol
+	var val value.LispValue
+	var lambdaList = &value.List{
+		Car: &value.ConsCell{
+			Car: value.Symbol("LAMBDA"),
+			Cdr: l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell),
+		},
+		Length: l.Length - 1,
+	}
+
+	if val, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if name, ok = val.(value.Symbol); !ok {
+		return value.NIL, fmt.Errorf("First argument to defun must be a symbol, not a %T (%s)",
+			val.Type().String(),
+			val.String())
+	} else if fn, err = inter.evalLambda(lambdaList); err != nil {
+		return value.NIL, err
+	}
+
+	inter.fnEnv.Set(name.String(), fn)
+
+	return name, nil
+} // func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error)
