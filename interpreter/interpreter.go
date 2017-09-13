@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-13 19:39:04 krylon>
+// Time-stamp: <2017-09-13 21:06:41 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -292,7 +292,7 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	var cnt value.IntValue
 
 	if l.Length < 2 {
-		return nil, SyntaxError("Too few arguments für -")
+		return value.NIL, SyntaxError("Too few arguments for -")
 	} else if l.Length == 2 {
 		if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Number {
 			return nil, &TypeError{
@@ -332,8 +332,11 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
 		if v.Car.Type() == types.Number {
 			res *= v.Car.(value.IntValue)
+			if v.Cdr == nil {
+				break
+			}
 		} else {
-			return nil, &TypeError{
+			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v.Car.Type().String(),
 			}
