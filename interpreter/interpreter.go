@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-13 21:06:41 krylon>
+// Time-stamp: <2017-09-14 19:52:45 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -18,6 +18,8 @@ import (
 	"krylib"
 	"krylisp/types"
 	"krylisp/value"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // specialSymbols refer to values or syntactic constructs that are defined in the
@@ -88,6 +90,9 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 	var sym = l.Car.Car.(value.Symbol)
 
 	// This is going to be tedious...
+	// Maybe I should use a lookup table. As the number of special forms
+	// grows - and it WILL grow -, a switch might not be the most
+	// efficient solution.
 	switch sym {
 	case "IF":
 		return inter.evalIf(l)
@@ -99,6 +104,10 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalMultiply(l)
 	case "/":
 		return inter.evalDivide(l)
+	case "DEFUN":
+		return inter.evalDefun(l)
+	case "LAMBDA":
+		return inter.evalLambda(l)
 	}
 
 	return nil, krylib.NotImplemented
@@ -157,6 +166,10 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 
 		fn.Args[idx] = car
 		idx++
+
+		if symlist.Cdr == nil {
+			break
+		}
 	}
 
 	var body = lst.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
@@ -168,6 +181,9 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 	for ; body != nil; body = body.Cdr.(*value.ConsCell) {
 		fn.Body[idx] = body.Car
 		idx++
+		if body.Cdr == nil {
+			break
+		}
 	}
 
 	return fn, nil
@@ -237,6 +253,9 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 
 		env.Data[string(sym)] = val
 		idx++
+		if argList.Cdr == nil {
+			break
+		}
 	}
 
 	// Once we have environment put together, it's just walking over the
@@ -327,7 +346,24 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 		return l.Car.Cdr.(*value.ConsCell).Car, nil
 	}
 
-	var res = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
+	if inter.debug {
+		spew.Dump(l)
+	}
+
+	var err error
+	var resRaw value.LispValue
+	var res value.IntValue
+
+	if resRaw, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
+		return value.NIL, err
+	} else if resRaw.Type() == types.Number {
+		res = resRaw.(value.IntValue)
+	} else {
+		return value.NIL, &TypeError{
+			expected: "Number",
+			actual:   resRaw.Type().String(),
+		}
+	}
 
 	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
 		if v.Car.Type() == types.Number {
@@ -356,13 +392,18 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 
 	var res = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
 
-	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
+	for c := l.Car.Cdr.(*value.ConsCell).Cdr; c != nil; c = c.(*value.ConsCell).Cdr {
+		v := c.(*value.ConsCell)
 		if v.Car.Type() == types.Number {
 			var n = v.Car.(value.IntValue)
 			if n != 0 {
 				res /= n
 			} else {
 				return nil, &ValueError{n}
+			}
+
+			if v.Cdr == nil {
+				v = nil
 			}
 		} else {
 			return nil, &TypeError{
