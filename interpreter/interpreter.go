@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-14 19:52:45 krylon>
+// Time-stamp: <2017-09-15 19:18:40 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -25,23 +25,23 @@ import (
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
-	"t":      true,
-	"nil":    true,
+	"T":      true,
+	"NIL":    true,
 	"+":      true,
 	"-":      true,
 	"*":      true,
 	"/":      true,
-	"defun":  true,
-	"if":     true,
-	"let":    true,
-	"do":     true,
-	"print":  true,
-	"cons":   true,
-	"car":    true,
-	"cdr":    true,
-	"set!":   true,
-	"define": true,
-	"goto":   true,
+	"DEFUN":  true,
+	"IF":     true,
+	"LET":    true,
+	"DO":     true,
+	"PRINT":  true,
+	"CONS":   true,
+	"CAR":    true,
+	"CDR":    true,
+	"SET!":   true,
+	"DEFINE": true,
+	"GOTO":   true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -77,6 +77,16 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 		}
 
 		return inter.evalFuncall(v)
+	case value.Program:
+		var res value.LispValue
+		var err error
+		for _, clause := range v {
+			if res, err = inter.Eval(clause); err != nil {
+				return value.NIL, err
+			}
+		}
+
+		return res, nil
 	default:
 		return nil, &TypeError{
 			expected: "Atom or List",
@@ -366,15 +376,19 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 	}
 
 	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
-		if v.Car.Type() == types.Number {
-			res *= v.Car.(value.IntValue)
+		// Ich muss hier v.Car evaluieren!
+		var cval value.LispValue
+		if cval, err = inter.Eval(v.Car); err != nil {
+			return value.NIL, err
+		} else if cval.Type() == types.Number {
+			res *= cval.(value.IntValue)
 			if v.Cdr == nil {
 				break
 			}
 		} else {
 			return value.NIL, &TypeError{
 				expected: "Number",
-				actual:   v.Car.Type().String(),
+				actual:   cval.Type().String(),
 			}
 		}
 	}
@@ -418,11 +432,15 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 
 func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 	// (defun square (x) (* x x))
+	// Nah, that is not sufficient - in Common Lisp, a function can also
+	// have a documentation string.
+	// So I need to check if the third element of the list is a string.
 	var fn *value.Function
 	var err error
 	var ok bool
 	var name value.Symbol
 	var val value.LispValue
+	var docstring value.StringValue
 	var lambdaList = &value.List{
 		Car: &value.ConsCell{
 			Car: value.Symbol("LAMBDA"),
@@ -437,9 +455,16 @@ func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 		return value.NIL, fmt.Errorf("First argument to defun must be a symbol, not a %T (%s)",
 			val.Type().String(),
 			val.String())
-	} else if fn, err = inter.evalLambda(lambdaList); err != nil {
+	} else if val, err = l.Nth(2); val.Type() == types.String {
+		docstring = val.(value.StringValue)
+		lambdaList.Car.Cdr = lambdaList.Car.Cdr.(*value.ConsCell).Cdr
+	}
+
+	if fn, err = inter.evalLambda(lambdaList); err != nil {
 		return value.NIL, err
 	}
+
+	fn.DocString = docstring
 
 	inter.fnEnv.Set(name.String(), fn)
 

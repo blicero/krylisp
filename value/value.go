@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-13 19:25:29 krylon>
+// Time-stamp: <2017-09-15 18:54:20 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -479,9 +479,10 @@ func (l *List) Nth(n int) (LispValue, error) {
 // but for efficiency reasons - and functions are used a *lot* in Lisp,
 // obviously - they get their own type.
 type Function struct {
-	Env  *Environment
-	Args []Symbol
-	Body []LispValue
+	Env       *Environment
+	Args      []Symbol
+	Body      []LispValue
+	DocString StringValue
 }
 
 // Type returns the type ID of the value, in this case types.Function
@@ -527,3 +528,54 @@ func (f *Function) Eq(other LispValue) bool {
 
 	return false
 } // func (f *Function) Eq(other LispValue) bool
+
+// Program represents a sequence of lisp expressions.
+type Program []LispValue
+
+// Type returns the type ID of the value, in this case types.Program
+func (p Program) Type() types.ID {
+	return types.Program
+} // func (p Program) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (p Program) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(begin")
+
+	for _, clause := range p {
+		out.WriteString(fmt.Sprintf("\n\t%s", clause))
+	}
+
+	out.WriteString(")")
+
+	return out.String()
+} // func (p Program) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (p Program) Bool() bool {
+	return len(p) != 0
+} // func (p Program) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (p Program) Eq(other LispValue) bool {
+	if other == nil || other == NIL {
+		return false
+	} else if other.Type() != types.Program {
+		return false
+	}
+
+	var op = other.(Program)
+
+	if len(p) != len(op) {
+		return false
+	}
+
+	for i := 0; i < len(p); i++ {
+		if !p[i].Eq(op[i]) {
+			return false
+		}
+	}
+
+	return true
+} // func (p Program) Eq(other LispValue) bool

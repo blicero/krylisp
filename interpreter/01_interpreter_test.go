@@ -2,11 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-14 19:55:40 krylon>
+// Time-stamp: <2017-09-15 19:02:49 krylon>
 
 package interpreter
 
 import (
+	"fmt"
+	"krylisp/lexer"
+	"krylisp/parser"
 	"krylisp/value"
 	"os"
 	"testing"
@@ -514,6 +517,55 @@ func TestLambda(t *testing.T) {
 		}
 	}
 } // func TestLambda(t *testing.T)
+
+func TestDefun(t *testing.T) {
+	type testProgram struct {
+		source        string
+		expectedValue value.LispValue
+		expectedError bool
+	}
+	var testCases = []testProgram{
+		testProgram{
+			source: `
+(defun squared (x) (* x x))
+
+(squared 5)
+`,
+			expectedValue: value.IntValue(25),
+		},
+	}
+
+	for idx, test := range testCases {
+		fmt.Printf("Running DEFUN-test #%d\n",
+			idx+1)
+		var result interface{}
+		var prog value.Program //[]value.LispValue
+		var err error
+		var ok bool
+		var pars = parser.NewParser()
+		var lex = lexer.NewLexer([]byte(test.source))
+
+		if result, err = pars.Parse(lex); err != nil {
+			t.Fatalf("Error parsing test program: %s",
+				err.Error())
+		} else {
+			fmt.Printf("Parsed test program #%d successfully.\n",
+				idx+1)
+		}
+
+		if prog, ok = result.([]value.LispValue); !ok {
+			t.Fatalf("Parser did not return a program, but a %T", result)
+		} else if result, err = interp.Eval(prog); err != nil {
+			t.Fatalf("Error evaluating test program: %s",
+				err.Error())
+		} else if !test.expectedValue.Eq(result.(value.LispValue)) {
+			t.Fatalf("Unexpected return value from program: %s (expected %s)",
+				result,
+				test.expectedValue)
+		}
+
+	}
+} // func TestDefun(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 
