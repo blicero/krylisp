@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-10 01:40:31 krylon>
+// Time-stamp: <2017-09-15 21:05:18 krylon>
 
 package value
 
@@ -44,7 +44,7 @@ func (env *Environment) Get(key string) (LispValue, bool) {
 	}
 
 	return nil, false
-} // func (env *Environment) Get(key string) (LispValue, error)
+} // func (env *Environment) Get(key string) (LispValue, bool)
 
 // Set sets a key in the current environment.
 // If the key is found in the Environment or any of its parent Environments,

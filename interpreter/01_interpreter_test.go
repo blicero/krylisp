@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-15 19:02:49 krylon>
+// Time-stamp: <2017-09-16 14:27:02 krylon>
 
 package interpreter
 
@@ -519,8 +519,13 @@ func TestLambda(t *testing.T) {
 } // func TestLambda(t *testing.T)
 
 func TestDefun(t *testing.T) {
+	// I could/should add a function member to check for things that
+	// cannot be easily expressed otherwise, e.g. does the function show
+	// up in the environment, does the doc string have the expected
+	// value, etc.
 	type testProgram struct {
 		source        string
+		name          string
 		expectedValue value.LispValue
 		expectedError bool
 	}
@@ -532,6 +537,18 @@ func TestDefun(t *testing.T) {
 (squared 5)
 `,
 			expectedValue: value.IntValue(25),
+			name:          "SQUARED",
+		},
+		testProgram{
+			source: `
+(defun factorial (x) 
+    "Returns the factorial of x"
+    (if (eq x 1) 1 (* x (factorial (- x 1)))))
+
+(factorial 5)
+`,
+			name:          "FACTORIAL",
+			expectedValue: value.IntValue(120),
 		},
 	}
 
@@ -544,21 +561,39 @@ func TestDefun(t *testing.T) {
 		var ok bool
 		var pars = parser.NewParser()
 		var lex = lexer.NewLexer([]byte(test.source))
+		var fn *value.Function
+		var fnVal value.LispValue
 
 		if result, err = pars.Parse(lex); err != nil {
 			t.Fatalf("Error parsing test program: %s",
 				err.Error())
-		} else {
+		}
+
+		/*else {
 			fmt.Printf("Parsed test program #%d successfully.\n",
 				idx+1)
-		}
+		} */
 
 		if prog, ok = result.([]value.LispValue); !ok {
 			t.Fatalf("Parser did not return a program, but a %T", result)
 		} else if result, err = interp.Eval(prog); err != nil {
 			t.Fatalf("Error evaluating test program: %s",
 				err.Error())
-		} else if !test.expectedValue.Eq(result.(value.LispValue)) {
+		} else if fnVal, ok = interp.fnEnv.Get(test.name); !ok {
+			t.Fatalf("Did not find function %s in environment",
+				test.name)
+		} else if fnVal == nil {
+			t.Fatalf("Function %s is nil",
+				test.name)
+		} else {
+			fn = fnVal.(*value.Function)
+		}
+
+		fmt.Printf("#'%s => %s\n",
+			test.name,
+			fn.String())
+
+		if !test.expectedValue.Eq(result.(value.LispValue)) {
 			t.Fatalf("Unexpected return value from program: %s (expected %s)",
 				result,
 				test.expectedValue)
@@ -566,6 +601,63 @@ func TestDefun(t *testing.T) {
 
 	}
 } // func TestDefun(t *testing.T)
+
+func TestLT(t *testing.T) {
+	type testLT struct {
+		source        string
+		expectedValue value.LispValue
+		expectedError bool
+	}
+
+	var testCases = []testLT{
+		testLT{
+			source:        "(< 1 2 3 4 5)",
+			expectedValue: value.T,
+		},
+		testLT{
+			source:        "(< 3 2 1)",
+			expectedValue: value.NIL,
+		},
+		testLT{
+			source:        "(< 5 10)",
+			expectedValue: value.T,
+		},
+		testLT{
+			source:        "(< 25 10)",
+			expectedValue: value.NIL,
+		},
+	}
+
+	for _, test := range testCases {
+		var tree interface{}
+		var res value.LispValue
+		var err error
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.source))
+
+		if tree, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing expression %s: %s",
+				test.source,
+				err.Error())
+		}
+
+		if prog, ok = tree.([]value.LispValue); !ok {
+			t.Fatalf("Parser did not return a program, but a %T",
+				tree)
+		} else if res, err = interp.evalLessThan(prog[0].(*value.List)); err != nil {
+			t.Errorf("Error evaluating %s: %s",
+				test.source,
+				err.Error())
+		} else if !res.Eq(test.expectedValue) {
+			t.Errorf("Unexpected result from test: Expected %s, got %s",
+				test.expectedValue.String(),
+				res.String())
+		}
+
+	}
+}
 
 ///////////////////////////////////////////////////////////
 
