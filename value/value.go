@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-15 20:52:46 krylon>
+// Time-stamp: <2017-09-16 18:28:52 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -192,6 +192,12 @@ func (s Symbol) IsKeyword() bool {
 	return s[0] == ':'
 } // func (s Symbol) IsKeyword() bool
 
+// T is for truth.
+// In a boolean context, anything but NIL is considered "true", but
+// if a function wants to make a point of it, it return T to indicate something
+// to be true.
+// For compatibility with Common Lisp, T gets special treatment and evaluates
+// to itself.
 const T = Symbol("T")
 
 // ConsCell is a pair of two Lisp values, used mainly for constructing lists.

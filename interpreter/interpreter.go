@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-16 14:16:32 krylon>
+// Time-stamp: <2017-09-18 19:29:04 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -121,12 +121,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalDivide(l)
 	case "<":
 		return inter.evalLessThan(l)
-	// case ">":
-	// 	return inter.evalGreaterThan(l)
-	// case "<=":
-	// 	return inter.evalLessEqual(l)
-	// case ">=":
-	// 	return inter.evalGreaterEqual(l)
+	case ">":
+		return inter.evalGreaterThan(l)
+	case "<=":
+		return inter.evalLessEqual(l)
+	case ">=":
+		return inter.evalGreaterEqual(l)
 	case "DEFUN":
 		return inter.evalDefun(l)
 	case "LAMBDA":
@@ -657,3 +657,208 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 
 	return value.T, nil
 } // func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) {
+	if l.Length < 2 {
+		return value.NIL, SyntaxError("Too few arguments for <")
+	} else if l.Length == 2 {
+		return value.T, nil
+	}
+
+	var v1, v2, raw1, raw2 value.LispValue
+	var err error
+
+	raw1 = l.Car.Cdr.(*value.ConsCell).Car
+	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
+
+	if v1, err = inter.Eval(raw1); err != nil {
+		return value.NIL, err
+	} else if v2, err = inter.Eval(raw2); err != nil {
+		return value.NIL, err
+	} else if v1.Type() != types.Number {
+		return value.NIL, &TypeError{
+			expected: "Number",
+			actual:   v1.Type().String(),
+		}
+	} else if v2.Type() != types.Number {
+		return value.NIL, &TypeError{
+			expected: "Number",
+			actual:   v2.Type().String(),
+		}
+	} else if v1.(value.IntValue) > v2.(value.IntValue) {
+		return value.NIL, nil
+	} else if l.Length == 3 {
+		return value.T, nil
+	}
+
+	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
+		v1 = v2
+		raw2 = c.Car
+
+		if v2, err = inter.Eval(raw2); err != nil {
+			return value.NIL, err
+		} else if v2.Type() != types.Number {
+			return value.NIL, &TypeError{
+				expected: "Number",
+				actual:   v2.Type().String(),
+			}
+		} else if v1.(value.IntValue) > v2.(value.IntValue) {
+			return value.NIL, nil
+		} else if c.Cdr == nil {
+			break
+		}
+	}
+
+	return value.T, nil
+} // func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, error) {
+	if l.Length < 2 {
+		return value.NIL, SyntaxError("Too few arguments for <")
+	} else if l.Length == 2 {
+		return value.T, nil
+	}
+
+	var v1, v2, raw1, raw2 value.LispValue
+	var err error
+
+	raw1 = l.Car.Cdr.(*value.ConsCell).Car
+	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
+
+	if v1, err = inter.Eval(raw1); err != nil {
+		return value.NIL, err
+	} else if v2, err = inter.Eval(raw2); err != nil {
+		return value.NIL, err
+	} else if v1.Type() != types.Number {
+		return value.NIL, &TypeError{
+			expected: "Number",
+			actual:   v1.Type().String(),
+		}
+	} else if v2.Type() != types.Number {
+		return value.NIL, &TypeError{
+			expected: "Number",
+			actual:   v2.Type().String(),
+		}
+	} else if v1.(value.IntValue) < v2.(value.IntValue) {
+		return value.NIL, nil
+	} else if l.Length == 3 {
+		return value.T, nil
+	}
+
+	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
+		v1 = v2
+		raw2 = c.Car
+
+		if v2, err = inter.Eval(raw2); err != nil {
+			return value.NIL, err
+		} else if v2.Type() != types.Number {
+			return value.NIL, &TypeError{
+				expected: "Number",
+				actual:   v2.Type().String(),
+			}
+		} else if v1.(value.IntValue) < v2.(value.IntValue) {
+			return value.NIL, nil
+		} else if c.Cdr == nil {
+			break
+		}
+	}
+
+	return value.T, nil
+} // func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalCons(l *value.List) (value.LispValue, error) {
+	// Strictly speaking, I should check if the second value is nil.
+	// cons'ing some value to nil gives a list.
+	if l.Length != 3 {
+		return value.NIL, SyntaxError("CONS takes exactly TWO (2) arguments")
+	}
+
+	var raw1, raw2, val1, val2 value.LispValue
+	var err error
+
+	raw1, _ = l.Nth(1)
+	raw2, _ = l.Nth(2)
+
+	if val1, err = inter.Eval(raw1); err != nil {
+		return value.NIL, err
+	} else if val2, err = inter.Eval(raw2); err != nil {
+		return value.NIL, err
+	}
+
+	if val2 == nil || val2.Type() == types.Nil {
+		return &value.List{
+			Car: &value.ConsCell{
+				Car: val2,
+				Cdr: nil,
+			},
+			Length: 1,
+		}, nil
+	}
+
+	var cell = &value.ConsCell{
+		Car: val1,
+		Cdr: val2,
+	}
+
+	return cell, nil
+} // func (inter *Interpreter) evalCons(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
+	if l.Length < 2 {
+		return value.NIL, SyntaxError("Too few parameters for LET")
+	}
+
+	var bindings value.LispValue
+	var err error
+
+	if bindings, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if bindings.Type() != types.List {
+		return value.NIL, &TypeError{
+			expected: "List",
+			actual:   bindings.Type().String(),
+		}
+	}
+
+	var env = value.NewEnvironment(inter.env)
+
+	for v := bindings.(*value.List).Car; v != nil; v = v.Cdr.(*value.ConsCell) {
+		var symbol = v.Car.(*value.List).Car.Car
+		var rawValue = v.Car.(*value.List).Car.Cdr.(*value.ConsCell).Car
+		var val value.LispValue
+
+		if symbol.Type() != types.Symbol {
+			return value.NIL, &TypeError{
+				expected: "Symbol",
+				actual:   symbol.Type().String(),
+			}
+		} else if val, err = inter.Eval(rawValue); err != nil {
+			return value.NIL, err
+		}
+
+		env.Ins(string(symbol.(value.Symbol)), val)
+		if v.Cdr == nil {
+			break
+		}
+	}
+
+	var val value.LispValue
+	var expr *value.ConsCell
+
+	inter.env = env
+	defer func() { inter.env = inter.env.Parent }()
+
+	expr = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
+
+	for expr != nil {
+		if val, err = inter.Eval(expr.Car); err != nil {
+			return value.NIL, err
+		} else if expr.Cdr != nil {
+			break
+		}
+
+		expr = expr.Cdr.(*value.ConsCell)
+	}
+
+	return val, nil
+} // func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, errror)

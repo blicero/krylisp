@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-16 14:27:02 krylon>
+// Time-stamp: <2017-09-17 18:02:12 krylon>
 
 package interpreter
 
@@ -657,7 +657,15 @@ func TestLT(t *testing.T) {
 		}
 
 	}
-}
+} // func TestLT(t *testing.T)
+
+// func TestCons(t *testing.T) {
+// 	type testCons struct {
+// 		car value.LispValue
+// 		cdr value.LispValue
+
+// 	}
+// } // func TestCons(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 
