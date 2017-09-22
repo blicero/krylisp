@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-12 17:20:07 krylon>
+// Time-stamp: <2017-09-19 15:35:25 krylon>
 
 package interpreter
 
@@ -65,5 +65,5 @@ type SyntaxError string
 
 // Error returns the error message.
 func (se SyntaxError) Error() string {
-	return fmt.Sprintf("Invalid Syntax: %s", se)
+	return "Invalid syntax: " + string(se)
 } // func (se SyntaxError) Error() string

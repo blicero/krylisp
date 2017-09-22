@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-18 19:29:04 krylon>
+// Time-stamp: <2017-09-22 17:13:02 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -18,6 +18,8 @@ import (
 	"krylib"
 	"krylisp/types"
 	"krylisp/value"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // specialSymbols refer to values or syntactic constructs that are defined in the
@@ -45,6 +47,7 @@ var specialSymbols = map[string]bool{
 	"SET!":   true,
 	"DEFINE": true,
 	"GOTO":   true,
+	"QUOTE":  true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -65,6 +68,10 @@ type Interpreter struct {
 
 // Eval evaluates a Lisp value and returns the result.
 func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
+	if lval == nil {
+		return value.NIL, nil
+	}
+
 	switch v := lval.(type) {
 	case value.IntValue:
 		return v, nil
@@ -133,6 +140,19 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalLambda(l)
 	case "EQ":
 		return inter.evalEq(l)
+	case "QUOTE":
+		var retval value.LispValue
+		if l.Car.Cdr.Type() == types.ConsCell {
+			retval = l.Car.Cdr.(*value.ConsCell).Car
+		} else if l.Car.Cdr.Type() == types.List {
+			retval = l.Car.Cdr.(*value.List).Car
+		}
+		//= l.Car.Cdr.(*value.ConsCell).Car
+		var str = spew.Sdump(retval)
+		fmt.Printf("EVAL (QUOTE %s) => %s\n",
+			str,
+			str)
+		return retval, nil
 	}
 
 	return nil, krylib.NotImplemented
@@ -769,6 +789,7 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 func (inter *Interpreter) evalCons(l *value.List) (value.LispValue, error) {
 	// Strictly speaking, I should check if the second value is nil.
 	// cons'ing some value to nil gives a list.
+	// Also, consing to a list should return another list.
 	if l.Length != 3 {
 		return value.NIL, SyntaxError("CONS takes exactly TWO (2) arguments")
 	}
@@ -779,6 +800,13 @@ func (inter *Interpreter) evalCons(l *value.List) (value.LispValue, error) {
 	raw1, _ = l.Nth(1)
 	raw2, _ = l.Nth(2)
 
+	fmt.Printf("EVAL (CONS %s %s)\n",
+		spew.Sdump(raw1),
+		spew.Sdump(raw2))
+
+	// raw1 = l.Car.Cdr.(*value.ConsCell).Car
+	// raw2 = l.Car.Cdr.(*value.ConsCell).Cdr
+
 	if val1, err = inter.Eval(raw1); err != nil {
 		return value.NIL, err
 	} else if val2, err = inter.Eval(raw2); err != nil {
@@ -788,10 +816,18 @@ func (inter *Interpreter) evalCons(l *value.List) (value.LispValue, error) {
 	if val2 == nil || val2.Type() == types.Nil {
 		return &value.List{
 			Car: &value.ConsCell{
-				Car: val2,
+				Car: val1,
 				Cdr: nil,
 			},
 			Length: 1,
+		}, nil
+	} else if val2.Type() == types.List {
+		return &value.List{
+			Car: &value.ConsCell{
+				Car: val1,
+				Cdr: l.Car,
+			},
+			Length: l.Length + 1,
 		}, nil
 	}
 

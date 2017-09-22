@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-16 18:28:52 krylon>
+// Time-stamp: <2017-09-22 17:10:38 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -216,14 +216,14 @@ func (s *ConsCell) Type() types.ID {
 func (s *ConsCell) String() string {
 	var s1, s2 string
 
-	if s.Car == nil {
-		s1 = "nil"
+	if s.Car == nil || s.Car == NIL {
+		s1 = "NIL"
 	} else {
 		s1 = s.Car.String()
 	}
 
-	if s.Cdr == nil {
-		s2 = "nil"
+	if s.Cdr == nil || s.Cdr == NIL {
+		s2 = "NIL"
 	} else {
 		s2 = s.Cdr.String()
 	}
@@ -251,9 +251,12 @@ func (s *ConsCell) IsList() bool {
 		} else if cell.Cdr.Type() != types.ConsCell {
 			return false
 		} else {
+			var ok bool
 			// fmt.Println(spew.Sdump(cell.Cdr))
 			// fmt.Printf("Type of CDR is %s\n", cell.Cdr.Type().String())
-			cell = cell.Cdr.(*ConsCell)
+			if cell, ok = cell.Cdr.(*ConsCell); !ok {
+				cell = nil
+			}
 		}
 	}
 
@@ -337,11 +340,20 @@ func (l *List) String() string {
 		return "NIL"
 	}
 
+	// spew.Dump(l)
+
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("Error converting list to string: %s\n",
+				err)
+		}
+	}()
+
 	var elements = make([]string, l.Length)
 	var idx = 0
-	var cell = l.Car
+	//var cell = l.Car
 
-	for ; cell != nil; idx++ {
+	for cell := l.Car; cell != nil; idx++ {
 		if cell.Car != nil {
 			elements[idx] = cell.Car.String()
 		} else {
@@ -349,7 +361,12 @@ func (l *List) String() string {
 		}
 
 		if !(cell.Cdr == nil || cell.Cdr == NIL) {
-			cell = cell.Cdr.(*ConsCell)
+			var ok bool
+			if cell, ok = cell.Cdr.(*ConsCell); !ok {
+				// elements[idx+1] = cell.Cdr.String()
+				elements = elements[:idx]
+				break
+			}
 		} else {
 			cell = nil
 		}
@@ -476,7 +493,11 @@ func (l *List) Nth(n int) (LispValue, error) {
 	var elt = l.Car
 
 	for idx := 0; idx < n; idx++ {
-		elt = elt.Cdr.(*ConsCell)
+		if elt.Cdr.Type() == types.ConsCell {
+			elt = elt.Cdr.(*ConsCell)
+		} else {
+			return NIL, errors.New("Not a proper list")
+		}
 	}
 
 	return elt.Car, nil

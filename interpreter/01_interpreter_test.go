@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-17 18:02:12 krylon>
+// Time-stamp: <2017-09-22 17:15:36 krylon>
 
 package interpreter
 
@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"krylisp/lexer"
 	"krylisp/parser"
+	"krylisp/types"
 	"krylisp/value"
 	"os"
 	"testing"
@@ -659,13 +660,103 @@ func TestLT(t *testing.T) {
 	}
 } // func TestLT(t *testing.T)
 
-// func TestCons(t *testing.T) {
-// 	type testCons struct {
-// 		car value.LispValue
-// 		cdr value.LispValue
+func TestCons(t *testing.T) {
+	type testCons struct {
+		car            value.LispValue
+		cdr            value.LispValue
+		length         int
+		expectedResult string
+		expectedType   types.ID
+	}
 
-// 	}
-// } // func TestCons(t *testing.T)
+	// Freitag, 22. 09. 2017, 17:14
+	// I keep getting weird errors, I think I should write the input as
+	// strings and then parse them.
+	// Constructing even mildly complex Lisp data as structures is way
+	// too complicated and error-prone. :(
+
+	var testCases = []testCons{
+		testCons{
+			car: value.IntValue(1),
+			cdr: &value.ConsCell{
+				Car: value.StringValue("Peter"),
+				Cdr: nil,
+			},
+			expectedResult: `(1 . "Peter")`,
+			expectedType:   types.ConsCell,
+		},
+		testCons{
+			car: value.IntValue(1),
+			cdr: &value.ConsCell{
+				Car: value.NIL,
+				Cdr: nil,
+			},
+			expectedResult: "(1)",
+			expectedType:   types.List,
+		},
+		testCons{
+			car: value.IntValue(1),
+			cdr: &value.ConsCell{
+				Car: &value.List{
+					Length: 2,
+					Car: &value.ConsCell{
+						Car: value.Symbol("QUOTE"),
+						Cdr: &value.ConsCell{
+							Car: &value.List{
+								Length: 2,
+								Car: &value.ConsCell{
+									Car: value.IntValue(2),
+									Cdr: &value.ConsCell{
+										Car: value.IntValue(3),
+										Cdr: nil,
+									},
+								},
+							},
+							Cdr: nil,
+						},
+					},
+				},
+			},
+			expectedResult: "(1 2 3)",
+			expectedType:   types.List,
+		},
+	}
+
+	for _, test := range testCases {
+		var consed value.LispValue
+		var err error
+		var result string
+
+		var l = &value.List{
+			Car: &value.ConsCell{
+				Car: value.Symbol("CONS"),
+				Cdr: &value.ConsCell{
+					Car: test.car,
+					Cdr: test.cdr,
+				},
+			},
+			Length: 3, // test.length,
+		}
+
+		fmt.Printf(">>> %s\n", spew.Sdump(l))
+
+		if consed, err = interp.evalCons(l); err != nil {
+			t.Errorf("Error evaluating CONS expression: %s",
+				err.Error())
+		} else if consed == nil {
+			t.Errorf("evalCons(%s) did not return an error, but no value, either",
+				l.String())
+		} else if consed.Type() != test.expectedType {
+			t.Errorf("Unexpected return type from evalCons: %s (expected %s)",
+				consed.Type().String(),
+				test.expectedType.String())
+		} else if result = consed.String(); result != test.expectedResult {
+			t.Errorf("Bad result: Expected %s, got %s",
+				test.expectedResult,
+				result)
+		}
+	}
+} // func TestCons(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 

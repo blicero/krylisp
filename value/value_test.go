@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-13 19:26:16 krylon>
+// Time-stamp: <2017-09-22 17:06:50 krylon>
 
 package value
 
@@ -64,7 +64,7 @@ func TestString(t *testing.T) {
 		},
 		testValue{
 			&ConsCell{IntValue(64), nil},
-			"(64 . nil)",
+			"(64 . NIL)",
 		},
 	}
 
