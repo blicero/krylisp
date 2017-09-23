@@ -2,9 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-15 21:05:18 krylon>
+// Time-stamp: <2017-09-23 13:55:00 krylon>
 
 package value
+
+import (
+	"fmt"
+	"io"
+)
 
 // Environment represents the set of bindings reachable in the current scope.
 // And environment has an (optional) parent which is used for lexical scoping.
@@ -106,3 +111,25 @@ func (env *Environment) SetMultiple(data map[string]LispValue) *Environment {
 
 	return env
 } // func (env *Environment) SetMultiple(data map[string]LispValue) *Environment
+
+func (env *Environment) Dump(out io.Writer) {
+	fmt.Fprintf(out, "Environment Level %d {", env.Level)
+
+	for sym, val := range env.Data {
+		var vstr string
+		if val == nil {
+			vstr = "[nil]"
+		} else {
+			vstr = val.String()
+		}
+		fmt.Fprintf(out, "\n\t%s => %s",
+			sym,
+			vstr)
+	}
+
+	fmt.Fprintln(out, "\n}")
+
+	if env.Parent != nil {
+		env.Parent.Dump(out)
+	}
+} // func (env *Environment) Dump(out io.Writer)

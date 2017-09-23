@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-19 15:35:25 krylon>
+// Time-stamp: <2017-09-23 14:04:10 krylon>
 
 package interpreter
 
@@ -40,7 +40,7 @@ type TypeError struct {
 
 // Error returns the error message.
 func (te *TypeError) Error() string {
-	return fmt.Sprintf("Type %s it not allowed (expected %s)",
+	return fmt.Sprintf("Type %s is not allowed (expected %s)",
 		te.actual,
 		te.expected)
 } // func (te *TypeError) Error() string

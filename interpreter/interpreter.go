@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 13:25:59 krylon>
+// Time-stamp: <2017-09-23 14:20:56 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -18,6 +18,9 @@ import (
 	"krylib"
 	"krylisp/types"
 	"krylisp/value"
+	"os"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // specialSymbols refer to values or syntactic constructs that are defined in the
@@ -332,14 +335,27 @@ func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 	var cnt value.IntValue
 
+	if inter.debug {
+		fmt.Println(l.String())
+		spew.Dump(l)
+	}
+
 	for v := l.Car.Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
+		var val value.LispValue
+		var err error
+
 		if v.(*value.ConsCell).Car == nil {
 			return nil, &TypeError{expected: "Number", actual: "nil"}
-		} else if v.(*value.ConsCell).Car.Type() != types.Number {
-			return nil, &TypeError{expected: "Number", actual: "nil"}
+		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
+			return nil, err
+		} else if val.Type() != types.Number {
+			return nil, &TypeError{
+				expected: "Number",
+				actual:   val.Type().String(),
+			}
 		}
 
-		cnt += v.(*value.ConsCell).Car.(value.IntValue)
+		cnt += val.(value.IntValue)
 	}
 
 	return cnt, nil
@@ -818,6 +834,10 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 		return value.NIL, SyntaxError("Too few parameters for LET")
 	}
 
+	if inter.debug {
+		spew.Dump(l)
+	}
+
 	var bindings value.LispValue
 	var err error
 
@@ -837,6 +857,11 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 		var rawValue = v.Car.(*value.List).Car.Cdr.(*value.ConsCell).Car
 		var val value.LispValue
 
+		if inter.debug {
+			fmt.Printf("LET-form: evaluate binding %s\n",
+				spew.Sdump(v.Car))
+		}
+
 		if symbol.Type() != types.Symbol {
 			return value.NIL, &TypeError{
 				expected: "Symbol",
@@ -852,6 +877,10 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 		}
 	}
 
+	if inter.debug {
+		env.Dump(os.Stdout)
+	}
+
 	var val value.LispValue
 	var expr *value.ConsCell
 
@@ -864,10 +893,10 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 		if val, err = inter.Eval(expr.Car); err != nil {
 			return value.NIL, err
 		} else if expr.Cdr != nil {
-			break
+			expr = expr.Cdr.(*value.ConsCell)
+		} else {
+			expr = nil
 		}
-
-		expr = expr.Cdr.(*value.ConsCell)
 	}
 
 	return val, nil

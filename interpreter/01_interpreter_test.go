@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 13:03:57 krylon>
+// Time-stamp: <2017-09-23 13:44:13 krylon>
 
 package interpreter
 
@@ -724,6 +724,67 @@ func TestCons(t *testing.T) {
 		}
 	}
 } // func TestCons(t *testing.T)
+
+func TestLet(t *testing.T) {
+	type letTest struct {
+		outerEnv      *value.Environment
+		input         string
+		expectedType  types.ID
+		expectedValue string
+	}
+
+	var testCases = []letTest{
+		letTest{
+			outerEnv: &value.Environment{
+				Data: map[string]value.LispValue{
+					"X": value.IntValue(5),
+				},
+			},
+			input:         "(let ((x 1)) (+ x x))",
+			expectedType:  types.Number,
+			expectedValue: "2",
+		},
+	}
+
+	var oldEnv = interp.env
+	defer func() { interp.env = oldEnv }()
+
+	for _, test := range testCases {
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var res value.LispValue
+		var resstr string
+		var err error
+
+		interp.env = test.outerEnv
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected type: %T (expected value.Program)",
+				parsed)
+		} else if res, err = interp.evalLet(prog[0].(*value.List)); err != nil {
+			t.Errorf("Error evaluating let-form %s: %s",
+				test.input,
+				err.Error())
+		} else if res.Type() != test.expectedType {
+			t.Errorf("%s evaluates to unexpected type: %s (expected %s)",
+				test.input,
+				res.Type().String(),
+				test.expectedType.String())
+		} else if resstr = res.String(); resstr != test.expectedValue {
+			t.Errorf("%s evaluates to unexpected value %s (expected %s)",
+				test.input,
+				resstr,
+				test.expectedValue)
+		}
+	}
+} // func TestLet(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 
