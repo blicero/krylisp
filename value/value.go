@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-22 17:10:38 krylon>
+// Time-stamp: <2017-09-23 12:57:10 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -372,7 +372,8 @@ func (l *List) String() string {
 		}
 	}
 
-	return "(" + strings.Join(elements, " ") + ")"
+	//return "(" + strings.Join(elements, " ") + ")"
+	return fmt.Sprintf("(%s)", strings.Join(elements, " "))
 } // func (l *List) String() string
 
 // Bool returns the "truthiness" of a Lisp value.

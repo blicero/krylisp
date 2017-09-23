@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-22 17:15:36 krylon>
+// Time-stamp: <2017-09-23 13:03:57 krylon>
 
 package interpreter
 
@@ -662,9 +662,7 @@ func TestLT(t *testing.T) {
 
 func TestCons(t *testing.T) {
 	type testCons struct {
-		car            value.LispValue
-		cdr            value.LispValue
-		length         int
+		input          string
 		expectedResult string
 		expectedType   types.ID
 	}
@@ -677,83 +675,52 @@ func TestCons(t *testing.T) {
 
 	var testCases = []testCons{
 		testCons{
-			car: value.IntValue(1),
-			cdr: &value.ConsCell{
-				Car: value.StringValue("Peter"),
-				Cdr: nil,
-			},
+			input:          `(cons 1 "Peter")`,
 			expectedResult: `(1 . "Peter")`,
 			expectedType:   types.ConsCell,
 		},
 		testCons{
-			car: value.IntValue(1),
-			cdr: &value.ConsCell{
-				Car: value.NIL,
-				Cdr: nil,
-			},
-			expectedResult: "(1)",
+			input:          `(cons 1 (quote (2 3)))`,
+			expectedResult: `(1 2 3)`,
 			expectedType:   types.List,
 		},
 		testCons{
-			car: value.IntValue(1),
-			cdr: &value.ConsCell{
-				Car: &value.List{
-					Length: 2,
-					Car: &value.ConsCell{
-						Car: value.Symbol("QUOTE"),
-						Cdr: &value.ConsCell{
-							Car: &value.List{
-								Length: 2,
-								Car: &value.ConsCell{
-									Car: value.IntValue(2),
-									Cdr: &value.ConsCell{
-										Car: value.IntValue(3),
-										Cdr: nil,
-									},
-								},
-							},
-							Cdr: nil,
-						},
-					},
-				},
-			},
-			expectedResult: "(1 2 3)",
+			input:          `(cons 1 nil)`,
+			expectedResult: "(1)",
 			expectedType:   types.List,
 		},
 	}
 
 	for _, test := range testCases {
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
 		var consed value.LispValue
 		var err error
 		var result string
 
-		var l = &value.List{
-			Car: &value.ConsCell{
-				Car: value.Symbol("CONS"),
-				Cdr: &value.ConsCell{
-					Car: test.car,
-					Cdr: test.cdr,
-				},
-			},
-			Length: 3, // test.length,
-		}
-
-		fmt.Printf(">>> %s\n", spew.Sdump(l))
-
-		if consed, err = interp.evalCons(l); err != nil {
-			t.Errorf("Error evaluating CONS expression: %s",
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing input %s: %s",
+				test.input,
 				err.Error())
-		} else if consed == nil {
-			t.Errorf("evalCons(%s) did not return an error, but no value, either",
-				l.String())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected type: %T (expected value.Program)",
+				parsed)
+		} else if consed, err = interp.evalCons(prog[0].(*value.List)); err != nil {
+			t.Errorf("Error evaluating cons-expression %s: %s",
+				test.input,
+				err.Error())
 		} else if consed.Type() != test.expectedType {
-			t.Errorf("Unexpected return type from evalCons: %s (expected %s)",
-				consed.Type().String(),
-				test.expectedType.String())
+			t.Errorf("Unexpected type returned from evalCons: %s (expected %s)",
+				consed.Type(),
+				test.expectedType)
 		} else if result = consed.String(); result != test.expectedResult {
-			t.Errorf("Bad result: Expected %s, got %s",
-				test.expectedResult,
-				result)
+			t.Errorf("Unexpected result from %s: %s -- Expected %s",
+				test.input,
+				result,
+				test.expectedResult)
 		}
 	}
 } // func TestCons(t *testing.T)
@@ -761,6 +728,7 @@ func TestCons(t *testing.T) {
 ///////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
+	spew.Config.DisableMethods = true
 	interp = &Interpreter{
 		debug: true,
 		env:   value.NewEnvironment(nil),
