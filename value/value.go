@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 12:57:10 krylon>
+// Time-stamp: <2017-09-23 14:38:45 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -266,6 +266,17 @@ func (s *ConsCell) IsList() bool {
 	// aus denen ich um C++ nach Kräften einen Bogen mache.
 	return true
 } // func (s *ConsCell) IsList() bool
+
+// Next returns the next ConsCell in a chain, or nil if there is none.
+func (s *ConsCell) Next() *ConsCell {
+	if s.Cdr == nil {
+		return nil
+	} else if s.Cdr.Type() != types.ConsCell {
+		return nil
+	} else {
+		return s.Cdr.(*ConsCell)
+	}
+} // func (s *ConsCell) Next() *ConsCell
 
 // ActualLength returns the length of a cons'ed structure.
 func (s *ConsCell) ActualLength() int {

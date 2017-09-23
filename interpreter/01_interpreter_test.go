@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 13:44:13 krylon>
+// Time-stamp: <2017-09-23 17:14:15 krylon>
 
 package interpreter
 
@@ -785,6 +785,176 @@ func TestLet(t *testing.T) {
 		}
 	}
 } // func TestLet(t *testing.T)
+
+func TestNot(t *testing.T) {
+	type notTest struct {
+		input          string
+		expectedResult value.LispValue
+	}
+
+	var testCases = []notTest{
+		notTest{
+			input:          "(not nil)",
+			expectedResult: value.T,
+		},
+		notTest{
+			input:          "(not 3)",
+			expectedResult: value.NIL,
+		},
+		notTest{
+			input:          "(not (not nil))",
+			expectedResult: value.NIL,
+		},
+	}
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var val value.LispValue
+		var err error
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected type: %T",
+				parsed)
+		} else if val, err = interp.evalNot(prog[0].(*value.List)); err != nil {
+			t.Errorf("Error evaluating %s: %s",
+				test.input,
+				err.Error())
+		} else if !test.expectedResult.Eq(val) {
+			t.Errorf("Unexpected result from evaluating %s: %s [ expected %s ]",
+				test.input,
+				val,
+				test.expectedResult)
+		}
+	}
+} // func TestNot(t *testing.T)
+
+func TestAnd(t *testing.T) {
+	type andTest struct {
+		input          string
+		expectedResult string
+	}
+
+	var testCases = []andTest{
+		andTest{
+			input:          "(and)",
+			expectedResult: "T",
+		},
+		andTest{
+			input:          "(and 1)",
+			expectedResult: "1",
+		},
+		andTest{
+			input:          "(and 1 2 3 4 5)",
+			expectedResult: "5",
+		},
+		andTest{
+			input:          "(and 1 2 nil 4 5)",
+			expectedResult: "NIL",
+		},
+	}
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var val value.LispValue
+		var err error
+		var res string
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.evalAnd(prog[0].(*value.List)); err != nil {
+			t.Errorf("Error evaluating AND-form %s: %s",
+				test.input,
+				err.Error())
+		} else if val == nil {
+			t.Errorf("%s was unexpectedly evaluated as nil",
+				test.input)
+		} else if res = val.String(); res != test.expectedResult {
+			t.Errorf("Unexpected result from %s: Expected %s / Actual %s",
+				test.input,
+				test.expectedResult,
+				res)
+		}
+	}
+} // func TestAnd(t *testing.T)
+
+func TestOr(t *testing.T) {
+	type orTest struct {
+		input          string
+		expectedResult string
+	}
+
+	var testCases = []orTest{
+		orTest{
+			input:          "(or)",
+			expectedResult: "NIL",
+		},
+		orTest{
+			input:          "(or 1)",
+			expectedResult: "1",
+		},
+		orTest{
+			input:          "(or 1 2 3 4 5)",
+			expectedResult: "1",
+		},
+		orTest{
+			input:          "(or 1 2 nil 4 5)",
+			expectedResult: "1",
+		},
+		orTest{
+			input:          "(or nil (not (not nil)))",
+			expectedResult: "NIL",
+		},
+	}
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var val value.LispValue
+		var err error
+		var res string
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.evalOr(prog[0].(*value.List)); err != nil {
+			t.Errorf("Error evaluating AND-form %s: %s",
+				test.input,
+				err.Error())
+		} else if val == nil {
+			t.Errorf("%s was unexpectedly evaluated as nil",
+				test.input)
+		} else if res = val.String(); res != test.expectedResult {
+			t.Errorf("Unexpected result from %s: Expected %s / Actual %s",
+				test.input,
+				test.expectedResult,
+				res)
+		}
+	}
+} // func TestOr(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 

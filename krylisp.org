@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-09-10 02:57:05 krylon>
+# Time-stamp: <2017-09-23 14:23:49 krylon>
 
 
 * kryLisp
@@ -36,3 +36,8 @@
     Funktions-Objekte ersetzen.
     Das klingt nach einer vernünftigen Idee. Womöglich kann ich auf
     dem Wege auch ein paar Optimierungen einbauen? Irgendwann mal.
+** Interpreter
+*** [2017-09-23 Sa 14:22]
+    Allmählich nähert sich der Interpreter dem Punkt, an dem er auf
+    der theoretischen, abstrakten Ebene halbwegs vollständig ist.
+    Ein bisschen boolsche Logik brauche ich noch.

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 14:20:56 krylon>
+// Time-stamp: <2017-09-23 16:05:29 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -49,6 +49,9 @@ var specialSymbols = map[string]bool{
 	"DEFINE": true,
 	"GOTO":   true,
 	"QUOTE":  true,
+	"NOT":    true,
+	"AND":    true,
+	"OR":     true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -109,7 +112,6 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 } // func (inter *Interpreter) Eval(v value.LispValue) (value.LispValue, error)
 
 func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error) {
-	//return nil, krylib.NotImplemented
 	var sym = l.Car.Car.(value.Symbol)
 
 	// This is going to be tedious...
@@ -149,6 +151,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 			retval = l.Car.Cdr.(*value.List).Car
 		}
 		return retval, nil
+	case "NOT":
+		return inter.evalNot(l)
+	case "AND":
+		return inter.evalAnd(l)
+	case "OR":
+		return inter.evalOr(l)
 	}
 
 	return nil, krylib.NotImplemented
@@ -900,4 +908,65 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 	}
 
 	return val, nil
-} // func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, errror)
+} // func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalNot(l *value.List) (value.LispValue, error) {
+	var val value.LispValue
+	var err error
+
+	if l.Length != 2 {
+		return value.NIL, SyntaxError("Wrong number of arguments for NOT")
+	} else if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
+		return nil, err
+	} else if value.IsNil(val) {
+		return value.T, nil
+	} else if val.Bool() {
+		return value.NIL, nil
+	} else {
+		return value.T, nil
+	}
+} // func (inter *Interpreter) evalNot(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalAnd(l *value.List) (value.LispValue, error) {
+	var err error
+	var val value.LispValue
+
+	// (and) evaluates to true, both in Common Lisp and in Scheme
+	if l.Car == nil || l.Length == 1 {
+		return value.T, nil
+	}
+
+	for cell := l.Car.Cdr.(*value.ConsCell); cell != nil; cell = cell.Next() {
+		if value.IsNil(cell.Car) {
+			return value.NIL, nil
+		}
+
+		if val, err = inter.Eval(cell.Car); err != nil {
+			return nil, err
+		} else if !val.Bool() {
+			return value.NIL, nil
+		}
+	}
+
+	return val, nil
+} // func (inter *Interpreter) evalAnd(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalOr(l *value.List) (value.LispValue, error) {
+	var err error
+	var val value.LispValue
+
+	// (or) evaluates to false, both in Common Lisp and in Scheme
+	if l.Car == nil || l.Length == 1 {
+		return value.NIL, nil
+	}
+
+	for cell := l.Car.Cdr.(*value.ConsCell); cell != nil; cell = cell.Next() {
+		if val, err = inter.Eval(cell.Car); err != nil {
+			return nil, err
+		} else if val.Bool() {
+			return val, nil
+		}
+	}
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalOr(l *value.List) (value.LispValue, error)

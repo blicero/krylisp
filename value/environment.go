@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 13:55:00 krylon>
+// Time-stamp: <2017-09-23 14:38:24 krylon>
 
 package value
 
@@ -112,6 +112,7 @@ func (env *Environment) SetMultiple(data map[string]LispValue) *Environment {
 	return env
 } // func (env *Environment) SetMultiple(data map[string]LispValue) *Environment
 
+// Dump writes a string representation of the environment to the given io.Writer
 func (env *Environment) Dump(out io.Writer) {
 	fmt.Fprintf(out, "Environment Level %d {", env.Level)
 
