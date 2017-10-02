@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-02 22:55:14 krylon>
+// Time-stamp: <2017-10-03 00:44:48 krylon>
 
 package interpreter
 
@@ -1020,6 +1020,92 @@ func TestDefine(t *testing.T) {
 		}
 	}
 } // func TestDefine(t *testing.T)
+
+func TestSet(t *testing.T) {
+	type setTest struct {
+		input         string
+		key           string
+		expectedValue string
+	}
+
+	var testCases = []setTest{
+		setTest{
+			input:         `(set! x 42)`,
+			key:           "X",
+			expectedValue: "42",
+		},
+		setTest{
+			input: `
+(define x 17)
+(set! x 42)
+`,
+			key:           "X",
+			expectedValue: "42",
+		},
+		setTest{
+			input: `
+(define x 42)
+
+(let ((x 0))
+    (defun test-set (v)
+        (set! x v)))
+
+(test-set (* 23 3))
+`,
+			key:           "X",
+			expectedValue: "42",
+		},
+		setTest{
+			input: `
+(define x 0)
+
+(defun test-set ()
+    (set! x 42))
+
+(test-set)
+`,
+			key:           "X",
+			expectedValue: "42",
+		},
+	}
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var val value.LispValue
+		var err error
+		var res string
+
+		fmt.Println("!!!\n" + test.input + "!!!\n")
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if _, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating SET!-form %s: %s",
+				test.input,
+				err.Error())
+		} else if val, ok = interp.env.Get(test.key); !ok {
+			t.Errorf("Did not find key %s in environment",
+				test.key)
+		} else if val == nil {
+			t.Errorf("Did find key %s in environment, but its value is nil",
+				test.key)
+		} else if res = val.String(); res != test.expectedValue {
+			t.Errorf("Wrong value found for key %s: Expected = %s, Actual = %s",
+				test.key,
+				test.expectedValue,
+				res)
+		}
+	}
+} // func TestSet(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 

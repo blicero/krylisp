@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-02 22:56:01 krylon>
+// Time-stamp: <2017-10-03 00:43:34 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -300,9 +300,23 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 
 	// So, if we arrive here, we have a function object, next we should
 	// check out the arguments.
+	//
+	// Montag, 02. 10. 2017, 23:42
+	// If a function is called without any parameters, the argument list
+	// might be nil!
 
-	var argList = inv.Car.Cdr.(*value.ConsCell)
+	var argList *value.ConsCell
+	var ok bool
 	var argCnt, idx int
+
+	if argList, ok = inv.Car.Cdr.(*value.ConsCell); !ok {
+		if value.IsNil(inv.Car.Cdr) {
+			argList = new(value.ConsCell)
+		} else {
+			return value.NIL, SyntaxErrorf("Malformed list in function call: CDR is neither NIL nor a cons cell: %T",
+				inv.Car.Cdr)
+		}
+	}
 
 	if argCnt = argList.ActualLength(); argCnt != len(fn.Args) {
 		return nil, fmt.Errorf("Wrong number of arguments: Expected %d, got %d",
@@ -310,7 +324,17 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 			argCnt)
 	}
 
-	var env = value.NewEnvironment(inter.env)
+	// Dienstag, 03. 10. 2017, 00:12
+	// This is not right - I need to use the *function's* environment, not
+	// that of the current call-stack!
+	//var env = value.NewEnvironment(inter.env)
+	var env = value.NewEnvironment(fn.Env)
+
+	// Is there a more elegant way to skip this? The loop over the
+	// arguments causes a panic if the argument list is empty.
+	if argCnt == 0 {
+		goto EVALUATE
+	}
 
 	for ; argList != nil; argList = argList.Cdr.(*value.ConsCell) {
 		var sym = fn.Args[idx]
@@ -330,9 +354,14 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	// Once we have environment put together, it's just walking over the
 	// body and evaluating each element in turn, returning the value of the
 	// last element.
-
+EVALUATE:
+	if inter.debug {
+		env.Dump(os.Stdout)
+	}
+	var oldEnv = inter.env
+	defer func() { inter.env = oldEnv }()
 	inter.env = env
-	defer func() { inter.env = inter.env.Parent }()
+	//defer func() { inter.env = inter.env.Parent }()
 	var res value.LispValue
 
 	for _, exp := range fn.Body {
@@ -1008,7 +1037,8 @@ func (inter *Interpreter) evalDefine(l *value.List) (value.LispValue, error) {
 	var val value.LispValue
 
 	if l == nil || l.Car == nil || l.Length != 3 {
-		return value.NIL, SyntaxError("DEFINE expects a list of exactly three arguments")
+		return value.NIL, SyntaxErrorf("DEFINE expects a list of exactly three arguments (%d were given: %s)",
+			l.Length, l.String())
 	} else if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Symbol {
 		return value.NIL, SyntaxErrorf("Second argument to DEFINE must be a symbol, not a %s",
 			l.Car.Cdr.(*value.ConsCell).Car.Type())
@@ -1037,7 +1067,7 @@ func (inter *Interpreter) evalSet(l *value.List) (value.LispValue, error) {
 		return value.NIL, err
 	}
 
-	inter.env.Ins(
+	inter.env.Set(
 		l.Car.Cdr.(*value.ConsCell).Car.String(),
 		val)
 
