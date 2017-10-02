@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 14:04:10 krylon>
+// Time-stamp: <2017-10-02 22:45:06 krylon>
 
 package interpreter
 
@@ -62,6 +62,13 @@ func (ve *ValueError) Error() string {
 
 // SyntaxError indicates invalid use of special forms.
 type SyntaxError string
+
+// SyntaxErrorf creates a formatted string out of the given arguments
+// and returns that value as a SyntaxError.
+func SyntaxErrorf(format string, args ...interface{}) SyntaxError {
+	var msg = fmt.Sprintf(format, args...)
+	return SyntaxError(msg)
+} // func SyntaxErrorf(fmt string, ...args interface{}) SyntaxError
 
 // Error returns the error message.
 func (se SyntaxError) Error() string {

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 17:14:15 krylon>
+// Time-stamp: <2017-10-02 22:55:14 krylon>
 
 package interpreter
 
@@ -921,6 +921,10 @@ func TestOr(t *testing.T) {
 			input:          "(or nil (not (not nil)))",
 			expectedResult: "NIL",
 		},
+		orTest{
+			input:          "(or nil (not (not (not nil))))",
+			expectedResult: "T",
+		},
 	}
 
 	for _, test := range testCases {
@@ -941,7 +945,7 @@ func TestOr(t *testing.T) {
 			t.Errorf("Parser returned unexpected data type: %T",
 				parsed)
 		} else if val, err = interp.evalOr(prog[0].(*value.List)); err != nil {
-			t.Errorf("Error evaluating AND-form %s: %s",
+			t.Errorf("Error evaluating OR-form %s: %s",
 				test.input,
 				err.Error())
 		} else if val == nil {
@@ -955,6 +959,67 @@ func TestOr(t *testing.T) {
 		}
 	}
 } // func TestOr(t *testing.T)
+
+func TestDefine(t *testing.T) {
+	type defineTest struct {
+		input         string
+		key           string
+		expectedValue string
+	}
+
+	var testCases = []defineTest{
+		defineTest{
+			input:         `(define x 10)`,
+			key:           "X",
+			expectedValue: "10",
+		},
+		defineTest{
+			input: `
+(define x "Peter")
+
+(let ((x 42))
+  (* x 2))
+`,
+			key:           "X",
+			expectedValue: `"Peter"`,
+		},
+	}
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var val value.LispValue
+		var err error
+		var res string
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if _, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating DEFINE-form %s: %s",
+				test.input,
+				err.Error())
+		} else if val, ok = interp.env.Get(test.key); !ok {
+			t.Errorf("Did not find key %s in environment",
+				test.key)
+		} else if val == nil {
+			t.Errorf("Did find key %s in environment, but its value is nil",
+				test.key)
+		} else if res = val.String(); res != test.expectedValue {
+			t.Errorf("Wrong value found for key %s: Expected = %s, Actual = %s",
+				test.key,
+				test.expectedValue,
+				res)
+		}
+	}
+} // func TestDefine(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 

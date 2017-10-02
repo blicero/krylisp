@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 14:38:45 krylon>
+// Time-stamp: <2017-10-02 20:51:52 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -20,6 +20,10 @@ import (
 	"krylisp/types"
 	"strconv"
 	"strings"
+)
+
+const (
+	nilString = "NIL"
 )
 
 // LispValue is the "abstract base class", so to speak, for Lisp data.
@@ -41,7 +45,7 @@ func (n NilValue) Type() types.ID {
 
 // String returns a string representation of the Lisp value.
 func (n NilValue) String() string {
-	return "NIL"
+	return nilString
 } // func (n NilValue) String() string
 
 // Bool returns the "truthiness" of a Lisp value.
@@ -163,20 +167,20 @@ func (s Symbol) String() string {
 
 // Bool returns the "truthiness" of a Lisp value.
 func (s Symbol) Bool() bool {
-	return s != "NIL"
+	return s != nilString
 } // func (s Symbol) Bool() bool
 
 // Eq compares the receiver with the argument for identity.
 func (s Symbol) Eq(other LispValue) bool {
 	if other == nil {
-		return s == "NIL"
+		return s == nilString
 	}
 
 	switch v := other.(type) {
 	case NilValue:
-		return s == "NIL"
+		return s == nilString
 	case *List:
-		return (s == "NIL") && (v.Length == 0 || v.Car == nil)
+		return (s == nilString) && (v.Length == 0 || v.Car == nil)
 	case Symbol:
 		return s == v
 	default:
@@ -217,13 +221,13 @@ func (s *ConsCell) String() string {
 	var s1, s2 string
 
 	if s.Car == nil || s.Car == NIL {
-		s1 = "NIL"
+		s1 = nilString
 	} else {
 		s1 = s.Car.String()
 	}
 
 	if s.Cdr == nil || s.Cdr == NIL {
-		s2 = "NIL"
+		s2 = nilString
 	} else {
 		s2 = s.Cdr.String()
 	}
@@ -346,9 +350,9 @@ func (l *List) Type() types.ID {
 // String returns a string representation of the Lisp value.
 func (l *List) String() string {
 	if l == nil {
-		return "NIL"
+		return nilString
 	} else if l.Car == nil {
-		return "NIL"
+		return nilString
 	}
 
 	// spew.Dump(l)
@@ -368,7 +372,7 @@ func (l *List) String() string {
 		if cell.Car != nil {
 			elements[idx] = cell.Car.String()
 		} else {
-			elements[idx] = "NIL"
+			elements[idx] = nilString
 		}
 
 		if !(cell.Cdr == nil || cell.Cdr == NIL) {

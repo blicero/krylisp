@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-22 17:06:50 krylon>
+// Time-stamp: <2017-10-02 20:52:01 krylon>
 
 package value
 
@@ -189,6 +189,7 @@ func TestListString(t *testing.T) {
 	}
 } // func TestListString(t *testing.T)
 
+// nolint: gocyclo
 func TestListPush(t *testing.T) {
 	var l = &List{}
 	var cnt int

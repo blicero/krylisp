@@ -1,0 +1,24 @@
+// /home/krylon/go/src/krylisp/value/util.go
+// -*- mode: go; coding: utf-8; -*-
+// Created on 23. 09. 2017 by Benjamin Walkenhorst
+// (c) 2017 Benjamin Walkenhorst
+// Time-stamp: <2017-09-23 13:17:43 krylon>
+
+package value
+
+// IsNil returns true if the given argument is considered a nil value.
+// (Yeah, sorry, there's a confusing multitude of values that are considered
+// nil...)
+func IsNil(v LispValue) bool {
+	if v == nil {
+		return true
+	} else if v == NIL {
+		return true
+	} else if sym, ok := v.(Symbol); ok && sym == "NIL" {
+		return true
+	} else if lst, ok := v.(*List); ok && (lst.Length == 0 || lst.Car == nil) {
+		return true
+	}
+
+	return false
+} // func IsNil(v LispValue) bool

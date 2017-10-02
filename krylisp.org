@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-09-23 14:23:49 krylon>
+# Time-stamp: <2017-10-02 21:15:15 krylon>
 
 
 * kryLisp
@@ -37,6 +37,23 @@
     Das klingt nach einer vernünftigen Idee. Womöglich kann ich auf
     dem Wege auch ein paar Optimierungen einbauen? Irgendwann mal.
 ** Interpreter
+*** [2017-10-02 Mo 21:12] Lisp-1 vs. Lisp-2
+    Allmählich verstehe ich diese Bemerkung von Kent Pitman, oder wem
+    auch immer, über Lisp-1 vs. Lisp-2 Sprachen besser und frage mich
+    langsam, ob ich mir den Scheiß antun will, einen Lisp-2-Dialekt zu
+    erschaffen. Der Hauptvorteil ist, dass man eine Funktion list und
+    eine lokale Variable list haben kann, was bei Funktionen wie
+    mapcar und Freunden die Lesbarkeit etwas steigert.
+    Der Performance-Vorteil ist in meinem Fall vermutlich irrelevant.
+    Ich probiere es erstmal weiter als Lisp-2, und wenn mir das
+    irgendwann zu haarig wird, muss ich noch mal schauen, in der
+    naiven Hoffnung, dass ich mir bis dahin nicht zu sehr in den Fuß
+    geschossen habe.
+    Andererseits brauche ich ja zumindest für Makros noch einen
+    weiteren Namespace... oder? Eigentlich nicht. Ist zumindest keine
+    gute Idee, ich müsste klare Regeln definieren, wann ein Symbol
+    eine Funktion oder ein Makro meint. Außer bei Sachen wie
+    MACROEXPAND ist das so gut wie nie der Fall, glaube ich. :-/
 *** [2017-09-23 Sa 14:22]
     Allmählich nähert sich der Interpreter dem Punkt, an dem er auf
     der theoretischen, abstrakten Ebene halbwegs vollständig ist.

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 16:05:29 krylon>
+// Time-stamp: <2017-10-02 22:56:01 krylon>
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -15,7 +15,6 @@ package interpreter
 import (
 	"errors"
 	"fmt"
-	"krylib"
 	"krylisp/types"
 	"krylisp/value"
 	"os"
@@ -70,7 +69,21 @@ type Interpreter struct {
 	fnEnv         *value.Environment
 }
 
+// New returns a fresh, initialized Interpreter instance with an
+// empty Environment. It passes the debug flag to the Interpreter.
+func New(debug bool) *Interpreter {
+	var inter = &Interpreter{
+		debug:         debug,
+		gensymCounter: 1,
+		env:           value.NewEnvironment(nil),
+		fnEnv:         value.NewEnvironment(nil),
+	}
+
+	return inter
+} // func New(debug bool) *Interpreter
+
 // Eval evaluates a Lisp value and returns the result.
+// nolint: gocyclo
 func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 	if lval == nil {
 		return value.NIL, nil
@@ -111,6 +124,7 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 	}
 } // func (inter *Interpreter) Eval(v value.LispValue) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error) {
 	var sym = l.Car.Car.(value.Symbol)
 
@@ -141,6 +155,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalDefun(l)
 	case "LAMBDA":
 		return inter.evalLambda(l)
+	case "LET":
+		return inter.evalLet(l)
 	case "EQ":
 		return inter.evalEq(l)
 	case "QUOTE":
@@ -157,9 +173,15 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalAnd(l)
 	case "OR":
 		return inter.evalOr(l)
-	}
+	case "DEFINE":
+		return inter.evalDefine(l)
+	case "SET!":
+		return inter.evalSet(l)
+	default:
+		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
+			sym)
 
-	return nil, krylib.NotImplemented
+	}
 } // func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error)
 
 func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error) {
@@ -180,22 +202,26 @@ func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error) {
 	return nil, &NoBindingError{sym: s}
 } // func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 	if lst == nil || lst.Car == nil || lst.Car.Car == nil {
 		return nil, errors.New("Argument is not a lambda list")
 	} else if lst.Car.Car.Type() != types.Symbol || lst.Car.Car.(value.Symbol) != "LAMBDA" {
 		return nil, errors.New("Argument is not a lambda list")
 	} else if lst.Car.Cdr.(*value.ConsCell).Car.Type() != types.List {
-		return nil, errors.New("Second element in List should be a list (of arguments)")
+		//return nil, errors.New("Second element in List should be a list (of arguments)")
+		return nil, fmt.Errorf("Second element in lambda list should be a list (of arguments), not a %s",
+			lst.Car.Cdr.(*value.ConsCell).Car.Type())
 	}
 
-	var args = lst.Car.Cdr.(*value.ConsCell).Car.(*value.List)
-	var idx = 0
-
-	var fn = &value.Function{
-		Env:  inter.env,
-		Args: make([]value.Symbol, args.Length),
-	}
+	var (
+		args = lst.Car.Cdr.(*value.ConsCell).Car.(*value.List)
+		idx  = 0
+		fn   = &value.Function{
+			Env:  inter.env,
+			Args: make([]value.Symbol, args.Length),
+		}
+	)
 
 	for symlist := args.Car; symlist != nil; symlist = symlist.Cdr.(*value.ConsCell) {
 		if symlist.Car.Type() != types.Symbol {
@@ -275,7 +301,7 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	// So, if we arrive here, we have a function object, next we should
 	// check out the arguments.
 
-	var argList *value.ConsCell = inv.Car.Cdr.(*value.ConsCell)
+	var argList = inv.Car.Cdr.(*value.ConsCell)
 	var argCnt, idx int
 
 	if argCnt = argList.ActualLength(); argCnt != len(fn.Args) {
@@ -525,13 +551,13 @@ func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 		Length: l.Length - 1,
 	}
 
-	if val, err = l.Nth(1); err != nil {
+	if val, _ = l.Nth(1); err != nil {
 		return value.NIL, err
 	} else if name, ok = val.(value.Symbol); !ok {
 		return value.NIL, fmt.Errorf("First argument to defun must be a symbol, not a %T (%s)",
 			val.Type().String(),
 			val.String())
-	} else if val, err = l.Nth(2); val.Type() == types.String {
+	} else if val, _ = l.Nth(2); val.Type() == types.String {
 		docstring = val.(value.StringValue)
 		lambdaList.Car.Cdr = lambdaList.Car.Cdr.(*value.ConsCell).Cdr
 	}
@@ -574,6 +600,7 @@ func (inter *Interpreter) evalEq(l *value.List) (value.LispValue, error) {
 	return value.NIL, nil
 } // func (inter *Interpreter) evalEq(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few arguments for <")
@@ -628,6 +655,7 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 	return value.T, nil
 } // func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few arguments for <")
@@ -682,6 +710,7 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 	return value.T, nil
 } // func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few arguments for <")
@@ -736,6 +765,7 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 	return value.T, nil
 } // func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few arguments for <")
@@ -837,6 +867,7 @@ func (inter *Interpreter) evalCons(l *value.List) (v value.LispValue, e error) {
 	return cell, nil
 } // func (inter *Interpreter) evalCons(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few parameters for LET")
@@ -970,3 +1001,45 @@ func (inter *Interpreter) evalOr(l *value.List) (value.LispValue, error) {
 
 	return value.NIL, nil
 } // func (inter *Interpreter) evalOr(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalDefine(l *value.List) (value.LispValue, error) {
+	// (define x 3)
+	var err error
+	var val value.LispValue
+
+	if l == nil || l.Car == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("DEFINE expects a list of exactly three arguments")
+	} else if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Symbol {
+		return value.NIL, SyntaxErrorf("Second argument to DEFINE must be a symbol, not a %s",
+			l.Car.Cdr.(*value.ConsCell).Car.Type())
+	} else if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car); err != nil {
+		return value.NIL, err
+	}
+
+	inter.env.Ins(
+		l.Car.Cdr.(*value.ConsCell).Car.String(),
+		val)
+
+	return val, nil
+} // func (inter *Interpreter) evalDefine(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalSet(l *value.List) (value.LispValue, error) {
+	// (define x 3)
+	var err error
+	var val value.LispValue
+
+	if l == nil || l.Car == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("DEFINE expects a list of exactly three arguments")
+	} else if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Symbol {
+		return value.NIL, SyntaxErrorf("Second argument to DEFINE must be a symbol, not a %s",
+			l.Car.Cdr.(*value.ConsCell).Car.Type())
+	} else if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car); err != nil {
+		return value.NIL, err
+	}
+
+	inter.env.Ins(
+		l.Car.Cdr.(*value.ConsCell).Car.String(),
+		val)
+
+	return val, nil
+} // func (inter *Interpreter) evalSet(l *value.List) (value.LispValue, error)
