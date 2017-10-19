@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-09 15:36:55 krylon>
+// Time-stamp: <2017-10-10 18:34:36 krylon>
 
 package ast
 
@@ -132,7 +132,7 @@ func TestParseList(t *testing.T) {
 			input:          "()",
 			expectedType:   types.List,
 			expectedLength: 0,
-			expectedString: "nil",
+			expectedString: "NIL",
 		},
 		parseListTest{
 			input:          "( 2    5     17     29    )   ",

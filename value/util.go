@@ -2,9 +2,11 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 13:17:43 krylon>
+// Time-stamp: <2017-10-19 17:11:42 krylon>
 
 package value
+
+import "krylisp/types"
 
 // IsNil returns true if the given argument is considered a nil value.
 // (Yeah, sorry, there's a confusing multitude of values that are considered
@@ -13,6 +15,8 @@ func IsNil(v LispValue) bool {
 	if v == nil {
 		return true
 	} else if v == NIL {
+		return true
+	} else if v.Type() == types.Nil {
 		return true
 	} else if sym, ok := v.(Symbol); ok && sym == "NIL" {
 		return true

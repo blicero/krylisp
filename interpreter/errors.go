@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-02 22:45:06 krylon>
+// Time-stamp: <2017-10-10 17:54:18 krylon>
 
 package interpreter
 
@@ -29,7 +29,7 @@ type MissingFunctionError value.Symbol
 
 // Error returns the error message.
 func (sym MissingFunctionError) Error() string {
-	return fmt.Sprintf("No function definition wss found for %s", sym)
+	return fmt.Sprintf("No function definition wss found for %s", string(sym))
 } // var (sym MissingFunctionError) Error string
 
 // TypeError indicates a type mismatch between expected and provided values.

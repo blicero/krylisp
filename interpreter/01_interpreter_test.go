@@ -2,11 +2,12 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-03 00:44:48 krylon>
+// Time-stamp: <2017-10-15 13:49:19 krylon>
 
 package interpreter
 
 import (
+	"bytes"
 	"fmt"
 	"krylisp/lexer"
 	"krylisp/parser"
@@ -590,7 +591,7 @@ func TestDefun(t *testing.T) {
 			fn = fnVal.(*value.Function)
 		}
 
-		fmt.Printf("#'%s => %s\n",
+		fmt.Printf("#%s => %s\n",
 			test.name,
 			fn.String())
 
@@ -1107,12 +1108,200 @@ func TestSet(t *testing.T) {
 	}
 } // func TestSet(t *testing.T)
 
+func TestPrint(t *testing.T) {
+	type printTest struct {
+		input          string
+		expectedOutput string
+	}
+
+	var testCases = []printTest{
+		printTest{
+			input:          "(print 1 2 3)",
+			expectedOutput: "1\n2\n3\n",
+		},
+		printTest{
+			input:          "(print)",
+			expectedOutput: "",
+		},
+	}
+
+	var oldOut = interp.stdout
+	defer func() { interp.stdout = oldOut }()
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var err error
+		var buf bytes.Buffer
+		var res string
+
+		interp.stdout = &buf
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if _, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating PRINT!-form %s: %s",
+				test.input,
+				err.Error())
+		} else if res = buf.String(); res != test.expectedOutput {
+			t.Errorf(`Unexpected output for program %s\n
+Expected: %q
+Actual:   %q
+`,
+				test.input,
+				test.expectedOutput,
+				res)
+		}
+	}
+} // func TestPrint(t *testing.T)
+
+func TestApply(t *testing.T) {
+	type applyTest struct {
+		input          string
+		expectedOutput string
+	}
+
+	// var oldDebug = interp.debug
+	// interp.debug = true
+	// defer func() { interp.debug = oldDebug }()
+
+	var testCases = []applyTest{
+		applyTest{
+			input: `
+(defun inc (x) (+ x 1))
+(print (apply #inc '(1)))
+`,
+			expectedOutput: "2\n",
+		},
+		applyTest{
+			input: `
+(defun twice (x) (+ x x))
+(print (apply #twice (list 5))) 
+`,
+			expectedOutput: "10\n",
+		},
+		applyTest{
+			input: `
+(defun threesome (x y z) (+ x y z))
+(print (apply #threesome (list (+ 4 5) (* 2 3) (/ 9 3))))
+`,
+			expectedOutput: "18\n",
+		},
+	}
+
+	var oldOut = interp.stdout
+	defer func() { interp.stdout = oldOut }()
+
+	for _, test := range testCases {
+		var parsed interface{}
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var err error
+		var buf bytes.Buffer
+		var res string
+
+		interp.stdout = &buf
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if _, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating APPLY!-form %s: %s",
+				test.input,
+				err.Error())
+		} else if res = buf.String(); res != test.expectedOutput {
+			t.Errorf(`Unexpected output for program %s\n
+Expected: %q
+Actual:   %q
+`,
+				test.input,
+				test.expectedOutput,
+				res)
+		}
+	}
+
+} // func TestApply(t *testing.T)
+
+func TestList(t *testing.T) {
+	type listTest struct {
+		input          string
+		expectedResult string
+		expectedError  bool
+	}
+
+	var testCases = []listTest{
+		listTest{
+			input:          "(list)",
+			expectedResult: "NIL",
+		},
+		listTest{
+			input:          "(list 1)",
+			expectedResult: "(1)",
+		},
+		listTest{
+			input:          "(list 1 (list 2 3) 4)",
+			expectedResult: "(1 (2 3) 4)",
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+			res    string
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectedError {
+				t.Errorf("Error evaluating APPLY!-form %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if res = val.String(); res != test.expectedResult {
+			t.Errorf("Unexepcted result from list-form:\n\tExpected %s\nActual %s\n",
+				test.expectedResult,
+				res)
+		}
+	}
+} // func TestList(t *testing.T)
+
+///////////////////////////////////////////////////////////
+// main ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
 	spew.Config.DisableMethods = true
+	spew.Config.Indent = "\t"
+	spew.Config.SortKeys = true
+
 	interp = &Interpreter{
-		debug: true,
+		debug: false,
 		env:   value.NewEnvironment(nil),
 		fnEnv: value.NewEnvironment(nil),
 	}
