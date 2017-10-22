@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-02 20:51:52 krylon>
+// Time-stamp: <2017-10-22 16:10:10 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -10,6 +10,14 @@
 // verstehen soll.
 // Hier werden die eigentlichen Datentypen definiert, die mein Interpreter
 // dann verwendet um Lisp-Daten darzustellen.
+//
+// Freitag, 20. 10. 2017, 18:03
+// Die Logik für Arithmetik-Gedöns in den Methoden der numerischen Typen
+// unterzubringen ist keine so gute Idee, fällt mir auf, weil ich dann
+// zum Hinzufügen eine Typen *alle* bisher existenten Typen anpacken muss
+// und das eine Menge Fleißarbeit wird.
+// Aber ohne generische Typen und Operatoren-Überladung bleibt mir nicht
+// viel übrig, oder?
 
 package value
 
@@ -33,6 +41,14 @@ type LispValue interface {
 	String() string
 	Bool() bool
 	Eq(other LispValue) bool
+	Convert(id types.ID) (LispValue, error)
+}
+
+// Number is an interface - kind of an abstract base class, if you will -
+// for numeric types in Lisp.
+type Number interface {
+	LispValue
+	Num()
 }
 
 // A NilValue represents nil, the strange list-symbol duality.
@@ -70,6 +86,25 @@ func (n NilValue) Eq(other LispValue) bool {
 	return false
 } // func (n NilValue) Eq(other LispValue) bool
 
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (n NilValue) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.Nil:
+		return NIL, nil
+	case types.String:
+		return StringValue(n.String()), nil
+	case types.List:
+		return NIL, nil
+	case types.Symbol:
+		return Symbol("NIL"), nil
+	default:
+		return nil, &TypeConversionError{types.Nil, id}
+	}
+} // func (n NilValue) Convert(id types.ID) (LispValue, error)
+
 // NIL is the canonical nil value. In theory, we could get away with just
 // having a single value.
 const NIL NilValue = 1
@@ -83,7 +118,7 @@ type IntValue int64
 // Type returns the type ID of the Lisp value, in this case
 // types.Number
 func (i IntValue) Type() types.ID {
-	return types.Number
+	return types.Integer
 } // function (i IntValue) Type() types.ID
 
 // String returns a string representation of the Lisp value.
@@ -106,12 +141,91 @@ func (i IntValue) Bool() bool {
 func (i IntValue) Eq(other LispValue) bool {
 	if other == nil {
 		return false
-	} else if other.Type() != types.Number {
+	} else if other.Type() != types.Integer {
 		return false
 	}
 
 	return i == other.(IntValue)
 } // func (i IntValue) Eq(other LispValue) bool
+
+// Num identifies the receiver as kind of Number.
+func (i IntValue) Num() {
+} // func (i IntValue) Num()
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (i IntValue) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.Integer:
+		return i, nil
+	case types.Float:
+		return FloatValue(float64(i)), nil
+	case types.String:
+		//return StringValue(strconv.Itoa(int(i))), nil
+		return StringValue(i.String()), nil
+	default:
+		return nil, &TypeConversionError{types.Integer, id}
+	}
+} // func (i IntValue) Convert(id types.ID) (LispValue, error)
+
+// FloatValue is a 64-bit floating point number.
+type FloatValue float64
+
+// Type returns the type ID of the Lisp value, in this case
+// types.Float
+func (f FloatValue) Type() types.ID {
+	return types.Float
+} // func (i FloatValue) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (f FloatValue) String() string {
+	//return fmt.Sprintf("%f", f)
+	return strconv.FormatFloat(float64(f), 'f', -1, 64)
+} // func (f FloatValue) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (f FloatValue) Bool() bool {
+	return true
+} // func (f FloatValue) Bool() bool
+
+// Num identifies the receiver as kind of Number.
+func (f FloatValue) Num() {
+} // func (f FloatValue) Num()
+
+// Eq return true if the receiver and the argument are the same, i.e. if both
+// are of the same type and have the same value.
+// (Floating Point equality is determined by value! All the usual caveats for
+// floating point equality apply, i.e. two different computations that on paper
+// yield the same result may give *very* slightly different results with
+// floating point numbers.)
+func (f FloatValue) Eq(other LispValue) bool {
+	if other == nil {
+		return false
+	} else if other.Type() != types.Float {
+		return false
+	}
+
+	return f == other.(FloatValue)
+} // func (f FloatValue) Eq(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (f FloatValue) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.Integer:
+		return IntValue(f), nil
+	case types.Float:
+		return f, nil
+	case types.String:
+		return StringValue(f.String()), nil
+	default:
+		return NIL, &TypeConversionError{types.Float, id}
+	}
+} // func (f FloatValue) Convert(types.ID) (LispValue, error)
 
 // StringValue is a string. Strings are implemented in terms of Go strings, so
 // the same rules and restrictions apply: Strings are encoded in UTF-8 and
@@ -142,8 +256,41 @@ func (s StringValue) Eq(other LispValue) bool {
 		return false
 	}
 
-	return s == other.(StringValue)
+	//return s == other.(StringValue)
+	return 0 == strings.Compare(string(s), string(other.(StringValue)))
 } // func (s StringValue) Eq(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (s StringValue) Convert(id types.ID) (LispValue, error) {
+	var err error
+	var i int64
+	var f float64
+	switch id {
+	case types.Integer:
+		if i, err = strconv.ParseInt(string(s), 10, 64); err != nil {
+			return NIL, err
+		}
+
+		return IntValue(i), nil
+	case types.Float:
+		if f, err = strconv.ParseFloat(string(s), 64); err != nil {
+			return NIL, err
+		}
+
+		return FloatValue(f), nil
+	case types.String:
+		return s, nil
+	case types.Symbol:
+		return Symbol(strings.ToUpper(string(s))), nil
+	case types.KeySym:
+		return Symbol(":" + strings.ToUpper(string(s))), nil
+	default:
+		return NIL, &TypeConversionError{types.String, id}
+	}
+} // func (s StringValue) Convert(id types.ID) (LispValue, error)
 
 // I am not sure if should represent symbols as plain strings.
 // But for now I cannot think of a good reason not to.
@@ -187,6 +334,21 @@ func (s Symbol) Eq(other LispValue) bool {
 		return false
 	}
 } // func (s Symbol) Eq(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (s Symbol) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.String:
+		return StringValue(s), nil
+	case types.Symbol:
+		return s, nil
+	default:
+		return NIL, &TypeConversionError{types.Symbol, id}
+	}
+} // func (s Symbol) Convert(id types.ID) (LispValue, error)
 
 // IsKeyword returns true if the symbol gets special treatment by the
 // interpreter.
@@ -326,6 +488,23 @@ func (s *ConsCell) Eq(other LispValue) bool {
 
 	return false
 } // func (s *ConsCell) Eq(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (s *ConsCell) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.String:
+		return StringValue(s.String()), nil
+	case types.List:
+		return &List{Car: s, Length: s.ActualLength()}, nil
+	case types.ConsCell:
+		return s, nil
+	default:
+		return NIL, &TypeConversionError{types.ConsCell, id}
+	}
+} // func (s *ConsCell) Convert(id types.ID) (LispValue, error)
 
 // List is ... well, a singly-linked list, the kind that is so common in Lisp
 // they named the language after it.
@@ -519,6 +698,23 @@ func (l *List) Nth(n int) (LispValue, error) {
 	return elt.Car, nil
 } // func (l *List) Nth(n int) (LispValue, error)
 
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (l *List) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.String:
+		return StringValue(l.String()), nil
+	case types.List:
+		return l, nil
+	case types.ConsCell:
+		return l.Car, nil
+	default:
+		return NIL, &TypeConversionError{types.List, id}
+	}
+} // func (l *List) Convert(id types.ID) (LispValue, error)
+
 // Function represents a Lisp function.
 // Technically, one could implement functions purely in terms of lists,
 // but for efficiency reasons - and functions are used a *lot* in Lisp,
@@ -574,6 +770,20 @@ func (f *Function) Eq(other LispValue) bool {
 	return false
 } // func (f *Function) Eq(other LispValue) bool
 
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (f *Function) Convert(id types.ID) (LispValue, error) {
+	if id == types.Function {
+		return f, nil
+	} else if id == types.String {
+		return StringValue(f.String()), nil
+	}
+
+	return NIL, &TypeConversionError{types.Function, id}
+} // func (f *Function) Convert(id types.ID) (LispValue, error)
+
 // Program represents a sequence of lisp expressions.
 type Program []LispValue
 
@@ -624,3 +834,17 @@ func (p Program) Eq(other LispValue) bool {
 
 	return true
 } // func (p Program) Eq(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (p Program) Convert(id types.ID) (LispValue, error) {
+	if id == types.Program {
+		return p, nil
+	} else if id == types.String {
+		return StringValue(p.String()), nil
+	}
+
+	return NIL, &TypeConversionError{types.Program, id}
+} // func (p Program) Convert(id types.ID) (LispValue, error)

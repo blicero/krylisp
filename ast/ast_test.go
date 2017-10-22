@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-10 18:34:36 krylon>
+// Time-stamp: <2017-10-20 19:10:11 krylon>
 
 package ast
 
@@ -50,7 +50,7 @@ func TestParseAtom(t *testing.T) {
 		},
 		parseAtomTest{
 			input:          "3",
-			expectedType:   types.Number,
+			expectedType:   types.Integer,
 			expectedString: "3",
 		},
 		parseAtomTest{
@@ -67,6 +67,11 @@ func TestParseAtom(t *testing.T) {
 			input:          `"Wer das liest, ist doof."`,
 			expectedType:   types.String,
 			expectedString: `"Wer das liest, ist doof."`,
+		},
+		parseAtomTest{
+			input:          "3.141592",
+			expectedType:   types.Float,
+			expectedString: "3.141592",
 		},
 	}
 
@@ -186,3 +191,61 @@ func TestParseList(t *testing.T) {
 		printSep()
 	}
 } // func TestParseList(t *testing.T)
+
+func TestNumberType(t *testing.T) {
+	type numTest struct {
+		input          string
+		shouldBeNumber bool
+		expectedType   types.ID
+	}
+
+	var testCases = []numTest{
+		numTest{
+			input:          "2",
+			shouldBeNumber: true,
+			expectedType:   types.Integer,
+		},
+		numTest{
+			input:          "3.141592",
+			shouldBeNumber: true,
+			expectedType:   types.Float,
+		},
+		numTest{
+			input:          "\"Hallo\"",
+			shouldBeNumber: false,
+			expectedType:   types.String,
+		},
+		numTest{
+			input:          "    +   ",
+			shouldBeNumber: false,
+			expectedType:   types.Symbol,
+		},
+	}
+
+	for _, test := range testCases {
+		var tree interface{}
+		var err error
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		//var n Number
+
+		if tree, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test case %q: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = tree.([]value.LispValue); !ok {
+			t.Fatalf("Parser did not return a Program, but a %T",
+				tree)
+		} else if _, ok = prog[0].(value.Number); test.shouldBeNumber && !ok {
+			t.Errorf("Parser did not return a Number, but a %T (calls itself %s)",
+				prog[0],
+				prog[0].Type().String())
+		} else if test.expectedType != prog[0].Type() {
+			t.Errorf("Parser returned an unexpected type: %s (expected %s)",
+				test.expectedType.String(),
+				prog[0].Type().String())
+		}
+	}
+} // func TestNumberType(t *testing.T)

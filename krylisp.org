@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-10-02 21:15:15 krylon>
+# Time-stamp: <2017-10-19 17:42:50 krylon>
 
 
 * kryLisp
@@ -21,6 +21,9 @@
     Doku einen guten Eindruck. Hat nur das Problem, das ich für die
     BNF-Dateien, die ich dafür schreiben muss, keine
     Syntax-Unterstützung von Emacs habe.
+**** [2017-10-19 Do 17:39]
+     gocc funktioniert für meine Anforderungen gut, solange ich keinen
+     gewichtigen Grund finde, bleibe ich dabei. 
 *** Funktionen
     [2017-09-10 So 02:53]
     Ich habe nach einigem Nachdenken beschlossen, Funktionen einen
@@ -58,3 +61,19 @@
     Allmählich nähert sich der Interpreter dem Punkt, an dem er auf
     der theoretischen, abstrakten Ebene halbwegs vollständig ist.
     Ein bisschen boolsche Logik brauche ich noch.
+*** [2017-10-19 Do 17:37]
+    Ich habe inzwischen den Interpreter so weit, dass ein erstes
+    einfaches Test-Script läuft.
+    Jetzt kann ich mich nach der langen Debugging-Orgie also wieder
+    daran setzen, Features hinzuzufügen.
+    Makros? Richtige Zahlen? I/O? Datenstrukturen und Collections?
+    Ich sollte mir das mal notieren
+** Aufgaben
+*** TODO [#A] Makros
+*** TODO [#A] Zahlen
+    Ich will gern bignum-Support und Support für Floating Point,
+    eventuell, wenn es nicht zu haarig ist, auch Support für rationale
+    und vielleicht für komplexe Zahlen.
+*** TODO [#B] I/O
+    Ist auf Dauer blöd, wenn das nicht geht.
+*** TODO [#C] Datenstrukturen und Collections

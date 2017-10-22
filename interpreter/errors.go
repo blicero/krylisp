@@ -2,12 +2,13 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-10 17:54:18 krylon>
+// Time-stamp: <2017-10-22 15:15:27 krylon>
 
 package interpreter
 
 import (
 	"fmt"
+	"krylisp/types"
 	"krylisp/value"
 )
 
@@ -74,3 +75,17 @@ func SyntaxErrorf(format string, args ...interface{}) SyntaxError {
 func (se SyntaxError) Error() string {
 	return "Invalid syntax: " + string(se)
 } // func (se SyntaxError) Error() string
+
+// TypePromotionError indicates an unresolvable situation with automatic
+// type promotion.
+type TypePromotionError struct {
+	inputLeft  types.ID
+	inputRight types.ID
+}
+
+// Error returns the error message.
+func (tpe *TypePromotionError) Error() string {
+	return fmt.Sprintf("No type promotion rule was found for the combination of %s and %s",
+		inputLeft.String(),
+		inputRight.String())
+} // func (tpe *TypePromotionError) Error() string

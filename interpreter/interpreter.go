@@ -2,7 +2,17 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-19 17:27:17 krylon>
+// Time-stamp: <2017-10-22 16:17:39 krylon>
+//
+// Donnerstag, 19. 10. 2017, 19:17
+// Mmmh, adding floating point numbers makes all the arithmetic code a lot more
+// complex. I am going to consider type promotion and such.
+// On the other hand, if I do that well, adding additional numeric types is going
+// to be relatively straightforward.
+//
+// Freitag, 20. 10. 2017, 17:16
+// Adding support for multiple numeric types is not going to be easy. I basically
+// need to rewrite all the arithmetic functions.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -67,6 +77,12 @@ func IsSpecial(s fmt.Stringer) bool {
 	return ok
 } // func IsSpecial(s value.Symbol) bool
 
+// IsNumber returns true if the type of the given value is numeric.
+func IsNumber(v value.LispValue) bool {
+	_, ok := v.(value.Number)
+	return ok
+} // func IsNumber(v value.LispValue) bool
+
 // Interpreter is my first shot at a tree-walking interpreter for my
 // toy Lisp dialect.
 type Interpreter struct {
@@ -106,14 +122,13 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 	}*/
 
 	switch v := lval.(type) {
-	case value.IntValue:
-		return v, nil
-	case value.StringValue:
+	case value.IntValue,
+		value.FloatValue,
+		value.StringValue,
+		value.NilValue:
 		return v, nil
 	case value.Symbol:
 		return inter.evalSymbol(v)
-	case value.NilValue:
-		return v, nil
 	case *value.List:
 		if v.Car.Car.Type() == types.Symbol {
 			if IsSpecial(v.Car.Car.(value.Symbol)) {
@@ -465,6 +480,9 @@ func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 	return value.NIL, nil
 } // func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error)
 
+// I think it would be preferrable to have arithmetic use a matrix to determine what
+// operand gets promoted to what type.
+
 func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -482,7 +500,7 @@ func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 			return nil, &TypeError{expected: "Number", actual: "nil"}
 		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
 			return nil, err
-		} else if val.Type() != types.Number {
+		} else if val.Type() != types.Integer {
 			return nil, &TypeError{
 				expected: "Number",
 				actual:   val.Type().String(),
@@ -507,7 +525,7 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few arguments for -")
 	} else if l.Length == 2 {
-		if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Number {
+		if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Integer {
 			return nil, &TypeError{
 				expected: "Number",
 				actual:   l.Car.Cdr.(*value.ConsCell).Car.Type().String(),
@@ -521,7 +539,7 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	//cnt = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
-	} else if val.Type() != types.Number {
+	} else if val.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   val.Type().String(),
@@ -533,7 +551,7 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	for v := l.Car.Cdr.(*value.ConsCell).Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
 		if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
 			return value.NIL, err
-		} else if val.Type() != types.Number {
+		} else if val.Type() != types.Integer {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   val.Type().String(),
@@ -565,7 +583,7 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 
 	if resRaw, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
-	} else if resRaw.Type() == types.Number {
+	} else if resRaw.Type() == types.Integer {
 		res = resRaw.(value.IntValue)
 	} else {
 		if inter.debug {
@@ -592,7 +610,7 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 		var cval value.LispValue
 		if cval, err = inter.Eval(v.Car); err != nil {
 			return value.NIL, err
-		} else if cval.Type() == types.Number {
+		} else if cval.Type() == types.Integer {
 			res *= cval.(value.IntValue)
 			if v.Cdr == nil {
 				break
@@ -624,7 +642,7 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 
 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
-	} else if val.Type() != types.Number {
+	} else if val.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   val.Type().String(),
@@ -637,7 +655,7 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 		v := c.(*value.ConsCell)
 		if val, err = inter.Eval(v.Car); err != nil {
 			return value.NIL, err
-		} else if val.Type() == types.Number {
+		} else if val.Type() == types.Integer {
 			var n = val.(value.IntValue)
 			if n != 0 {
 				res /= n
@@ -761,12 +779,12 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Number {
+	} else if v1.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Number {
+	} else if v2.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
@@ -783,7 +801,7 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Number {
+		} else if v2.Type() != types.Integer {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
@@ -820,12 +838,12 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Number {
+	} else if v1.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Number {
+	} else if v2.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
@@ -842,7 +860,7 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Number {
+		} else if v2.Type() != types.Integer {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
@@ -879,12 +897,12 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Number {
+	} else if v1.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Number {
+	} else if v2.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
@@ -901,7 +919,7 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Number {
+		} else if v2.Type() != types.Integer {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
@@ -938,12 +956,12 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Number {
+	} else if v1.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Number {
+	} else if v2.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
@@ -960,7 +978,7 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Number {
+		} else if v2.Type() != types.Integer {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
@@ -1375,7 +1393,10 @@ func (inter *Interpreter) evalCdr(l *value.List) (v value.LispValue, e error) {
 		return value.NIL, err
 	} else if val, err = inter.Eval(input); err != nil {
 		return value.NIL, err
-	} else if val.Type() == types.List {
+	} //else if val.Type() == types.List {
+
+	switch val.Type() {
+	case types.List:
 		var vl = val.(*value.List)
 		if vl.Length < 2 {
 			return value.NIL, nil
@@ -1385,13 +1406,15 @@ func (inter *Interpreter) evalCdr(l *value.List) (v value.LispValue, e error) {
 			Car:    vl.Car.Cdr.(*value.ConsCell),
 			Length: vl.Length - 1,
 		}, nil
-	} else if val.Type() == types.ConsCell {
+	case types.ConsCell:
 		return val.(*value.ConsCell).Cdr, nil
-	}
-
-	return nil, &TypeError{
-		expected: "List or ConsCell",
-		actual:   val.Type().String(),
+	case types.Nil:
+		return value.NIL, nil
+	default:
+		return nil, &TypeError{
+			expected: "List or ConsCell",
+			actual:   val.Type().String(),
+		}
 	}
 } // func (inter *Interpreter) evalCdr(l *value.List) (value.LispValue, error)
 

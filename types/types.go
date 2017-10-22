@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-15 18:46:00 krylon>
+// Time-stamp: <2017-10-20 18:16:35 krylon>
 
 package types
 
@@ -15,6 +15,8 @@ type ID uint8
 const (
 	Nil ID = iota
 	Number
+	Integer
+	Float
 	String
 	Symbol
 	KeySym

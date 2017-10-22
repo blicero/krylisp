@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-15 13:49:19 krylon>
+// Time-stamp: <2017-10-20 19:07:48 krylon>
 
 package interpreter
 
@@ -643,9 +643,7 @@ func TestLT(t *testing.T) {
 			t.Errorf("Error parsing expression %s: %s",
 				test.source,
 				err.Error())
-		}
-
-		if prog, ok = tree.([]value.LispValue); !ok {
+		} else if prog, ok = tree.([]value.LispValue); !ok {
 			t.Fatalf("Parser did not return a program, but a %T",
 				tree)
 		} else if res, err = interp.evalLessThan(prog[0].(*value.List)); err != nil {
@@ -742,7 +740,7 @@ func TestLet(t *testing.T) {
 				},
 			},
 			input:         "(let ((x 1)) (+ x x))",
-			expectedType:  types.Number,
+			expectedType:  types.Integer,
 			expectedValue: "2",
 		},
 	}

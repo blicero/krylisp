@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-02 20:52:01 krylon>
+// Time-stamp: <2017-10-20 19:06:10 krylon>
 
 package value
 
@@ -20,7 +20,7 @@ func TestTypeID(t *testing.T) {
 	var values = []testValue{
 		testValue{
 			input:        IntValue(42),
-			expectedType: types.Number,
+			expectedType: types.Integer,
 		},
 		testValue{
 			input:        StringValue("Wer das liest, ist doof."),

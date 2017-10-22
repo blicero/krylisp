@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-08 16:09:30 krylon>
+// Time-stamp: <2017-10-19 19:14:08 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:51
 // I am going to need some way of handling errors properly.
@@ -25,6 +25,14 @@ func IntValue(s string) value.IntValue {
 		return value.IntValue(n)
 	}
 } // func IntValue(s string) int
+
+func FloatValue(s string) value.FloatValue {
+	if f, err := strconv.ParseFloat(s, 64); err != nil {
+		panic(err)
+	} else {
+		return value.FloatValue(f)
+	}
+} // func FloatValue(s string) value.FloatValue
 
 // StringValue takes a string token and return a Lisp string,
 // minus the double quotes.
