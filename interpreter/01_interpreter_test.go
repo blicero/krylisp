@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-20 19:07:48 krylon>
+// Time-stamp: <2017-10-25 14:25:15 krylon>
 
 package interpreter
 
@@ -74,6 +74,36 @@ func TestPlus(t *testing.T) {
 				Length: 3,
 			},
 			expectedValue: value.IntValue(192),
+		},
+		testPlus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: plus,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(42),
+						Cdr: &value.ConsCell{
+							Car: value.FloatValue(3.5),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.FloatValue(45.5),
+		},
+		testPlus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: plus,
+					Cdr: &value.ConsCell{
+						Car: value.FloatValue(2.5),
+						Cdr: &value.ConsCell{
+							Car: value.IntValue(5),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.FloatValue(7.5),
 		},
 	}
 

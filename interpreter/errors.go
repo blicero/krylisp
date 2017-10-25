@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-22 15:15:27 krylon>
+// Time-stamp: <2017-10-25 12:45:20 krylon>
 
 package interpreter
 
@@ -86,6 +86,6 @@ type TypePromotionError struct {
 // Error returns the error message.
 func (tpe *TypePromotionError) Error() string {
 	return fmt.Sprintf("No type promotion rule was found for the combination of %s and %s",
-		inputLeft.String(),
-		inputRight.String())
+		tpe.inputLeft.String(),
+		tpe.inputRight.String())
 } // func (tpe *TypePromotionError) Error() string

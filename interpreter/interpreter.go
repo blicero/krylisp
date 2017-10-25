@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-22 16:17:39 krylon>
+// Time-stamp: <2017-10-25 14:20:51 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -490,7 +490,7 @@ func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 		spew.Dump(l)
 	}
 
-	var cnt value.IntValue
+	var cnt value.Number = value.IntValue(0)
 
 	for v := l.Car.Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
 		var val value.LispValue
@@ -500,14 +500,23 @@ func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 			return nil, &TypeError{expected: "Number", actual: "nil"}
 		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
 			return nil, err
-		} else if val.Type() != types.Integer {
+		} else if !value.IsNumber(val) {
 			return nil, &TypeError{
 				expected: "Number",
 				actual:   val.Type().String(),
 			}
+		} else if cnt, err = evalAddition(cnt, val.(value.Number)); err != nil {
+			return nil, err
 		}
+		/*else if val.Type() != types.Integer {
+			return nil, &TypeError{
+				expected: "Number",
+				actual:   val.Type().String(),
+			}
+		} */
 
-		cnt += val.(value.IntValue)
+		//cnt += val.(value.IntValue)
+
 	}
 
 	return cnt, nil

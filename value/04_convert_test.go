@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-22 16:36:34 krylon>
+// Time-stamp: <2017-10-25 14:27:32 krylon>
 //
 // This file contains the tests for type conversion
 
@@ -163,4 +163,4 @@ func TestFloat(t *testing.T) {
 				res.String())
 		}
 	}
-}
+} // func TestFloat(t *testing.T)
