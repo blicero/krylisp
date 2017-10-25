@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 14:25:15 krylon>
+// Time-stamp: <2017-10-25 21:42:50 krylon>
 
 package interpreter
 
@@ -178,6 +178,54 @@ func TestMinus(t *testing.T) {
 			},
 			expectedValue: value.IntValue(64),
 		},
+		testMinus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: minus,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(5),
+						Cdr: &value.ConsCell{
+							Car: value.FloatValue(2.5),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.FloatValue(2.5),
+		},
+		testMinus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: minus,
+					Cdr: &value.ConsCell{
+						Car: value.FloatValue(3.141592),
+					},
+				},
+				Length: 2,
+			},
+			expectedValue: value.FloatValue(-3.141592),
+		},
+		testMinus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: minus,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(100),
+						Cdr: &value.ConsCell{
+							Car: value.IntValue(8),
+							Cdr: &value.ConsCell{
+								Car: value.FloatValue(8.0),
+								Cdr: &value.ConsCell{
+									Car: value.IntValue(8),
+								},
+							},
+						},
+					},
+				},
+				Length: 5,
+			},
+			expectedValue: value.FloatValue(76.0),
+		},
 	}
 
 	for idx, test := range testCases {
@@ -255,6 +303,36 @@ func TestMultiply(t *testing.T) {
 				Length: 4,
 			},
 			expectedValue: value.IntValue(64),
+		},
+		testMultiply{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: mult,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(40),
+						Cdr: &value.ConsCell{
+							Car: value.FloatValue(2.5),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.FloatValue(100.0),
+		},
+		testMultiply{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: mult,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(64),
+						Cdr: &value.ConsCell{
+							Car: value.FloatValue(0.25),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.FloatValue(16.0),
 		},
 	}
 
@@ -351,6 +429,36 @@ func TestDivide(t *testing.T) {
 			},
 			expectedValue: value.NIL,
 			expectedError: true,
+		},
+		testDivide{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: div,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(10),
+						Cdr: &value.ConsCell{
+							Car: value.IntValue(4),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.IntValue(2),
+		},
+		testDivide{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: div,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(10),
+						Cdr: &value.ConsCell{
+							Car: value.FloatValue(4.0),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.FloatValue(2.5),
 		},
 	}
 

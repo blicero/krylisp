@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 14:20:51 krylon>
+// Time-stamp: <2017-10-25 20:14:21 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -523,9 +523,14 @@ func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 } // func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error)
 
 func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
-	var cnt value.IntValue
+	var cnt value.Number
 	var val value.LispValue
 	var err error
+
+	// Mittwoch, 25. 10. 2017, 15:01
+	// XXX Ich glaube, folgendes Programm funktioniert im Moment nicht:
+	// (define x 10)
+	// (print (- x))
 
 	if inter.debug {
 		krylib.Trace()
@@ -534,39 +539,44 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	if l.Length < 2 {
 		return value.NIL, SyntaxError("Too few arguments for -")
 	} else if l.Length == 2 {
-		if l.Car.Cdr.(*value.ConsCell).Car.Type() != types.Integer {
+		// FIXME Evaluate the argument!!!
+		if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
+			return nil, err
+		} else if !value.IsNumber(val) {
 			return nil, &TypeError{
 				expected: "Number",
 				actual:   l.Car.Cdr.(*value.ConsCell).Car.Type().String(),
 			}
 		}
 
-		return -(l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)), nil
+		//return -(l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)), nil
+		return evalNegate(val.(value.Number))
 	}
 
 	// I need to eval all arguments!!!
 	//cnt = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
-	} else if val.Type() != types.Integer {
+	} else if !value.IsNumber(val) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   val.Type().String(),
 		}
 	}
 
-	cnt = val.(value.IntValue)
+	cnt = val.(value.Number)
 
 	for v := l.Car.Cdr.(*value.ConsCell).Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
 		if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
 			return value.NIL, err
-		} else if val.Type() != types.Integer {
+		} else if !value.IsNumber(val) {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   val.Type().String(),
 			}
+		} else if cnt, err = evalSubtraction(cnt, val.(value.Number)); err != nil {
+			return nil, err
 		}
-		cnt -= val.(value.IntValue)
 	}
 
 	return cnt, nil
@@ -580,34 +590,29 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 	if l.Length == 1 {
 		return value.IntValue(1), nil
 	} else if l.Length == 2 {
-		return l.Car.Cdr.(*value.ConsCell).Car, nil
+		return inter.Eval(l.Car.Cdr.(*value.ConsCell).Car)
 	} else if inter.debug {
 		spew.Printf("evalMultiply %#v\n",
 			l)
 	}
 
-	var err error
-	var resRaw value.LispValue
-	var res value.IntValue
+	var (
+		err    error
+		resRaw value.LispValue
+		res    value.Number
+	)
 
 	if resRaw, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
-	} else if resRaw.Type() == types.Integer {
-		res = resRaw.(value.IntValue)
-	} else {
-		if inter.debug {
-			// fmt.Printf("Type error in multiplication: (%s)%s\n",
-			// 	spew.Sdump(resRaw))
-			spew.Printf("Type error in multiplication (%#v) => %#v\n",
-				l.Car.Cdr.(*value.ConsCell).Car,
-				resRaw)
-		}
-
+		//} else if resRaw.Type() == types.Integer {
+	} else if !value.IsNumber(resRaw) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   resRaw.Type().String(),
 		}
 	}
+
+	res = resRaw.(value.Number)
 
 	if inter.debug {
 		spew.Printf("MULTIPLY the following numbers: %#v\n",
@@ -619,16 +624,15 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 		var cval value.LispValue
 		if cval, err = inter.Eval(v.Car); err != nil {
 			return value.NIL, err
-		} else if cval.Type() == types.Integer {
-			res *= cval.(value.IntValue)
-			if v.Cdr == nil {
-				break
-			}
-		} else {
+		} else if !value.IsNumber(cval) {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   cval.Type().String(),
 			}
+		} else if res, err = evalMultiplication(res, cval.(value.Number)); err != nil {
+			return nil, err
+		} else if v.Cdr == nil {
+			break
 		}
 	}
 
@@ -651,23 +655,25 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 
 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
-	} else if val.Type() != types.Integer {
+	} else if !value.IsNumber(val) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   val.Type().String(),
 		}
 	}
 
-	var res = val.(value.IntValue)
+	var res value.Number = val.(value.Number)
 
 	for c := l.Car.Cdr.(*value.ConsCell).Cdr; c != nil; c = c.(*value.ConsCell).Cdr {
 		v := c.(*value.ConsCell)
 		if val, err = inter.Eval(v.Car); err != nil {
 			return value.NIL, err
-		} else if val.Type() == types.Integer {
-			var n = val.(value.IntValue)
-			if n != 0 {
-				res /= n
+		} else if value.IsNumber(val) {
+			var n = val.(value.Number)
+			if !n.IsZero() {
+				if res, err = evalDivision(res, n); err != nil {
+					return value.NIL, err
+				}
 			} else {
 				return nil, &ValueError{n}
 			}

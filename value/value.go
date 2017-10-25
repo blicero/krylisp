@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 14:20:27 krylon>
+// Time-stamp: <2017-10-25 20:11:33 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -49,6 +49,7 @@ type LispValue interface {
 type Number interface {
 	LispValue
 	Num()
+	IsZero() bool
 }
 
 // A NilValue represents nil, the strange list-symbol duality.
@@ -152,6 +153,11 @@ func (i IntValue) Eq(other LispValue) bool {
 func (i IntValue) Num() {
 } // func (i IntValue) Num()
 
+// IsZero returns true if the receiver's value is equal to zero.
+func (i IntValue) IsZero() bool {
+	return i == 0
+} // func (i IntValue) IsZero() bool
+
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
 // Converting a value to types.String may invoke the type's String method to
@@ -193,6 +199,11 @@ func (f FloatValue) Bool() bool {
 // Num identifies the receiver as kind of Number.
 func (f FloatValue) Num() {
 } // func (f FloatValue) Num()
+
+// IsZero returns true if the receiver's value is equal to zero.
+func (f FloatValue) IsZero() bool {
+	return f == 0
+} // func (f FloatValue) IsZero() bool
 
 // Eq return true if the receiver and the argument are the same, i.e. if both
 // are of the same type and have the same value.

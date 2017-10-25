@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 14:17:20 krylon>
+// Time-stamp: <2017-10-25 20:11:08 krylon>
 
 package value
 
@@ -27,6 +27,7 @@ func IsNil(v LispValue) bool {
 	return false
 } // func IsNil(v LispValue) bool
 
+// IsNumber checks if the given value belongs to one of the numeric types.
 func IsNumber(v LispValue) bool {
 	if v == nil {
 		return false
