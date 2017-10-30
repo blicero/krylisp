@@ -1,4 +1,4 @@
-/* Time-stamp: <2017-10-19 19:15:48 krylon>
+/* Time-stamp: <2017-10-26 13:42:14 krylon>
  * Lexical elements
  *
  * Mittwoch, 06. 09. 2017, 13:49
@@ -12,7 +12,10 @@ integer : '0' | '1'-'9' {_digit} ;
 
 _dot: '.' ;
 
-float: _digit {_digit} _dot _digit {_digit} ;
+float: _digit {_digit} _dot _digit {_digit} 
+     | _digit {_digit} 'f' ;
+
+bignum: _digit {_digit} 'b' ;
 
 lparen : '(' ;
 rparen : ')' ;
@@ -87,6 +90,7 @@ Atom
 Number
         : integer                               << pu.IntValue(string($0.(*token.Token).Lit)), nil >>
         | float                                 << pu.FloatValue(string($0.(*token.Token).Lit)), nil >>
+        | bignum                                << pu.Bignum(string($0.(*token.Token).Lit)), nil >>
         ;
 
 String 

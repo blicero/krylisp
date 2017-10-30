@@ -2,13 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-10 18:42:10 krylon>
+// Time-stamp: <2017-10-31 00:20:36 krylon>
 
 package interpreter
 
 import (
 	"krylisp/lexer"
 	"krylisp/parser"
+	"krylisp/types"
 	"krylisp/value"
 	"os"
 	"testing"
@@ -87,3 +88,43 @@ Actual:   %s
 		}
 	}
 } // func TestRunScript001(t *testing.T)
+
+func TestFactorial(t *testing.T) {
+	const scriptPath = "testdata/test002.lisp"
+	var (
+		l         *lexer.Lexer
+		p         = parser.NewParser()
+		err       error
+		val       value.LispValue
+		parseTree interface{}
+		program   value.Program
+		ok        bool
+	)
+
+	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
+		t.Errorf("Error creating Lexer for %s: %s",
+			scriptPath,
+			err.Error())
+	} else if parseTree, err = p.Parse(l); err != nil {
+		t.Errorf("Error parsing %s: %s",
+			scriptPath,
+			err.Error())
+	} else if program, ok = parseTree.([]value.LispValue); !ok {
+		t.Errorf("Unexpected type returned from Parser: %T",
+			parseTree)
+	} else if val, err = interp.Eval(program); err != nil {
+		t.Errorf("Error running %s: %s",
+			scriptPath,
+			err.Error())
+	} else if val.Type() != types.Integer {
+		t.Errorf("Unexpected type returned from %s: Expected Number, got %s",
+			scriptPath,
+			val.Type().String())
+	} else if int64(val.(value.IntValue)) != 3628800 {
+		t.Errorf("Unexpected result returned from %s: %s",
+			scriptPath,
+			val.String())
+	}
+
+	// 3628800
+} // func TestFactorial(t *testing.T)

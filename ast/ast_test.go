@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-20 19:10:11 krylon>
+// Time-stamp: <2017-10-26 13:50:14 krylon>
 
 package ast
 
@@ -219,6 +219,18 @@ func TestNumberType(t *testing.T) {
 			input:          "    +   ",
 			shouldBeNumber: false,
 			expectedType:   types.Symbol,
+		},
+		// Donnerstag, 26. 10. 2017, 13:32
+		// New tests for BigInt
+		numTest{
+			input:          "64b",
+			shouldBeNumber: true,
+			expectedType:   types.BigInt,
+		},
+		numTest{
+			input:          "23059823905838769287450938450960928409384502758273049283509283",
+			shouldBeNumber: true,
+			expectedType:   types.BigInt,
 		},
 	}
 

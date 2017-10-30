@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 14:27:32 krylon>
+// Time-stamp: <2017-10-26 14:27:04 krylon>
 //
 // This file contains the tests for type conversion
 
@@ -11,6 +11,7 @@ package value
 import (
 	"krylisp/types"
 	"math"
+	"math/big"
 	"testing"
 )
 
@@ -164,3 +165,49 @@ func TestFloat(t *testing.T) {
 		}
 	}
 } // func TestFloat(t *testing.T)
+
+func parseBigInt(s string) *BigInt {
+	if b, e := BigIntFromString(s); e != nil {
+		panic(e)
+	} else {
+		return b
+	}
+} // func parseBigInt(s string) *BigInt
+
+func TestBigInt(t *testing.T) {
+	var cases = []convertTest{
+		convertTest{
+			input:          &BigInt{Value: big.NewInt(32)},
+			destination:    types.Integer,
+			expectedResult: IntValue(32),
+		},
+		convertTest{
+			input:       parseBigInt("295842908756029385409213854092745689237409823490127835873895723098754"),
+			destination: types.Integer,
+			expectError: true,
+		},
+		convertTest{
+			input:          parseBigInt("295842908756029385409213854092745689237409823490127835873895723098754"),
+			destination:    types.String,
+			expectedResult: StringValue("295842908756029385409213854092745689237409823490127835873895723098754"),
+		},
+	}
+
+	for _, test := range cases {
+		var res LispValue
+		var err error
+
+		res, err = test.input.Convert(test.destination)
+
+		if (err != nil) != test.expectError {
+			t.Errorf("Error converting BigInt to %s: %s",
+				test.destination.String(),
+				err.Error())
+		} else if !test.expectError && !res.Eq(test.expectedResult) {
+			t.Errorf("Error converting BigInt to %s: Expected %s, got %s",
+				test.destination.String(),
+				test.expectedResult.String(),
+				res.String())
+		}
+	}
+} // func TestBigInt(t *testing.T)

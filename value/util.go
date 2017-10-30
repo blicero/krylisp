@@ -2,11 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 20:11:08 krylon>
+// Time-stamp: <2017-10-26 16:51:06 krylon>
 
 package value
 
-import "krylisp/types"
+import (
+	"krylisp/types"
+	"math"
+)
 
 // IsNil returns true if the given argument is considered a nil value.
 // (Yeah, sorry, there's a confusing multitude of values that are considered
@@ -34,9 +37,16 @@ func IsNumber(v LispValue) bool {
 	}
 
 	switch v.Type() {
-	case types.Integer, types.Float:
+	case types.Integer, types.Float, types.BigInt:
 		return true
 	default:
 		return false
 	}
 } // func IsNumber(v LispValue) bool
+
+// IsFloatInteger returns true if the receiver's value can be represented
+// as an IntValue without loss of precision, i.e. if the fractional part
+// is zero.
+func IsFloatInteger(f FloatValue) bool {
+	return math.Floor(float64(f)) == float64(f)
+} // func IsFloatInteger(f FloatValue) bool

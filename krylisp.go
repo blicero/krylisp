@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-30 16:54:01 krylon>
+// Time-stamp: <2017-10-26 16:26:49 krylon>
 
 package main
 
@@ -15,7 +15,6 @@ import (
 	"krylisp/repl"
 	"krylisp/value"
 	"os"
-	"text/template/parse"
 )
 
 func main() {
@@ -57,7 +56,7 @@ func main() {
 				filename,
 				err.Error())
 			os.Exit(1)
-		} else if rawProg, err = parse.Parse(lex); err != nil {
+		} else if rawProg, err = pars.Parse(lex); err != nil {
 			fmt.Printf("Error parsing %s: %s\n",
 				filename,
 				err.Error())

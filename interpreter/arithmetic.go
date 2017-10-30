@@ -2,7 +2,17 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 20. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 21:05:39 krylon>
+// Time-stamp: <2017-10-26 19:40:06 krylon>
+//
+// Donnerstag, 26. 10. 2017, 17:00
+// I would like to have seamless transitions between Fixnum and Bignum,
+// i.e. if the result of an operation fits in an int64, it returns an int64,
+// and a BigInt if not.
+// But that means I would have to check for over/underflow in all arithmetic
+// operations. That seems a bit harsh.
+// I *could* try to mitigate the performance hit by stealing a trick from the
+// good old Lisp Machine perform the check in parallel. ???
+// Or would that just make things more convoluted?
 
 package interpreter
 
@@ -10,12 +20,30 @@ import (
 	"fmt"
 	"krylisp/types"
 	"krylisp/value"
+	"math/big"
 )
 
 // Zero is the number 0, as you probably have guessed.
 const (
 	Zero = value.IntValue(0)
 )
+
+/*
+   Some non-optimized but clean code from Rob Pike himself:
+*/
+const mostNegative = -(mostPositive + 1)
+const mostPositive = 1<<63 - 1
+
+func signedMulOverflows(a, b int64) bool {
+	if a == 0 || b == 0 || a == 1 || b == 1 {
+		return false
+	}
+	if a == mostNegative || b == mostNegative {
+		return true
+	}
+	c := a * b
+	return c/b != a
+}
 
 type constellation [2]types.ID
 
@@ -26,6 +54,7 @@ type promotionrule struct {
 }
 
 var arithRules = map[constellation]promotionrule{
+	// Integer
 	constellation{types.Integer, types.Integer}: promotionrule{
 		input:  constellation{types.Integer, types.Integer},
 		left:   false,
@@ -36,6 +65,13 @@ var arithRules = map[constellation]promotionrule{
 		left:   true,
 		output: types.Float,
 	},
+	constellation{types.Integer, types.BigInt}: promotionrule{
+		input:  constellation{types.Integer, types.BigInt},
+		left:   true,
+		output: types.BigInt,
+	},
+
+	// Float
 	constellation{types.Float, types.Float}: promotionrule{
 		input:  constellation{types.Float, types.Float},
 		output: types.Float,
@@ -43,6 +79,28 @@ var arithRules = map[constellation]promotionrule{
 	constellation{types.Float, types.Integer}: promotionrule{
 		input:  constellation{types.Integer, types.Integer},
 		output: types.Float,
+	},
+	constellation{types.Float, types.BigInt}: promotionrule{
+		input:  constellation{types.Float, types.BigInt},
+		output: types.Float,
+	},
+
+	// BigInt
+	constellation{types.BigInt, types.Integer}: promotionrule{
+		input:  constellation{types.BigInt, types.Integer},
+		output: types.BigInt,
+	},
+	// Since double precision floats can have values that are
+	// pretty *!&%$ huge, I pretend this is not ever going to
+	// cause problems.
+	constellation{types.BigInt, types.Float}: promotionrule{
+		input:  constellation{types.BigInt, types.Float},
+		output: types.Float,
+		left:   true,
+	},
+	constellation{types.BigInt, types.BigInt}: promotionrule{
+		input:  constellation{types.BigInt, types.BigInt},
+		output: types.BigInt,
 	},
 }
 
@@ -88,6 +146,10 @@ func evalNegate(x value.Number) (value.Number, error) {
 		return -n, nil
 	case value.FloatValue:
 		return -n, nil
+	case *value.BigInt:
+		var tmp = &value.BigInt{Value: new(big.Int)}
+		tmp.Value.Neg(n.Value)
+		return tmp, nil
 	default:
 		return nil, fmt.Errorf("I do not know how to negate a %T value", x)
 	}
@@ -110,6 +172,10 @@ func evalAddition(l, r value.Number) (value.Number, error) {
 		resultValue = lv + rop.(value.IntValue)
 	case value.FloatValue:
 		resultValue = lv + rop.(value.FloatValue)
+	case *value.BigInt:
+		var tmp = &value.BigInt{Value: new(big.Int)}
+		tmp.Value.Add(lv.Value, rop.(*value.BigInt).Value)
+		resultValue = tmp
 	default:
 		return nil, fmt.Errorf("Don't know how to handle numeric type %T", lop)
 	}
@@ -134,6 +200,10 @@ func evalSubtraction(l, r value.Number) (value.Number, error) {
 		resultValue = lv - rop.(value.IntValue)
 	case value.FloatValue:
 		resultValue = lv - rop.(value.FloatValue)
+	case *value.BigInt:
+		var tmp = &value.BigInt{Value: new(big.Int)}
+		tmp.Value.Sub(lv.Value, rop.(*value.BigInt).Value)
+		resultValue = tmp
 	default:
 		return nil, fmt.Errorf("Don't know how to handle numeric type %T", lop)
 	}
@@ -156,6 +226,10 @@ func evalMultiplication(l, r value.Number) (value.Number, error) {
 		result = lv * rop.(value.IntValue)
 	case value.FloatValue:
 		result = lv * rop.(value.FloatValue)
+	case *value.BigInt:
+		var tmp = &value.BigInt{Value: new(big.Int)}
+		tmp.Value.Mul(lv.Value, rop.(*value.BigInt).Value)
+		result = tmp
 	default:
 		return nil, fmt.Errorf("I do not know how to multiply a %T and a %T",
 			lop, rop)
@@ -181,6 +255,10 @@ func evalDivision(l, r value.Number) (value.Number, error) {
 		result = lv / rop.(value.IntValue)
 	case value.FloatValue:
 		result = lv / rop.(value.FloatValue)
+	case *value.BigInt:
+		var tmp = &value.BigInt{Value: new(big.Int)}
+		tmp.Value.Div(lv.Value, rop.(*value.BigInt).Value)
+		result = tmp
 	default:
 		return nil, fmt.Errorf("I do not know how to divide a %T by a %T",
 			l, r)

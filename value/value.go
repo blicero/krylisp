@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 20:11:33 krylon>
+// Time-stamp: <2017-10-26 16:45:27 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -26,6 +26,8 @@ import (
 	"errors"
 	"fmt"
 	"krylisp/types"
+	"math"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -168,6 +170,8 @@ func (i IntValue) Convert(id types.ID) (LispValue, error) {
 		return i, nil
 	case types.Float:
 		return FloatValue(float64(i)), nil
+	case types.BigInt:
+		return &BigInt{Value: big.NewInt(int64(i))}, nil
 	case types.String:
 		//return StringValue(strconv.Itoa(int(i))), nil
 		return StringValue(i.String()), nil
@@ -231,12 +235,165 @@ func (f FloatValue) Convert(id types.ID) (LispValue, error) {
 		return IntValue(f), nil
 	case types.Float:
 		return f, nil
+	case types.BigInt:
+		//return &BigInt{num: big.NewFloat(float64(f)).Int()}, nil
+		var bf = big.NewFloat(float64(f))
+		var bi *big.Int
+
+		bi, _ = bf.Int(nil)
+		return &BigInt{Value: bi}, nil
 	case types.String:
 		return StringValue(f.String()), nil
 	default:
 		return NIL, &TypeConversionError{types.Float, id}
 	}
 } // func (f FloatValue) Convert(types.ID) (LispValue, error)
+
+// Donnerstag, 26. 10. 2017, 10:50
+// I think I have to wrap bignums in a struct or array because of the method
+// namespaces. While I am at it, could I add anything else that is worthwhile?
+// Cache the string representation or something like that?
+
+// BigInt is an arbitrary-precision integer value, using Go's big.Int
+// under the hood.
+type BigInt struct {
+	Value *big.Int
+	str   string
+}
+
+// BigIntFromString attempts to parse a string into a BigInt value.
+func BigIntFromString(s string) (*BigInt, error) {
+	var n = new(big.Int)
+	var ok bool
+
+	if _, ok = n.SetString(s, 10); !ok {
+		return nil, fmt.Errorf("Could not parse string to BigInt: %s",
+			s)
+	}
+
+	return &BigInt{Value: n}, nil
+} // func BigIntFromString(s string) (*BigInt, error)
+
+// BigZero is the BigInt value of zero.
+var BigZero = &BigInt{
+	Value: big.NewInt(0),
+	str:   "0",
+}
+
+// IntMax is the largest value that can be represented as an int64/IntValue
+var IntMax = &BigInt{
+	Value: big.NewInt(math.MaxInt64),
+	str:   strconv.FormatInt(math.MaxInt64, 10),
+}
+
+// IntMin is the smallest (most negative) value that can be represented as an
+// int64/IntValue
+var IntMin = &BigInt{
+	Value: big.NewInt(math.MinInt64),
+	str:   strconv.FormatInt(math.MinInt64, 10),
+}
+
+// Type returns the type ID of the Lisp value, in this case
+// types.BigInt
+func (b *BigInt) Type() types.ID {
+	return types.BigInt
+} // func (b *BigInt) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (b *BigInt) String() string {
+	if b.str != "" {
+		return b.str
+	}
+
+	b.str = b.Value.String()
+	return b.str
+} // func (b *BigInt) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (b *BigInt) Bool() bool {
+	return true
+} // func (b *BigInt) Bool() bool
+
+// Eq return true if the receiver and the argument are the same.
+// If the argument is a Number, the two are compared for value equality.
+func (b *BigInt) Eq(other LispValue) bool {
+	if other == nil {
+		return false
+	} else if !IsNumber(other) {
+		return false
+	}
+
+	switch ot := other.(type) {
+	case *BigInt:
+		return b.Value.Cmp(ot.Value) == 0
+	case IntValue:
+		var ob = big.NewInt(int64(ot))
+		return b.Value.Cmp(ob) == 0
+	case FloatValue:
+		var of = new(big.Float)
+		of.SetFloat64(float64(ot))
+		if of.IsInt() {
+			var oi, _ = of.Int(nil)
+			return b.Value.Cmp(oi) == 0
+		}
+
+		return false
+	default:
+
+		return false
+	}
+} // func (b *BigInt) Eq(other LispValue) bool
+
+// Num identifies the receiver as kind of Number.
+func (b *BigInt) Num() {
+}
+
+// IsInt64 returns true if the value of the receiver is within the range
+// that can be represented by int64/IntValue
+func (b *BigInt) IsInt64() bool {
+	return b.Value.Cmp(IntMin.Value) >= 0 && b.Value.Cmp(IntMax.Value) <= 0
+} // func (b *BigInt) IsInt64() bool
+
+// IsZero returns true if the receiver's value is equal to zero.
+func (b *BigInt) IsZero() bool {
+	return b.Value.Cmp(BigZero.Value) == 0
+} // func (b *BigInt) IsZero() bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+func (b *BigInt) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.Integer:
+		if b.IsInt64() {
+			return IntValue(b.Value.Int64()), nil
+		}
+
+		return NIL, fmt.Errorf("BigInt Value is out range for conversion to int64: %s",
+			b.Value.String())
+	case types.BigInt:
+		return b, nil
+	case types.Float:
+		var tmpFloat = new(big.Float)
+		var f float64
+
+		tmpFloat.SetInt(b.Value)
+		f, _ = tmpFloat.Float64()
+		return FloatValue(f), nil
+	case types.String:
+		return StringValue(b.Value.String()), nil
+	default:
+		return NIL, &TypeConversionError{
+			source:      types.BigInt,
+			destination: id,
+		}
+	}
+}
+
+// Clone creates and returns a new BigInt with the same value as the receiver.
+func (b *BigInt) Clone() *BigInt {
+	var n = &BigInt{Value: new(big.Int)}
+	n.Value.Set(b.Value)
+	return n
+} // func (b *BigInt) Clone() *BigInt
 
 // StringValue is a string. Strings are implemented in terms of Go strings, so
 // the same rules and restrictions apply: Strings are encoded in UTF-8 and

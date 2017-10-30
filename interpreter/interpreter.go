@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 20:14:21 krylon>
+// Time-stamp: <2017-10-26 16:46:44 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -124,6 +124,7 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 	switch v := lval.(type) {
 	case value.IntValue,
 		value.FloatValue,
+		*value.BigInt,
 		value.StringValue,
 		value.NilValue:
 		return v, nil
@@ -662,7 +663,7 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 		}
 	}
 
-	var res value.Number = val.(value.Number)
+	var res = val.(value.Number)
 
 	for c := l.Car.Cdr.(*value.ConsCell).Cdr; c != nil; c = c.(*value.ConsCell).Cdr {
 		v := c.(*value.ConsCell)

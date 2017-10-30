@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-25 21:42:50 krylon>
+// Time-stamp: <2017-10-26 16:43:57 krylon>
 
 package interpreter
 
@@ -13,6 +13,7 @@ import (
 	"krylisp/parser"
 	"krylisp/types"
 	"krylisp/value"
+	"math/big"
 	"os"
 	"testing"
 
@@ -104,6 +105,36 @@ func TestPlus(t *testing.T) {
 				Length: 3,
 			},
 			expectedValue: value.FloatValue(7.5),
+		},
+		testPlus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: plus,
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(42),
+						Cdr: &value.ConsCell{
+							Car: parseBigInt("4096"),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: &value.BigInt{Value: big.NewInt(4138)},
+		},
+		testPlus{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: plus,
+					Cdr: &value.ConsCell{
+						Car: parseBigInt("4096"),
+						Cdr: &value.ConsCell{
+							Car: value.IntValue(42),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: &value.BigInt{Value: big.NewInt(4138)},
 		},
 	}
 
@@ -1426,6 +1457,18 @@ func TestList(t *testing.T) {
 		}
 	}
 } // func TestList(t *testing.T)
+
+///////////////////////////////////////////////////////////
+// Utility functions //////////////////////////////////////
+///////////////////////////////////////////////////////////
+
+func parseBigInt(s string) *value.BigInt {
+	if b, e := value.BigIntFromString(s); e != nil {
+		panic(e)
+	} else {
+		return b
+	}
+} // func parseBigInt(s string) *BigInt
 
 ///////////////////////////////////////////////////////////
 // main ///////////////////////////////////////////////////
