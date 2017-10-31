@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 16:46:44 krylon>
+// Time-stamp: <2017-10-31 22:23:48 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -13,6 +13,9 @@
 // Freitag, 20. 10. 2017, 17:16
 // Adding support for multiple numeric types is not going to be easy. I basically
 // need to rewrite all the arithmetic functions.
+//
+// Dienstag, 31. 10. 2017, 01:59
+// Oh my, when I added numeric types, I forgot the comparison operators!
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -27,6 +30,7 @@ import (
 	"fmt"
 	"io"
 	"krylib"
+	"krylisp/compare"
 	"krylisp/types"
 	"krylisp/value"
 	"os"
@@ -795,36 +799,47 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Integer {
+	} else if !value.IsNumber(v1) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Integer {
+	} else if !value.IsNumber(v2) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
 		}
-	} else if v1.(value.IntValue) >= v2.(value.IntValue) {
-		return value.NIL, nil
+	} else if l.Length == 2 {
+		return value.T, nil
+	}
+
+	var cmpResult compare.Result
+
+	if cmpResult, err = evalPolymorphLT(v1.(value.Number), v2.(value.Number)); err != nil {
+		return value.NIL, err
+	} else if cmpResult != compare.LessThan {
+		return value.NIL, err
 	} else if l.Length == 3 {
 		return value.T, nil
 	}
 
-	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
+	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); !value.IsNil(c); c = c.Cdr.(*value.ConsCell) {
+		var res compare.Result
 		v1 = v2
 		raw2 = c.Car
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Integer {
+		} else if !value.IsNumber(v2) {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
 			}
-		} else if v1.(value.IntValue) >= v2.(value.IntValue) {
-			return value.NIL, nil
-		} else if c.Cdr == nil {
+		} else if res, err = evalPolymorphLT(v1.(value.Number), v2.(value.Number)); err != nil {
+			return value.NIL, err
+		} else if res != compare.LessThan {
+			return value.NIL, err
+		} else if value.IsNil(c.Cdr) {
 			break
 		}
 	}

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 20. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 19:40:06 krylon>
+// Time-stamp: <2017-10-31 21:32:27 krylon>
 //
 // Donnerstag, 26. 10. 2017, 17:00
 // I would like to have seamless transitions between Fixnum and Bignum,
@@ -18,6 +18,7 @@ package interpreter
 
 import (
 	"fmt"
+	"krylisp/compare"
 	"krylisp/types"
 	"krylisp/value"
 	"math/big"
@@ -266,3 +267,65 @@ func evalDivision(l, r value.Number) (value.Number, error) {
 
 	return result, nil
 } // func evalDivision(l, r value.Number) (value.Number, error)
+
+func evalPolymorphLT(l, r value.Number) (compare.Result, error) {
+	var (
+		lop, rop value.Number
+		err      error
+	)
+
+	if lop, rop, err = promoteTypes(l, r); err != nil {
+		return compare.Undefined, err
+	}
+
+	switch lv := lop.(type) {
+	case value.IntValue:
+		return cmpInt(lv, rop.(value.IntValue)), nil
+	case value.FloatValue:
+		return cmpFloat(lv, rop.(value.FloatValue)), nil
+	case *value.BigInt:
+		return cmpBigInt(lv, rop.(*value.BigInt)), nil
+	default:
+		return compare.Undefined, fmt.Errorf("Less-Than comparison is not implemented for type %T",
+			lop)
+	}
+} // func evalPolymorphLT(l, r value.Number) (value.Number, error)
+
+func cmpInt(l, r value.IntValue) compare.Result {
+	if l < r {
+		return compare.LessThan
+	} else if l == r {
+		return compare.Equal
+	} else if l > r {
+		return compare.GreaterThan
+	}
+
+	panic("CANTHAPPEN: two Integer values cannot be sorted")
+} // func cmpInt(l, r value.IntValue) int
+
+func cmpFloat(l, r value.FloatValue) compare.Result {
+	if l < r {
+		return compare.LessThan
+	} else if l == r {
+		return compare.Equal
+	} else if l > r {
+		return compare.GreaterThan
+	}
+
+	panic("CANTHAPPEN: two FloatValues cannot be sorted")
+} // func cmpFloat(l, r, value.FloatValue) value.LispValue
+
+func cmpBigInt(l, r *value.BigInt) compare.Result {
+	v := value.IntValue(l.Value.Cmp(r.Value))
+	switch v {
+	case -1:
+		return compare.LessThan
+	case 0:
+		return compare.Equal
+	case 1:
+		return compare.GreaterThan
+	default:
+		panic(fmt.Errorf("CANTHAPPEN - Undefined comparison for BigInt values: %v", v))
+	}
+
+} // func cmpBigInt(l, r value.BigInt) value.LispValue
