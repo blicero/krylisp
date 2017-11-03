@@ -2,9 +2,11 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 31. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-31 21:36:04 krylon>
+// Time-stamp: <2017-11-01 21:13:44 krylon>
 
 // Package compare contains the results of a comparison between two values.
+// I am not entirely sure if I am not pushing this a little too far, but
+// I kind of liked the idea, so here we are.
 package compare
 
 //go:generate stringer -type=Result

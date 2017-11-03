@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-31 22:23:48 krylon>
+// Time-stamp: <2017-11-01 21:12:16 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -768,6 +768,19 @@ func (inter *Interpreter) evalEq(l *value.List) (value.LispValue, error) {
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
+	} else if v1.Type() != v2.Type() {
+		if value.IsNumber(v1) && value.IsNumber(v2) {
+			var res compare.Result
+			if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+				return value.NIL, err
+			}
+
+			if res == compare.Equal {
+				return value.T, nil
+			}
+		}
+
+		return value.NIL, nil
 	}
 
 	if v1.Eq(v2) {
@@ -815,7 +828,7 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 
 	var cmpResult compare.Result
 
-	if cmpResult, err = evalPolymorphLT(v1.(value.Number), v2.(value.Number)); err != nil {
+	if cmpResult, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 		return value.NIL, err
 	} else if cmpResult != compare.LessThan {
 		return value.NIL, err
@@ -835,7 +848,7 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 				expected: "Number",
 				actual:   v2.Type().String(),
 			}
-		} else if res, err = evalPolymorphLT(v1.(value.Number), v2.(value.Number)); err != nil {
+		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 			return value.NIL, err
 		} else if res != compare.LessThan {
 			return value.NIL, err
@@ -861,6 +874,7 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 
 	var v1, v2, raw1, raw2 value.LispValue
 	var err error
+	var res compare.Result
 
 	raw1 = l.Car.Cdr.(*value.ConsCell).Car
 	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
@@ -869,20 +883,20 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Integer {
+	} else if !value.IsNumber(v1) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Integer {
+	} else if !value.IsNumber(v2) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
 		}
-	} else if v1.(value.IntValue) <= v2.(value.IntValue) {
+	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+		return value.NIL, err
+	} else if l.Length == 3 && res != compare.GreaterThan {
 		return value.NIL, nil
-	} else if l.Length == 3 {
-		return value.T, nil
 	}
 
 	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
@@ -891,12 +905,14 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Integer {
+		} else if !value.IsNumber(v2) {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
 			}
-		} else if v1.(value.IntValue) <= v2.(value.IntValue) {
+		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+			return value.NIL, err
+		} else if res != compare.GreaterThan {
 			return value.NIL, nil
 		} else if c.Cdr == nil {
 			break
@@ -920,6 +936,7 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 
 	var v1, v2, raw1, raw2 value.LispValue
 	var err error
+	var res compare.Result
 
 	raw1 = l.Car.Cdr.(*value.ConsCell).Car
 	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
@@ -928,19 +945,23 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Integer {
+	} else if !value.IsNumber(v1) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Integer {
+	} else if value.IsNumber(v2) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
 		}
-	} else if v1.(value.IntValue) > v2.(value.IntValue) {
-		return value.NIL, nil
+	} else if res, err := evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+		return value.NIL, err
 	} else if l.Length == 3 {
+		if res == compare.GreaterThan {
+			return value.NIL, nil
+		}
+
 		return value.T, nil
 	}
 
@@ -950,12 +971,14 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Integer {
+		} else if !value.IsNumber(v2) {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
 			}
-		} else if v1.(value.IntValue) > v2.(value.IntValue) {
+		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+			return value.NIL, err
+		} else if res == compare.GreaterThan {
 			return value.NIL, nil
 		} else if c.Cdr == nil {
 			break
@@ -979,6 +1002,7 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 
 	var v1, v2, raw1, raw2 value.LispValue
 	var err error
+	var res compare.Result
 
 	raw1 = l.Car.Cdr.(*value.ConsCell).Car
 	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
@@ -987,19 +1011,23 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 		return value.NIL, err
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
-	} else if v1.Type() != types.Integer {
+	} else if !value.IsNumber(v1) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v1.Type().String(),
 		}
-	} else if v2.Type() != types.Integer {
+	} else if !value.IsNumber(v2) {
 		return value.NIL, &TypeError{
 			expected: "Number",
 			actual:   v2.Type().String(),
 		}
-	} else if v1.(value.IntValue) < v2.(value.IntValue) {
-		return value.NIL, nil
+	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+		return value.NIL, err
 	} else if l.Length == 3 {
+		if res == compare.LessThan {
+			return value.NIL, nil
+		}
+
 		return value.T, nil
 	}
 
@@ -1009,12 +1037,14 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
-		} else if v2.Type() != types.Integer {
+		} else if !value.IsNumber(v2) {
 			return value.NIL, &TypeError{
 				expected: "Number",
 				actual:   v2.Type().String(),
 			}
-		} else if v1.(value.IntValue) < v2.(value.IntValue) {
+		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+			return value.NIL, err
+		} else if res == compare.LessThan {
 			return value.NIL, nil
 		} else if c.Cdr == nil {
 			break

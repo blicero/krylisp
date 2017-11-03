@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 20. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-31 21:32:27 krylon>
+// Time-stamp: <2017-11-03 18:28:57 krylon>
 //
 // Donnerstag, 26. 10. 2017, 17:00
 // I would like to have seamless transitions between Fixnum and Bignum,
@@ -13,6 +13,15 @@
 // I *could* try to mitigate the performance hit by stealing a trick from the
 // good old Lisp Machine perform the check in parallel. ???
 // Or would that just make things more convoluted?
+// The other question is, how do I detect over-/underflow?
+// In Go, signed Integer arithmetic silently overflows, it is defined behavior,
+// but have to figure out how to detect such cases.
+//
+// Freitag, 03. 11. 2017, 16:17
+// On a first small number of test cases, overflow to big.Int for integer
+// arithmetic seems to work fine.
+// Now, I would like to support the opposite case, where a big.Int-operation
+// results in a value small enought to fit inside an IntValue.
 
 package interpreter
 
@@ -26,28 +35,20 @@ import (
 
 // Zero is the number 0, as you probably have guessed.
 const (
-	Zero = value.IntValue(0)
+	Zero         = value.IntValue(0)
+	mostPositive = 1<<63 - 1
+	mostNegative = -(mostPositive + 1)
 )
 
-/*
-   Some non-optimized but clean code from Rob Pike himself:
-*/
-const mostNegative = -(mostPositive + 1)
-const mostPositive = 1<<63 - 1
-
-func signedMulOverflows(a, b int64) bool {
-	if a == 0 || b == 0 || a == 1 || b == 1 {
-		return false
-	}
-	if a == mostNegative || b == mostNegative {
-		return true
-	}
-	c := a * b
-	return c/b != a
-}
-
+// constellation represents the 2-tuple of argument types to an
+// arithmetic operation.
 type constellation [2]types.ID
 
+// promotionrule defines, for a given constellation of argument types,
+// which value should be promoted to which type.
+// Most of the arithmetic code is written with the assumption that
+// the "lesser" argument type is promoted to "greater" argument
+// type.
 type promotionrule struct {
 	input  constellation
 	left   bool
@@ -170,13 +171,28 @@ func evalAddition(l, r value.Number) (value.Number, error) {
 
 	switch lv := lop.(type) {
 	case value.IntValue:
-		resultValue = lv + rop.(value.IntValue)
+		var overflow bool
+		if resultValue, overflow = addOverflows(lv, rop.(value.IntValue)); overflow {
+			var big1, big2 *big.Int
+			var tmp *value.BigInt
+			big1 = big.NewInt(int64(lv))
+			big2 = big.NewInt(int64(rop.(value.IntValue)))
+			tmp = &value.BigInt{Value: new(big.Int)}
+			tmp.Value.Add(big1, big2)
+			resultValue = tmp
+		}
+		//resultValue = lv + rop.(value.IntValue)
 	case value.FloatValue:
 		resultValue = lv + rop.(value.FloatValue)
 	case *value.BigInt:
 		var tmp = &value.BigInt{Value: new(big.Int)}
 		tmp.Value.Add(lv.Value, rop.(*value.BigInt).Value)
-		resultValue = tmp
+
+		if tmp.Value.IsInt64() {
+			resultValue = value.IntValue(tmp.Value.Int64())
+		} else {
+			resultValue = tmp
+		}
 	default:
 		return nil, fmt.Errorf("Don't know how to handle numeric type %T", lop)
 	}
@@ -198,13 +214,27 @@ func evalSubtraction(l, r value.Number) (value.Number, error) {
 
 	switch lv := lop.(type) {
 	case value.IntValue:
-		resultValue = lv - rop.(value.IntValue)
+		//resultValue = lv - rop.(value.IntValue)
+		var overflow bool
+		if resultValue, overflow = subOverflows(lv, rop.(value.IntValue)); overflow {
+			var big1, big2 *big.Int
+			var tmp *value.BigInt
+			big1 = big.NewInt(int64(lv))
+			big2 = big.NewInt(int64(rop.(value.IntValue)))
+			tmp.Value.Add(big1, big2)
+			resultValue = tmp
+		}
 	case value.FloatValue:
 		resultValue = lv - rop.(value.FloatValue)
 	case *value.BigInt:
 		var tmp = &value.BigInt{Value: new(big.Int)}
 		tmp.Value.Sub(lv.Value, rop.(*value.BigInt).Value)
-		resultValue = tmp
+
+		if tmp.Value.IsInt64() {
+			resultValue = value.IntValue(tmp.Value.Int64())
+		} else {
+			resultValue = tmp
+		}
 	default:
 		return nil, fmt.Errorf("Don't know how to handle numeric type %T", lop)
 	}
@@ -224,13 +254,32 @@ func evalMultiplication(l, r value.Number) (value.Number, error) {
 
 	switch lv := lop.(type) {
 	case value.IntValue:
-		result = lv * rop.(value.IntValue)
+		var overflow bool
+		if result, overflow = mulOverflows(lv, rop.(value.IntValue)); overflow {
+			var big1, big2 *big.Int
+			var tmp *value.BigInt
+
+			big1 = big.NewInt(int64(lv))
+			big2 = big.NewInt(int64(rop.(value.IntValue)))
+			tmp = &value.BigInt{Value: new(big.Int)}
+			tmp.Value.Mul(big1, big2)
+			fmt.Printf("Eval: %s * %s == %s\n",
+				big1.String(),
+				big2.String(),
+				tmp.Value.String())
+			result = tmp
+		}
+		//result = lv * rop.(value.IntValue)
 	case value.FloatValue:
 		result = lv * rop.(value.FloatValue)
 	case *value.BigInt:
 		var tmp = &value.BigInt{Value: new(big.Int)}
 		tmp.Value.Mul(lv.Value, rop.(*value.BigInt).Value)
-		result = tmp
+		if tmp.Value.IsInt64() {
+			result = value.IntValue(tmp.Value.Int64())
+		} else {
+			result = tmp
+		}
 	default:
 		return nil, fmt.Errorf("I do not know how to multiply a %T and a %T",
 			lop, rop)
@@ -259,7 +308,11 @@ func evalDivision(l, r value.Number) (value.Number, error) {
 	case *value.BigInt:
 		var tmp = &value.BigInt{Value: new(big.Int)}
 		tmp.Value.Div(lv.Value, rop.(*value.BigInt).Value)
-		result = tmp
+		if tmp.Value.IsInt64() {
+			result = value.IntValue(tmp.Value.Int64())
+		} else {
+			result = tmp
+		}
 	default:
 		return nil, fmt.Errorf("I do not know how to divide a %T by a %T",
 			l, r)
@@ -268,7 +321,7 @@ func evalDivision(l, r value.Number) (value.Number, error) {
 	return result, nil
 } // func evalDivision(l, r value.Number) (value.Number, error)
 
-func evalPolymorphLT(l, r value.Number) (compare.Result, error) {
+func evalPolymorphCmp(l, r value.Number) (compare.Result, error) {
 	var (
 		lop, rop value.Number
 		err      error
@@ -286,10 +339,10 @@ func evalPolymorphLT(l, r value.Number) (compare.Result, error) {
 	case *value.BigInt:
 		return cmpBigInt(lv, rop.(*value.BigInt)), nil
 	default:
-		return compare.Undefined, fmt.Errorf("Less-Than comparison is not implemented for type %T",
+		return compare.Undefined, fmt.Errorf("Greater-Than comparison is not implemented for type %T",
 			lop)
 	}
-} // func evalPolymorphLT(l, r value.Number) (value.Number, error)
+} // func evalPolymorphCmp(l, r value.Number) (compare.Result, error)
 
 func cmpInt(l, r value.IntValue) compare.Result {
 	if l < r {
@@ -329,3 +382,89 @@ func cmpBigInt(l, r *value.BigInt) compare.Result {
 	}
 
 } // func cmpBigInt(l, r value.BigInt) value.LispValue
+
+/*
+On the go-nuts mailing list, Rob Pike suggests the following code to check
+for overflow. I could attempt to take this as a template.
+
+func mulOverflows(a, b uint64) bool {
+   if a <= 1 || b <= 1 {
+     return false
+   }
+   c := a * b
+   return c/b != a
+}
+
+const mostNegative = -(mostPositive + 1)
+const mostPositive = 1<<63 - 1
+
+func signedMulOverflows(a, b int64) bool {
+   if a == 0 || b == 0 || a == 1 || b == 1 {
+     return false
+   }
+   if a == mostNegative || b == mostNegative {
+     return true
+   }
+   c := a * b
+   return c/b != a
+}
+
+*/
+
+func sign(n value.IntValue) value.IntValue {
+	if n < 0 {
+		return -1
+	}
+
+	return 1
+} // func sign(n value.IntValue) value.IntValue
+
+// These functions perform their respective operations and check for
+// over-/underflow.
+// Except for division, because a division where both operands are
+// integers cannot overflow.
+
+func addOverflows(a, b value.IntValue) (value.IntValue, bool) {
+	if (a == mostPositive && sign(b) == 1) || (b == mostPositive && sign(a) == 1) {
+		return 0, true
+	} else if (a == mostNegative && sign(b) == -1) || (sign(a) == -1 && b == mostNegative) {
+		return 0, true
+	}
+
+	c := a + b
+	if c-b != a {
+		return 0, true
+	}
+
+	return c, false
+} // func addOverflows(a, b value.IntValue) (value.IntValue, bool)
+
+func subOverflows(a, b value.IntValue) (value.IntValue, bool) {
+	if (a == mostPositive && sign(b) == -1) || (sign(a) == -1 && b == mostPositive) {
+		return 0, true
+	} else if (a == mostNegative && sign(b) == 1) || (sign(a) == 1 && b == mostPositive) {
+		return 0, true
+	}
+
+	c := a - b
+	if c+b != a {
+		return 0, true
+	}
+
+	return c, false
+} // func subOverflows(a, b value.IntValue) (value.IntValue, bool)
+
+func mulOverflows(a, b value.IntValue) (value.IntValue, bool) {
+	if a == 0 || b == 0 || a == 1 || b == 1 {
+		return a * b, false
+	} else if a == mostNegative || b == mostNegative {
+		return 0, true
+	}
+
+	c := a * b
+	if c/b != a {
+		return 0, true
+	}
+
+	return c, false
+} // func mulOverflows(a, b value.IntValue) (value.IntValue, bool)

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-31 01:09:42 krylon>
+// Time-stamp: <2017-11-03 18:34:44 krylon>
 
 package interpreter
 
@@ -159,7 +159,7 @@ func TestFactorialBignum(t *testing.T) {
 		t.Errorf("Error running %s: %s",
 			scriptPath,
 			err.Error())
-	} else if val.Type() != types.BigInt {
+	} else if val.Type() != types.BigInt && val.Type() != types.Integer {
 		t.Errorf("Unexpected type returned from %s: Expected Number, got %s",
 			scriptPath,
 			val.Type().String())

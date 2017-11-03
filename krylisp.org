@@ -1,8 +1,35 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-10-19 17:42:50 krylon>
+# Time-stamp: <2017-10-31 22:52:02 krylon>
 
 
 * kryLisp
+** README
+   Somebody much wiser than me once said:
+   "Any sufficiently complicated C or Fortran program contains an
+   ad-hoc, informally-specified, bug-ridden, slow implementation of
+   half of Common Lisp."
+
+   Somebody else, also wiser than me, added:
+   "...including Common Lisp."
+
+   So yeah, here we are. This is the mandatory toy Lisp interpreter
+   everyone tried to build once in their lifetime.
+   It takes ideas ideas both from Common Lisp and from Scheme, puts
+   them together in a bag and beats the ____ out of them with a
+   baseball bat.
+
+   This interpreter was mainly written as an excercise to learn about
+   the challenges and pitfalls one encounters when building an
+   interpreter for a custom programming language - Lisp being the
+   simples possible case, where the syntax is concerned -, and my main
+   goal was to learn something, not to build a great piece of
+   software. Not even to build a halfway decent piece of software.
+
+   So if you look over this and think "Man, this sucks really hard",
+   you are most likely right.
+
+   If you want to help me make this suck slightly less hard, patches
+   are thoughtfully considered. ;-)
 ** Parser
    Ich dachte erst, ich könnte ja beim Parser aus dem
    Go-Interpreterbuch abgucken, aber der ist für die simple Syntax,

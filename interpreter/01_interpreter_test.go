@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 16:43:57 krylon>
+// Time-stamp: <2017-11-03 18:33:58 krylon>
 
 package interpreter
 
@@ -13,7 +13,6 @@ import (
 	"krylisp/parser"
 	"krylisp/types"
 	"krylisp/value"
-	"math/big"
 	"os"
 	"testing"
 
@@ -119,7 +118,8 @@ func TestPlus(t *testing.T) {
 				},
 				Length: 3,
 			},
-			expectedValue: &value.BigInt{Value: big.NewInt(4138)},
+			//expectedValue: &value.BigInt{Value: big.NewInt(4138)},
+			expectedValue: value.IntValue(4138),
 		},
 		testPlus{
 			input: &value.List{
@@ -134,7 +134,8 @@ func TestPlus(t *testing.T) {
 				},
 				Length: 3,
 			},
-			expectedValue: &value.BigInt{Value: big.NewInt(4138)},
+			//expectedValue: &value.BigInt{Value: big.NewInt(4138)},
+			expectedValue: value.IntValue(4138),
 		},
 	}
 
@@ -797,6 +798,26 @@ func TestLT(t *testing.T) {
 			source:        "(< 25 10)",
 			expectedValue: value.NIL,
 		},
+		testLT{
+			source:        "(< 25 100b)",
+			expectedValue: value.T,
+		},
+		testLT{
+			source:        "(< 3.5  99b)",
+			expectedValue: value.T,
+		},
+		testLT{
+			source:        "(< 5b 99)",
+			expectedValue: value.T,
+		},
+		testLT{
+			source:        "(< 22 7b)",
+			expectedValue: value.NIL,
+		},
+		testLT{
+			source:        "(< 17b 23.9)",
+			expectedValue: value.T,
+		},
 	}
 
 	for _, test := range testCases {
@@ -827,6 +848,77 @@ func TestLT(t *testing.T) {
 
 	}
 } // func TestLT(t *testing.T)
+
+func TestOverflow(t *testing.T) {
+	type operation uint8
+
+	const (
+		add operation = iota
+		sub
+		mul
+	)
+
+	type overflowTest struct {
+		left           value.Number
+		right          value.Number
+		op             operation
+		expectedType   types.ID
+		expectedResult string
+	}
+
+	var testCases = []overflowTest{
+		overflowTest{
+			left:           value.IntValue(mostPositive) >> 1,
+			right:          value.IntValue(128),
+			op:             mul,
+			expectedType:   types.BigInt,
+			expectedResult: "590295810358705651584",
+		},
+		overflowTest{
+			left:           value.IntValue(1024),
+			right:          value.IntValue(2),
+			op:             add,
+			expectedType:   types.Integer,
+			expectedResult: "1026",
+		},
+	}
+
+	x := 2 * 4
+	fmt.Printf("%d\n", x)
+
+	for _, test := range testCases {
+		var res value.Number
+		var err error
+		var resString string
+
+		switch test.op {
+		case add:
+			res, err = evalAddition(test.left, test.right)
+		case sub:
+			res, err = evalSubtraction(test.left, test.right)
+		case mul:
+			res, err = evalMultiplication(test.left, test.right)
+		default:
+			t.Errorf("Unexpected operation in test case: %d", test.op)
+			continue
+		}
+
+		if err != nil {
+			t.Errorf("Error adding %s and %s: %s",
+				test.left.String(),
+				test.right.String(),
+				err.Error())
+		} else if res.Type() != test.expectedType {
+			t.Errorf("Unexpected type for arithmetic operation: %s (expected %s)",
+				res.Type().String(),
+				test.expectedType.String())
+		} else if resString = res.String(); resString != test.expectedResult {
+			t.Errorf("Unexpected result from arithmetic operation: %s (expected %s)",
+				resString,
+				test.expectedResult)
+		}
+	}
+} // func TestOverflow(t *testing.T)
 
 func TestCons(t *testing.T) {
 	type testCons struct {
