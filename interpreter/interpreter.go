@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-01 21:12:16 krylon>
+// Time-stamp: <2017-11-04 18:32:36 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -16,6 +16,10 @@
 //
 // Dienstag, 31. 10. 2017, 01:59
 // Oh my, when I added numeric types, I forgot the comparison operators!
+//
+// Freitag, 03. 11. 2017, 19:23
+// So, I added regex as a distinct type. I am not sure, yet, what I want the
+// regex-API to look like from Lisp.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -41,37 +45,42 @@ import (
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
-	"T":      true,
-	"NIL":    true,
-	"+":      true,
-	"-":      true,
-	"*":      true,
-	"/":      true,
-	"<":      true,
-	">":      true,
-	">=":     true,
-	"<=":     true,
-	"EQ":     true,
-	"FN":     true,
-	"DEFUN":  true,
-	"IF":     true,
-	"LET":    true,
-	"DO":     true,
-	"PRINT":  true,
-	"CONS":   true,
-	"CAR":    true,
-	"CDR":    true,
-	"SET!":   true,
-	"DEFINE": true,
-	"GOTO":   true,
-	"QUOTE":  true,
-	"NOT":    true,
-	"AND":    true,
-	"OR":     true,
-	"APPLY":  true,
-	"LAMBDA": true,
-	"NIL?":   true,
-	"LIST":   true,
+	"T":          true,
+	"NIL":        true,
+	"+":          true,
+	"-":          true,
+	"*":          true,
+	"/":          true,
+	"<":          true,
+	">":          true,
+	">=":         true,
+	"<=":         true,
+	"EQ":         true,
+	"FN":         true,
+	"DEFUN":      true,
+	"IF":         true,
+	"LET":        true,
+	"DO":         true,
+	"PRINT":      true,
+	"CONS":       true,
+	"CAR":        true,
+	"CDR":        true,
+	"SET!":       true,
+	"DEFINE":     true,
+	"GOTO":       true,
+	"QUOTE":      true,
+	"NOT":        true,
+	"AND":        true,
+	"OR":         true,
+	"APPLY":      true,
+	"LAMBDA":     true,
+	"NIL?":       true,
+	"LIST":       true,
+	"AREF":       true,
+	"APUSH":      true,
+	"MAKE-ARRAY": true,
+	"MAKE-HASH":  true,
+	"HASHREF":    true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -232,6 +241,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalIsNil(l)
 	case "LIST":
 		return inter.evalList(l)
+	case "AREF":
+		return inter.evalAref(l)
+	case "MAKE-ARRAY":
+		return inter.evalMakeArray(l)
+	case "APUSH":
+		return inter.evalApush(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -1600,3 +1615,164 @@ func (inter *Interpreter) evalList(l *value.List) (v value.LispValue, e error) {
 
 	return res, nil
 } // func (inter *Interpreter) evalList(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalAref(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+		defer func() {
+			spew.Printf("AREF returns %#v\n", v)
+		}()
+	}
+
+	if l == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("Usage: (aref <array> <index>)")
+	}
+
+	var (
+		arrRaw, idxRaw value.LispValue
+		index          int
+		arr            value.Array
+	)
+
+	arrRaw, _ = l.Nth(1)
+	idxRaw, _ = l.Nth(2)
+
+	if arrRaw.Type() != types.Array {
+		return value.NIL, &TypeError{
+			expected: "Array",
+			actual:   arrRaw.Type().String(),
+		}
+	}
+
+	arr = arrRaw.(value.Array)
+
+	if idxRaw.Type() != types.Integer {
+		return value.NIL, &TypeError{
+			expected: "Integer",
+			actual:   arrRaw.Type().String(),
+		}
+	}
+
+	index = int(idxRaw.(value.IntValue))
+
+	if index < 0 || index >= len(arr) {
+		return value.NIL, &ValueError{val: value.IntValue(index)}
+	}
+
+	return arr[index], nil
+} // func evalAref(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalApush(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+		defer func() {
+			spew.Printf("APUSH returns %#v\n", v)
+		}()
+	}
+
+	if l == nil || l.Length < 3 {
+		return value.NIL, SyntaxError("Usage: (apush <array> <val1>... )")
+	}
+
+	var tmp value.LispValue
+	var arr value.Array
+	var err error
+	var ok bool
+
+	if tmp, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if arr, ok = tmp.(value.Array); !ok {
+		return value.NIL, &TypeError{
+			expected: "Array",
+			actual:   tmp.Type().String(),
+		}
+	} else if arr == nil {
+		return value.NIL, &TypeError{
+			expected: "Array",
+			actual:   "nil",
+		}
+	} else if arr.Type() != types.Array {
+		return value.NIL, &TypeError{
+			expected: "Array",
+			actual:   arr.Type().String(),
+		}
+	}
+
+	for cell := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		arr = append(arr, cell.Car)
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+	return arr, nil
+} // func (inter *Interpreter) evalApush(l *value.List) (v value.LispValue, e error)
+
+// Samstag, 04. 11. 2017, 16:30
+// I really have no idea if I actually need make-array, and if so, how I want
+// to use it.
+// But I think, it should take a single list as a parameter and convert that to
+// an Array.
+// There is, of course, the special case of no parameter: "(make-array)"
+// In this case, it would make sense to return a new Array of length zero.
+// Can I do that in Go?
+func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+		defer func() {
+			spew.Printf("APUSH returns %#v\n", v)
+		}()
+	}
+
+	if l == nil {
+		return value.NIL, SyntaxError("Usage: (make-array '(a b c d))")
+	} else if l.Length == 1 {
+		return make(value.Array, 0, 10), nil
+	}
+
+	var err error
+	var tmp1 = l.Car.Cdr.(*value.ConsCell).Car
+	var tmp2 value.LispValue
+	var ok bool
+	var lst *value.List
+
+	if tmp2, err = inter.Eval(tmp1); err != nil {
+		return value.NIL, err
+	} else if lst, ok = tmp2.(*value.List); !ok {
+		return value.NIL, &TypeError{
+			expected: "List",
+			actual:   tmp2.Type().String(),
+		}
+	}
+
+	if inter.debug {
+		fmt.Printf("MAKE-ARRAY: Evaluate argument list: %s\n",
+			lst.String())
+	}
+
+	var arr = make(value.Array, lst.Length)
+	var idx int
+
+	for cell := lst.Car; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		var val value.LispValue
+
+		if inter.debug {
+			spew.Printf("Argument #%d to MAKE-ARRAY: %#v",
+				idx,
+				cell.Car)
+		}
+
+		// if val, err = inter.Eval(cell.Car); err != nil {
+		// 	return value.NIL, err
+		// }
+		val = cell.Car
+
+		arr[idx] = val
+		idx++
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+	return arr, nil
+} // func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e error)

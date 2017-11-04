@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-10-31 22:52:02 krylon>
+# Time-stamp: <2017-11-03 20:35:12 krylon>
 
 
 * kryLisp
@@ -13,7 +13,7 @@
    "...including Common Lisp."
 
    So yeah, here we are. This is the mandatory toy Lisp interpreter
-   everyone tried to build once in their lifetime.
+   everyone tries to build once in their lifetime.
    It takes ideas ideas both from Common Lisp and from Scheme, puts
    them together in a bag and beats the ____ out of them with a
    baseball bat.
@@ -21,8 +21,8 @@
    This interpreter was mainly written as an excercise to learn about
    the challenges and pitfalls one encounters when building an
    interpreter for a custom programming language - Lisp being the
-   simples possible case, where the syntax is concerned -, and my main
-   goal was to learn something, not to build a great piece of
+   simplest possible case, where the syntax is concerned -, and my
+   main goal was to learn something, not to build a great piece of
    software. Not even to build a halfway decent piece of software.
 
    So if you look over this and think "Man, this sucks really hard",
@@ -95,9 +95,24 @@
     daran setzen, Features hinzuzufügen.
     Makros? Richtige Zahlen? I/O? Datenstrukturen und Collections?
     Ich sollte mir das mal notieren
+*** [2017-11-03 Fr 18:46]
+    Arithmetik funktioniert jetzt *ungefähr* so, wie ich mir das vorstelle.
+    Integer-Werte werden automatisch in big.Int und in64 konvertiert,
+    je nachdem, wie groß der Wert ist.
+    Als nächstes möchte ich mehr Datentypen hinzufügen und Funktionen,
+    um das ordentlich zu supporten.
+    Ich fange an mit Strings und regulären Ausdrücken.
+*** [2017-11-03 Fr 20:33]
+    Es stellt sich heraus, dass ich für reguläre Ausdrücke entweder
+    einen dedizierten Match-Typen brauche, oder ein Array.
+    Also füge ich erstmal Arrays und Hashtables hinzu.
+    Und wo ich dabei bin, Schleifen wären nett. Bislang geht das nur
+    über Rekursion, und ich mache (bislang) keinen Versuch
+    Endrekursion wegzuoptimieren.
 ** Aufgaben
 *** TODO [#A] Makros
-*** TODO [#A] Zahlen
+*** DONE [#A] Zahlen
+    CLOSED: [2017-11-03 Fr 18:45]
     Ich will gern bignum-Support und Support für Floating Point,
     eventuell, wenn es nicht zu haarig ist, auch Support für rationale
     und vielleicht für komplexe Zahlen.

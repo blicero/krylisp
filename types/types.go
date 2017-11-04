@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 10:15:12 krylon>
+// Time-stamp: <2017-11-03 20:24:50 krylon>
 
 package types
 
@@ -19,10 +19,14 @@ const (
 	Float
 	BigInt
 	String
+	Regexp
+	RegexpMatch
 	Symbol
 	KeySym
 	ConsCell
 	List
+	Array
+	Hashtable
 	Function
 	Program
 )

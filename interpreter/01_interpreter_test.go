@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-03 18:33:58 krylon>
+// Time-stamp: <2017-11-04 18:49:15 krylon>
 
 package interpreter
 
@@ -491,6 +491,21 @@ func TestDivide(t *testing.T) {
 				Length: 3,
 			},
 			expectedValue: value.FloatValue(2.5),
+		},
+		testDivide{
+			input: &value.List{
+				Car: &value.ConsCell{
+					Car: div,
+					Cdr: &value.ConsCell{
+						Car: parseBigInt("590295810358705651584"),
+						Cdr: &value.ConsCell{
+							Car: parseBigInt("128"),
+						},
+					},
+				},
+				Length: 3,
+			},
+			expectedValue: value.IntValue(4611686018427387903),
 		},
 	}
 
@@ -1549,6 +1564,130 @@ func TestList(t *testing.T) {
 		}
 	}
 } // func TestList(t *testing.T)
+
+func TestMakeArray(t *testing.T) {
+	type arrTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectedError  bool
+	}
+
+	var olddbg = interp.debug
+	interp.debug = true
+	defer func() { interp.debug = olddbg }()
+
+	var testCases = []arrTest{
+		arrTest{
+			input: "(make-array '(1 2 3))",
+			expectedResult: value.Array{
+				value.IntValue(1),
+				value.IntValue(2),
+				value.IntValue(3),
+			},
+		},
+		arrTest{
+			input:          "(make-array)",
+			expectedResult: value.Array{},
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectedError {
+				t.Errorf("Error evaluating MAKE-ARRAY form %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if value.IsNil(val) {
+			t.Errorf("Input %s evaluated to NIL",
+				test.input)
+		} else if val.Type() != types.Array {
+			t.Errorf("Unexpected type returned from MAKE-ARRAY %s: %T - %s",
+				test.input,
+				val,
+				val.String())
+		} else if !val.Eq(test.expectedResult) {
+			t.Errorf("Expected and actual results are not equal: Expected %s, actual %s",
+				test.expectedResult.String(),
+				val.String())
+		}
+	}
+} // func TestMakeArray(t *testing.T)
+
+func TestAPush(t *testing.T) {
+	type pushTest struct {
+		input          string
+		expectedResult value.Array
+	}
+
+	var testCases = []pushTest{
+		pushTest{
+			input: "(apush [1 2 3] 4 5 6)",
+			expectedResult: value.Array{
+				value.IntValue(1),
+				value.IntValue(2),
+				value.IntValue(3),
+				value.IntValue(4),
+				value.IntValue(5),
+				value.IntValue(6),
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating MAKE-ARRAY form %s: %s",
+				test.input,
+				err.Error())
+		} else if value.IsNil(val) {
+			t.Errorf("Input %s evaluated to NIL",
+				test.input)
+		} else if val.Type() != types.Array {
+			t.Errorf("Unexpected type returned from MAKE-ARRAY %s: %T - %s",
+				test.input,
+				val,
+				val.String())
+		} else if !val.Eq(test.expectedResult) {
+			t.Errorf("Expected and actual results are not equal: Expected %s, actual %s",
+				test.expectedResult.String(),
+				val.String())
+		}
+	}
+} // func TestAPush(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////

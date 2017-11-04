@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 13:50:14 krylon>
+// Time-stamp: <2017-11-04 03:02:25 krylon>
 
 package ast
 
@@ -261,3 +261,126 @@ func TestNumberType(t *testing.T) {
 		}
 	}
 } // func TestNumberType(t *testing.T)
+
+func TestArray(t *testing.T) {
+	type arrayTest struct {
+		input          string
+		expectedResult []value.LispValue
+	}
+
+	var testCases = []arrayTest{
+		arrayTest{
+			input: "[ 1 2 3 ]",
+			expectedResult: []value.LispValue{
+				value.IntValue(1),
+				value.IntValue(2),
+				value.IntValue(3),
+			},
+		},
+		arrayTest{
+			input:          "[]",
+			expectedResult: []value.LispValue{},
+		},
+	}
+
+	for _, test := range testCases {
+		var tree interface{}
+		var err error
+		var prog value.Program
+		var ok bool
+		var p = parser.NewParser()
+		var l = lexer.NewLexer([]byte(test.input))
+		var arr value.Array
+
+		if tree, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test case %q: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = tree.([]value.LispValue); !ok {
+			t.Fatalf("Parser did not return a Program, but a %T",
+				tree)
+		} else if arr, ok = prog[0].(value.Array); !ok {
+			t.Errorf("Parser did not return an Array, but a %T",
+				prog[0])
+		} else if len(arr) != len(test.expectedResult) {
+			t.Errorf("Array has unexpected length: %d (expected %d)",
+				len(arr),
+				len(test.expectedResult))
+		} else {
+			for idx, val := range arr {
+				if !val.Eq(test.expectedResult[idx]) {
+					t.Errorf("Unexpected value at position #%d: %s (expected %s)",
+						idx+1,
+						val.String(),
+						test.expectedResult[idx].String())
+				}
+			}
+		}
+	}
+} // func TestArray(t *testing.T)
+
+func TestHash(t *testing.T) {
+	type hashTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectedError  bool
+	}
+
+	var testCases = []hashTest{
+		hashTest{
+			input: `{ 1 : "Peter", 2 : "Karl", 3: 3.141592 }`,
+			expectedResult: value.Hashtable{
+				value.IntValue(1): value.StringValue("Peter"),
+				value.IntValue(2): value.StringValue("Karl"),
+				value.IntValue(3): value.FloatValue(3.141592),
+			},
+			expectedError: false,
+		},
+		// I would like to support trailing commas in Hashtables, but
+		// right now (Samstag, 04. 11. 2017, 03:01) I cannot get the
+		// grammar right so gocc plays along.
+		hashTest{
+			input: `{ 1: Peter, 2: Karl, 3: Pi, }`,
+			expectedResult: value.Hashtable{
+				value.IntValue(1): value.Symbol("PETER"),
+				value.IntValue(2): value.Symbol("KARL"),
+				value.IntValue(3): value.Symbol("PI"),
+			},
+			expectedError: true,
+		},
+	}
+
+	for idx, test := range testCases {
+		var (
+			tree interface{}
+			err  error
+			prog value.Program
+			ok   bool
+			p    = parser.NewParser()
+			l    = lexer.NewLexer([]byte(test.input))
+			ht   value.Hashtable
+		)
+
+		if tree, err = p.Parse(l); err != nil {
+			if !test.expectedError {
+				t.Errorf("Hashtable: Error parsing test #%d (%s): %s",
+					idx,
+					test.input,
+					err.Error())
+			}
+		} else if prog, ok = tree.([]value.LispValue); !ok {
+			t.Errorf("Parser did not return a Program, but a %T",
+				tree)
+		} else if len(prog) != 1 {
+			t.Errorf("Parsed program has unexpected length: %d (expected 1)",
+				len(prog))
+		} else if ht, ok = prog[0].(value.Hashtable); !ok {
+			t.Errorf("Parsed value shoud be a Hashtable, not a %T",
+				prog[0])
+		} else if !test.expectedResult.Eq(ht) {
+			t.Errorf("Parsed hashtable is not what we expected: %s (expected %s)",
+				ht.String(),
+				test.expectedResult.String())
+		}
+	}
+} // func TestHash(t *testing.T)

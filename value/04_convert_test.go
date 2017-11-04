@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 14:27:04 krylon>
+// Time-stamp: <2017-11-04 00:40:00 krylon>
 //
 // This file contains the tests for type conversion
 
@@ -211,3 +211,95 @@ func TestBigInt(t *testing.T) {
 		}
 	}
 } // func TestBigInt(t *testing.T)
+
+func TestArray(t *testing.T) {
+	type arrayTest struct {
+		input          Array
+		destination    types.ID
+		expectedResult string
+		expectError    bool
+	}
+
+	var testCases = []arrayTest{
+		arrayTest{
+			input:          Array{IntValue(1), IntValue(2), IntValue(3)},
+			destination:    types.List,
+			expectedResult: "(1 2 3)",
+		},
+	}
+
+	for _, test := range testCases {
+		var res LispValue
+		var err error
+		var str string
+
+		if res, err = test.input.Convert(test.destination); err != nil {
+			if !test.expectError {
+				t.Errorf("Error converting Array to %s: %s",
+					test.destination.String(),
+					err.Error())
+			}
+		} else if str = res.String(); str != test.expectedResult {
+			t.Errorf("Unexpected result from conversion of Array to %s: %s (expected %s)",
+				test.destination.String(),
+				str,
+				test.expectedResult)
+		}
+	}
+} // func TestArray(t *testing.T)
+
+func TestList(t *testing.T) {
+	type listTest struct {
+		input          LispValue
+		destination    types.ID
+		expectedResult string
+		expectedType   types.ID
+		expectedError  bool
+	}
+
+	var testCases = []listTest{
+		listTest{
+			input: &List{
+				Length: 3,
+				Car: &ConsCell{
+					Car: IntValue(1),
+					Cdr: &ConsCell{
+						Car: IntValue(2),
+						Cdr: &ConsCell{
+							Car: IntValue(3),
+						},
+					},
+				},
+			},
+			destination:    types.Array,
+			expectedResult: "[1 2 3]",
+			expectedType:   types.Array,
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			err error
+			val LispValue
+			res string
+		)
+
+		if val, err = test.input.Convert(test.destination); err != nil {
+			if !test.expectedError {
+				t.Errorf("Error evaluating APPLY!-form %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if val == nil {
+			t.Error("Result from conversion of list is nil!")
+		} else if val.Type() != test.expectedType {
+			t.Errorf("Unexpected type for result: %s (expected %s)",
+				val.Type().String(),
+				test.expectedType.String())
+		} else if res = val.String(); res != test.expectedResult {
+			t.Errorf("Unexpected result from converting List to %s: %s",
+				test.destination,
+				res)
+		}
+	}
+} // func TestList(t *testing.T)

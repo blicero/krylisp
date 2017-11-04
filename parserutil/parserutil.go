@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 13:56:58 krylon>
+// Time-stamp: <2017-11-04 02:51:28 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:51
 // I am going to need some way of handling errors properly.
@@ -58,3 +58,8 @@ func Bignum(s string) value.Number {
 		return b
 	}
 } // func Bignum(s string) value.Number
+
+func HashAdd(tbl value.Hashtable, key, val value.LispValue) value.Hashtable {
+	tbl[key] = val
+	return tbl
+} // func HashAdd(tbl map[value.LispValue]value.LispValue, key, val value.LispValue) map[value.LispValue]value.LispValue

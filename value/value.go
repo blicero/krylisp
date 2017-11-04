@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 16:45:27 krylon>
+// Time-stamp: <2017-11-04 02:42:42 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -28,6 +28,7 @@ import (
 	"krylisp/types"
 	"math"
 	"math/big"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -871,11 +872,27 @@ func (l *List) Nth(n int) (LispValue, error) {
 // Converting a value to types.String may invoke the type's String method to
 // perform the conversion.
 func (l *List) Convert(id types.ID) (LispValue, error) {
+	// I *could* support converting a list of Strings
+	// to a string by joining them.
+	// Should I?
+
 	switch id {
 	case types.String:
 		return StringValue(l.String()), nil
 	case types.List:
 		return l, nil
+	case types.Array:
+		arr := make(Array, l.Length)
+		var idx = 0
+		for cell := l.Car; cell != nil; cell = cell.Cdr.(*ConsCell) {
+			arr[idx] = cell.Car
+			idx++
+			if cell.Cdr == nil {
+				break
+			}
+		}
+
+		return arr, nil
 	case types.ConsCell:
 		return l.Car, nil
 	default:
@@ -1016,3 +1033,190 @@ func (p Program) Convert(id types.ID) (LispValue, error) {
 
 	return NIL, &TypeConversionError{types.Program, id}
 } // func (p Program) Convert(id types.ID) (LispValue, error)
+
+// Regexp is a regular expression. Duh!
+// Since Go kindly provides a regex engine, we can map this directly to
+// a Go *regexp.Regexp.
+type Regexp struct {
+	re *regexp.Regexp
+}
+
+// Type returns the type ID of the value, in this case types.Regexp
+func (re *Regexp) Type() types.ID {
+	return types.Regexp
+} // func (re *Regexp) Type() types.ID
+
+func (re *Regexp) String() string {
+	return re.re.String()
+} // func (re *Regexp) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (re *Regexp) Bool() bool {
+	return true
+} // func (re *Regexp) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (re *Regexp) Eq(other LispValue) bool {
+	if nil == other || other.Type() != types.Regexp {
+		return false
+	}
+
+	return re.String() == other.(*Regexp).String()
+} // func (re *Regexp) Eq(other value.LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (re *Regexp) Convert(id types.ID) (LispValue, error) {
+	if id == types.Regexp {
+		return re, nil
+	} else if id == types.String {
+		return StringValue(re.re.String()), nil
+	}
+
+	return NIL, &TypeConversionError{types.Regexp, id}
+} // func (re *Regexp) Convert(id types.ID) (LispValue, error)
+
+// Array is a one-dimensional array of Lisp values.
+type Array []LispValue
+
+// Type returns the type ID of the value, in this case types.Regexp
+func (arr Array) Type() types.ID {
+	return types.Array
+} // func (arr Array) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (arr Array) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("[")
+	var svals = make([]string, len(arr))
+	for idx, val := range arr {
+		svals[idx] = val.String()
+	}
+	out.WriteString(strings.Join(svals, " "))
+	out.WriteString("]")
+
+	return out.String()
+} // func (arr Array) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (arr Array) Bool() bool {
+	return true
+} // func (arr Array) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (arr Array) Eq(other LispValue) bool {
+	if other == nil || other.Type() != types.Array {
+		return false
+	}
+
+	var oarr = other.(Array)
+
+	for idx, val := range arr {
+		if !val.Eq(oarr[idx]) {
+			return false
+		}
+	}
+
+	return true
+} // func Eq(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (arr Array) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.String:
+		return StringValue(arr.String()), nil
+	case types.List:
+		var res *ConsCell
+
+		for i := len(arr) - 1; i >= 0; i-- {
+			res = &ConsCell{
+				Car: arr[i],
+				Cdr: res,
+			}
+		}
+
+		return &List{Car: res, Length: len(arr)}, nil
+	case types.Array:
+		return arr, nil
+	default:
+		return NIL, &TypeConversionError{types.Array, id}
+	}
+} // func (arr Array) Convert(id types.ID) (LispValue, error)
+
+// Hashtable is ... a hash table. (Under the hood, it's a Go map)
+type Hashtable map[LispValue]LispValue
+
+// Type returns the type ID of the value, in this case types.Regexp
+func (ht Hashtable) Type() types.ID {
+	return types.Hashtable
+} // func (ht Hashtable) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (ht Hashtable) String() string {
+	var pairs = make([]string, len(ht))
+	var idx = 0
+
+	for k, v := range ht {
+		s := fmt.Sprintf("%s : %s",
+			k, v)
+		pairs[idx] = s
+		idx++
+	}
+
+	return "{" + strings.Join(pairs, ", ") + "}"
+} // func (ht Hashtable) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (ht Hashtable) Bool() bool {
+	return true
+} // func (ht Hashtable) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (ht Hashtable) Eq(other LispValue) bool {
+	if other == nil || other.Type() != types.Hashtable {
+		return false
+	}
+
+	var ot = other.(Hashtable)
+
+	if len(ot) != len(ht) {
+		return false
+	}
+
+	for key, val := range ht {
+		var (
+			oval LispValue
+			ok   bool
+		)
+
+		if oval, ok = ot[key]; !ok {
+			return false
+		} else if !val.Eq(oval) {
+			return false
+		}
+	}
+
+	return true
+} // func (ht Hashtable) Eq() bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// Converting a value to its own type always returns the receiver.
+// Converting a value to types.String may invoke the type's String method to
+// perform the conversion.
+func (ht Hashtable) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.Hashtable:
+		return ht, nil
+	default:
+		return NIL, &TypeConversionError{
+			types.Hashtable,
+			id,
+		}
+	}
+} // func (ht Hashtable) Convert(id types.ID) (LispValue, error)
