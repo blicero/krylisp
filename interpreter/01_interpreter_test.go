@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 18:49:15 krylon>
+// Time-stamp: <2017-11-04 22:19:32 krylon>
 
 package interpreter
 
@@ -1688,6 +1688,200 @@ func TestAPush(t *testing.T) {
 		}
 	}
 } // func TestAPush(t *testing.T)
+
+func TestHashCreate(t *testing.T) {
+	type hashTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var testCases = []hashTest{
+		hashTest{
+			input:          "(make-hash)",
+			expectedResult: make(value.Hashtable),
+		},
+		hashTest{
+			input: `{ Karl : 3.5, "Peter" : Wilhelm, 7 : 7 }`,
+			expectedResult: value.Hashtable{
+				value.Symbol("KARL"):       value.FloatValue(3.5),
+				value.StringValue("Peter"): value.Symbol("WILHELM"),
+				value.IntValue(7):          value.IntValue(7),
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating Hash creation form %s: %s",
+				test.input,
+				err.Error())
+		} else if value.IsNil(val) {
+			t.Errorf("Input %s evaluated to NIL",
+				test.input)
+		} else if val.Type() != types.Hashtable {
+			t.Errorf("Unexpected type (expected Hashtable) returned from %s: %T - %s",
+				test.input,
+				val,
+				val.String())
+		} else if !val.Eq(test.expectedResult) {
+			t.Errorf("Expected and actual results are not equal: Expected %s, actual %s",
+				test.expectedResult.String(),
+				val.String())
+		}
+	}
+} // func TestHashCreate(t *testing.T)
+
+func TestHashLookup(t *testing.T) {
+	type lookupTest struct {
+		input          string
+		key            value.LispValue
+		expectedResult value.LispValue
+	}
+
+	var testCases = []lookupTest{
+		lookupTest{
+			// table: value.Hashtable{
+			// 	value.IntValue(42): value.StringValue("The Answer"),
+			// 	value.Symbol("PI"): value.FloatValue(math.Pi),
+			// 	value.IntValue(23): value.IntValue(666),
+			// },
+			input: `(define tbl { 42 : "The Answer", Pi : 3.141592, 23 : 666 })
+
+(hashref tbl 42)
+`,
+			key:            value.IntValue(42),
+			expectedResult: value.StringValue("The Answer"),
+		},
+		lookupTest{
+			// table: value.Hashtable{
+			// 	value.StringValue("Hans"):  3.74,
+			// 	value.StringValue("Peter"): 5.29,
+			// 	value.StringValue("Karl"):  4.46,
+			// },
+			input: `(define tbl { "Hans" : 3.74, "Peter" : 5.29, "Karl" : 4.46 })
+
+(hashref tbl "Ludwig")
+`,
+			key:            value.Symbol("Ludwig"),
+			expectedResult: value.NIL,
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating Hash creation form %s: %s",
+				test.input,
+				err.Error())
+		} else if val == nil {
+			t.Errorf("Input %s evaluated to nil",
+				test.input)
+		} else if !val.Eq(test.expectedResult) {
+			t.Errorf("Expected and actual results are not equal: Expected %s, actual %s",
+				test.expectedResult.String(),
+				val.String())
+		}
+	}
+} // func TestHashLookup(t *testing.T)
+
+func TestHashSet(t *testing.T) {
+	type setTest struct {
+		input         string
+		name          string
+		expectedKey   value.LispValue
+		expectedValue value.LispValue
+	}
+
+	var testCases = []setTest{
+		setTest{
+			input: `(define tbl (make-hash))
+
+(hash-set tbl "Peter" 23)
+`,
+			expectedKey:   value.StringValue("Peter"),
+			expectedValue: value.IntValue(23),
+			name:          "TBL",
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating Hash creation form %s: %s",
+				test.input,
+				err.Error())
+		}
+
+		var tbl value.Hashtable
+		if val, ok = interp.env.Data["TBL"]; !ok {
+			t.Error("Did not find hash table named tbl in Environment")
+		} else if val == nil || val.Type() != types.Hashtable {
+			t.Error("TBL is not a hash table")
+		}
+
+		tbl, _ = val.(value.Hashtable)
+
+		if val, ok = tbl[test.expectedKey]; !ok {
+			t.Errorf("Did not find key %s in hash table",
+				test.expectedKey)
+		} else if !test.expectedValue.Eq(val) {
+			t.Errorf("Unexpected value found in hash table: %s (expected %s)",
+				val.String(),
+				test.expectedValue.String())
+		}
+	}
+
+} // func TestHashSet(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////

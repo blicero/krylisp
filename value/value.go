@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 02:42:42 krylon>
+// Time-stamp: <2017-11-04 19:45:02 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -1189,6 +1189,9 @@ func (ht Hashtable) Eq(other LispValue) bool {
 		return false
 	}
 
+	// To be really sure, I need to check if the other table
+	// has keys that we do not have. ...
+	// I promise to implement that sometimes.
 	for key, val := range ht {
 		var (
 			oval LispValue

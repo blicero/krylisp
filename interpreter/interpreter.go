@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 18:32:36 krylon>
+// Time-stamp: <2017-11-04 22:20:05 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -45,42 +45,45 @@ import (
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
-	"T":          true,
-	"NIL":        true,
-	"+":          true,
-	"-":          true,
-	"*":          true,
-	"/":          true,
-	"<":          true,
-	">":          true,
-	">=":         true,
-	"<=":         true,
-	"EQ":         true,
-	"FN":         true,
-	"DEFUN":      true,
-	"IF":         true,
-	"LET":        true,
-	"DO":         true,
-	"PRINT":      true,
-	"CONS":       true,
-	"CAR":        true,
-	"CDR":        true,
-	"SET!":       true,
-	"DEFINE":     true,
-	"GOTO":       true,
-	"QUOTE":      true,
-	"NOT":        true,
-	"AND":        true,
-	"OR":         true,
-	"APPLY":      true,
-	"LAMBDA":     true,
-	"NIL?":       true,
-	"LIST":       true,
-	"AREF":       true,
-	"APUSH":      true,
-	"MAKE-ARRAY": true,
-	"MAKE-HASH":  true,
-	"HASHREF":    true,
+	"T":           true,
+	"NIL":         true,
+	"+":           true,
+	"-":           true,
+	"*":           true,
+	"/":           true,
+	"<":           true,
+	">":           true,
+	">=":          true,
+	"<=":          true,
+	"EQ":          true,
+	"FN":          true,
+	"DEFUN":       true,
+	"IF":          true,
+	"LET":         true,
+	"DO":          true,
+	"PRINT":       true,
+	"CONS":        true,
+	"CAR":         true,
+	"CDR":         true,
+	"SET!":        true,
+	"DEFINE":      true,
+	"GOTO":        true,
+	"QUOTE":       true,
+	"NOT":         true,
+	"AND":         true,
+	"OR":          true,
+	"APPLY":       true,
+	"LAMBDA":      true,
+	"NIL?":        true,
+	"LIST":        true,
+	"AREF":        true,
+	"APUSH":       true,
+	"MAKE-ARRAY":  true,
+	"MAKE-HASH":   true,
+	"HASHREF":     true,
+	"HASH-SET":    true,
+	"DELETE-HASH": true,
+	"HAS-KEY":     true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -161,6 +164,10 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 		}
 
 		return res, nil
+	case value.Array:
+		return v, nil
+	case value.Hashtable:
+		return v, nil
 	default:
 		return nil, &TypeError{
 			expected: "Atom or List",
@@ -247,6 +254,14 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalMakeArray(l)
 	case "APUSH":
 		return inter.evalApush(l)
+	case "HAS-KEY":
+		return inter.evalHasKey(l)
+	case "MAKE-HASH":
+		return inter.evalMakeHash(l)
+	case "HASHREF":
+		return inter.evalHashref(l)
+	case "HASH-SET":
+		return inter.evalHashSet(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -1776,3 +1791,163 @@ func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e err
 
 	return arr, nil
 } // func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e error)
+
+// Since we have literal syntax for hash tables, this function does not really need
+// any arguments, now, does it?
+func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+	return make(value.Hashtable), nil
+} // func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalHashref(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("HASHREF takes exactly *two* arguments")
+	}
+
+	var tmp, key value.LispValue
+	var err error
+
+	if tmp, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if tmp, err = inter.Eval(tmp); err != nil {
+		return value.NIL, err
+	} else if tmp.Type() != types.Hashtable {
+		return value.NIL, &TypeError{
+			expected: "Hashtable",
+			actual:   tmp.Type().String(),
+		}
+	}
+
+	var tbl = tmp.(value.Hashtable)
+
+	if tmp, err = l.Nth(2); err != nil {
+		return value.NIL, err
+	} else if key, err = inter.Eval(tmp); err != nil {
+		return value.NIL, err
+	}
+
+	var val value.LispValue
+	var ok bool
+
+	// Oh, wait. I had not really thought of the interface before.
+	// In Common Lisp, hashref returns *two* values, the second value
+	// is a flag indicating if the key was found in the hash table,
+	// so users can distinguish between a given key not being present
+	// in a hash table and a given key being present and having the value
+	// NIL.
+	//
+	// While I like the idea, I have a hunch that it would be really
+	// painful, exhausting and frustrating to implement. So I am
+	// going to skip on that one and act like Lua.
+	// I can add another special to explicitly check for the presence of
+	// a given key to compensate.
+	if val, ok = tbl[key]; !ok {
+		return value.NIL, nil
+	}
+
+	return val, nil
+} // func (inter *Interpreter) evalHashref(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalHasKey(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("HASHREF takes exactly *two* arguments")
+	}
+
+	var tmp, key value.LispValue
+	var err error
+
+	if tmp, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if tmp, err = inter.Eval(tmp); err != nil {
+		return value.NIL, err
+	} else if tmp.Type() != types.Hashtable {
+		return value.NIL, &TypeError{
+			expected: "Hashtable",
+			actual:   tmp.Type().String(),
+		}
+	}
+
+	var tbl = tmp.(value.Hashtable)
+
+	if tmp, err = l.Nth(2); err != nil {
+		return value.NIL, err
+	} else if key, err = inter.Eval(tmp); err != nil {
+		return value.NIL, err
+	}
+
+	var ok bool
+
+	// Oh, wait. I had not really thought of the interface before.
+	// In Common Lisp, hashref returns *two* values, the second value
+	// is a flag indicating if the key was found in the hash table,
+	// so users can distinguish between a given key not being present
+	// in a hash table and a given key being present and having the value
+	// NIL.
+	//
+	// While I like the idea, I have a hunch that it would be really
+	// painful, exhausting and frustrating to implement. So I am
+	// going to skip on that one and act like Lua.
+	// I can add another special to explicitly check for the presence of
+	// a given key to compensate.
+	if _, ok = tbl[key]; !ok {
+		return value.NIL, nil
+	}
+
+	return value.T, nil
+} // func (inter *Interpreter) evalHasKey(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	// (hash-set tbl key val)
+	if l == nil || l.Length != 4 {
+		return value.NIL, SyntaxError("HASH-SET takes exactly *three* arguments")
+	}
+
+	var (
+		tmp1, tmp2, key, val value.LispValue
+		tbl                  value.Hashtable
+		ok                   bool
+		err                  error
+	)
+
+	if tmp1, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if tmp2, err = inter.Eval(tmp1); err != nil {
+		return value.NIL, err
+	} else if tmp2.Type() != types.Hashtable {
+		return value.NIL, &TypeError{
+			expected: "Hashtable",
+			actual:   tmp2.Type().String(),
+		}
+	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
+		// CANTHAPPEN
+		return value.NIL, &TypeError{
+			expected: "Hashtable",
+			actual:   tmp2.Type().String(),
+		}
+	} else if tmp1, err = l.Nth(2); err != nil {
+		return value.NIL, err
+	} else if key, err = inter.Eval(tmp1); err != nil {
+		return value.NIL, err
+	} else if tmp1, err = l.Nth(3); err != nil {
+		return value.NIL, err
+	} else if val, err = inter.Eval(tmp1); err != nil {
+		return value.NIL, err
+	}
+
+	tbl[key] = val
+	return val, nil
+} // func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error)

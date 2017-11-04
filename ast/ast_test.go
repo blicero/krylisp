@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 03:02:25 krylon>
+// Time-stamp: <2017-11-04 19:38:23 krylon>
 
 package ast
 
@@ -347,6 +347,14 @@ func TestHash(t *testing.T) {
 				value.IntValue(3): value.Symbol("PI"),
 			},
 			expectedError: true,
+		},
+		hashTest{
+			input: `{ Peter : Karl, Willi : 2, Horst : "Lieber nicht" }`,
+			expectedResult: value.Hashtable{
+				value.Symbol("PETER"): value.Symbol("KARL"),
+				value.Symbol("WILLI"): value.IntValue(2),
+				value.Symbol("HORST"): value.StringValue("Lieber nicht"),
+			},
 		},
 	}
 
