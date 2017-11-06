@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 19:45:02 krylon>
+// Time-stamp: <2017-11-06 18:18:06 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -1038,7 +1038,7 @@ func (p Program) Convert(id types.ID) (LispValue, error) {
 // Since Go kindly provides a regex engine, we can map this directly to
 // a Go *regexp.Regexp.
 type Regexp struct {
-	re *regexp.Regexp
+	Pat *regexp.Regexp
 }
 
 // Type returns the type ID of the value, in this case types.Regexp
@@ -1047,7 +1047,7 @@ func (re *Regexp) Type() types.ID {
 } // func (re *Regexp) Type() types.ID
 
 func (re *Regexp) String() string {
-	return re.re.String()
+	return re.Pat.String()
 } // func (re *Regexp) String() string
 
 // Bool returns the "truthiness" of a Lisp value.
@@ -1072,7 +1072,7 @@ func (re *Regexp) Convert(id types.ID) (LispValue, error) {
 	if id == types.Regexp {
 		return re, nil
 	} else if id == types.String {
-		return StringValue(re.re.String()), nil
+		return StringValue(re.Pat.String()), nil
 	}
 
 	return NIL, &TypeConversionError{types.Regexp, id}

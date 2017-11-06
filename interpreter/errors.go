@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 01:29:30 krylon>
+// Time-stamp: <2017-11-06 18:13:34 krylon>
 
 package interpreter
 
@@ -51,14 +51,25 @@ func (te *TypeError) Error() string {
 // example.
 // Or, say, the height of a human, measured in centimeters - this could obviously
 // never be negative.
+//
+// Montag, 06. 11. 2017, 17:46
+// I added a second field to hold a string. The value by itself might not be
+// very helpful.
 type ValueError struct {
 	val value.LispValue
+	msg string
 }
 
 // Error returns the error message.
 func (ve *ValueError) Error() string {
-	return fmt.Sprintf("Value is not permitted in this context: %v",
-		ve.val)
+	if ve.msg == "" {
+		return fmt.Sprintf("Value is not permitted in this context: %v",
+			ve.val)
+	}
+
+	return fmt.Sprintf("Value %v is not permitted in this context: %s",
+		ve.val,
+		ve.msg)
 } // func (ve *ValueError) Error() string
 
 // SyntaxError indicates invalid use of special forms.

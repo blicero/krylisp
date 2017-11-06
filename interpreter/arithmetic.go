@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 20. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-03 18:28:57 krylon>
+// Time-stamp: <2017-11-06 18:14:21 krylon>
 //
 // Donnerstag, 26. 10. 2017, 17:00
 // I would like to have seamless transitions between Fixnum and Bignum,
@@ -297,7 +297,10 @@ func evalDivision(l, r value.Number) (value.Number, error) {
 	if lop, rop, err = promoteTypes(l, r); err != nil {
 		return Zero, err
 	} else if rop.IsZero() {
-		return Zero, &ValueError{rop}
+		return Zero, &ValueError{
+			val: rop,
+			msg: "Division by zero",
+		}
 	}
 
 	switch lv := lop.(type) {

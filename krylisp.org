@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-03 20:35:12 krylon>
+# Time-stamp: <2017-11-06 17:25:08 krylon>
 
 
 * kryLisp
@@ -109,6 +109,11 @@
     Und wo ich dabei bin, Schleifen wären nett. Bislang geht das nur
     über Rekursion, und ich mache (bislang) keinen Versuch
     Endrekursion wegzuoptimieren.
+*** [2017-11-04 Sa 23:58]
+    Okay, Arrays und Hashtables scheinen - mit sehr oberflächlichen
+    Tests! - zu funktionieren.
+    Dann wird es wohl langsam Zeit für Makros, right?
+    Das wird kein Spaß.
 ** Aufgaben
 *** TODO [#A] Makros
 *** DONE [#A] Zahlen
@@ -119,3 +124,10 @@
 *** TODO [#B] I/O
     Ist auf Dauer blöd, wenn das nicht geht.
 *** TODO [#C] Datenstrukturen und Collections
+*** TODO Schleifen
+    Ich will gern richtige Iteration haben, weil ich keine Lust habe
+    mich zu informieren, wie ich Endrekursion weg optimiere.
+    Ich hätte gern eine Art foreach-Konstrukt, will aber, dass das
+    erweiterbar bleibt. Da schreibe ich für den Anfang vielleicht
+    erstmal Test-Code und schaue dann, wie ich das zum Laufen
+    bekomme. 

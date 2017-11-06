@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 22:19:32 krylon>
+// Time-stamp: <2017-11-06 19:12:07 krylon>
 
 package interpreter
 
@@ -1880,8 +1880,219 @@ func TestHashSet(t *testing.T) {
 				test.expectedValue.String())
 		}
 	}
-
 } // func TestHashSet(t *testing.T)
+
+func TestHashDelete(t *testing.T) {
+	type delTest struct {
+		input      string
+		deletedKey value.LispValue
+	}
+
+	var testCases = []delTest{
+		delTest{
+			input: `
+(define tbl { 1 : Peter, 2 : Karl, 3 : Johannes, 4 : Ludwig })
+
+(hash-delete tbl 2)
+`,
+			deletedKey: value.IntValue(2),
+		},
+		delTest{
+			input: `
+(define tbl { Karl : 3, Ludwig : 5, "Ludwig": 15 })
+
+(hash-delete tbl 'Ludwig)
+`,
+			deletedKey: value.Symbol("LUDWIG"),
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+			tbl    value.Hashtable
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error evaluating Hash creation form %s: %s",
+				test.input,
+				err.Error())
+		} else if val, ok = interp.env.Data["TBL"]; !ok {
+			t.Error("Cannot find symbol TBL in current environment")
+		} else if val.Type() != types.Hashtable {
+			t.Errorf("First argument to HASH-DELETE is not a hash table, but a %T",
+				val)
+		} else if tbl, ok = val.(value.Hashtable); !ok {
+			t.Errorf("First argument to HASH-DELETE is not a hash table, but a %T",
+				val)
+		} else if val, ok = tbl[test.deletedKey]; ok {
+			t.Errorf("Key %s should not have been present in that hash table",
+				test.deletedKey)
+		}
+	}
+} // func TestHashDelete(t *testing.T)
+
+func TestRegexpCompile(t *testing.T) {
+	type regexTest struct {
+		input          string
+		expectedString string
+		expectError    bool
+	}
+
+	var olddbg = interp.debug
+	interp.debug = true
+	defer func() { interp.debug = olddbg }()
+
+	var testCases = []regexTest{
+		regexTest{
+			input: `
+(regexp-compile "^\d+\s+\w+$")
+`,
+			expectedString: `^\d+\s+\w+$`,
+		},
+		regexTest{
+			input: `
+(regexp-compile "(\d{1,3})[.](\d{1,3})[.](\d{1,3})[.](\d{1,3})")
+`,
+			expectedString: `(\d{1,3})[.](\d{1,3})[.](\d{1,3})[.](\d{1,3})`,
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error compiling regexp %s: %s",
+				test.input,
+				err.Error())
+		} else if val.Type() != types.Regexp {
+			t.Errorf("REGEXP-COMPILE did not return a regexp, but a %T: %v",
+				val,
+				val)
+		}
+	}
+} // func TestRegexpCompile(t *testing.T)
+
+func TestRegexpMatch(t *testing.T) {
+	var olddbg = interp.debug
+	interp.debug = true
+	defer func() { interp.debug = olddbg }()
+
+	type regexTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var testCases = []regexTest{
+		regexTest{
+			input: `
+(define p (regexp-compile "^\d+\s+\w+\s+\d+"))
+
+(define single-line "42    Horst    23")
+
+(regexp-match p single-line)
+`,
+			expectedResult: value.Array{
+				value.Array{
+					value.StringValue("42    Horst    23"),
+				},
+			},
+		},
+
+		regexTest{
+			input: `
+(define pat (regexp-compile "\d{2}(\w+)::"))
+(define str "23Peter::     45Horst:: 3Karl:: 73Hugo:: 21Siegfried::")
+
+(regexp-match pat str)
+`,
+			expectedResult: value.Array{
+				value.Array{
+					value.StringValue("23Peter::"),
+					value.StringValue("Peter"),
+				},
+				value.Array{
+					value.StringValue("45Horst::"),
+					value.StringValue("Horst"),
+				},
+				value.Array{
+					value.StringValue("73Hugo::"),
+					value.StringValue("Hugo"),
+				},
+				value.Array{
+					value.StringValue("21Siegfried::"),
+					value.StringValue("Siegfried"),
+				},
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			t.Errorf("Error compiling regexp %s: %s",
+				test.input,
+				err.Error())
+		} else if val.Type() != types.Array && val.Type() != types.Nil {
+			t.Errorf("Unexpected return value from REGEXP-MATCH: %T - %v",
+				val,
+				val)
+		} else if !val.Eq(test.expectedResult) {
+			t.Errorf(`Regexp match is not what we expected: 
+Expected: %T -> %v
+Actual:   %T -> %v`,
+				test.expectedResult,
+				test.expectedResult,
+				val,
+				val)
+		}
+	}
+} // func TestRegexpMatch(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////

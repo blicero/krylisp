@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 22:20:05 krylon>
+// Time-stamp: <2017-11-06 18:45:37 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -20,6 +20,9 @@
 // Freitag, 03. 11. 2017, 19:23
 // So, I added regex as a distinct type. I am not sure, yet, what I want the
 // regex-API to look like from Lisp.
+//
+// Okay, I have hashtables and arrays. Now, maybe I want to add some looping
+// constructs?
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -38,6 +41,7 @@ import (
 	"krylisp/types"
 	"krylisp/value"
 	"os"
+	"regexp"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -45,45 +49,48 @@ import (
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
-	"T":           true,
-	"NIL":         true,
-	"+":           true,
-	"-":           true,
-	"*":           true,
-	"/":           true,
-	"<":           true,
-	">":           true,
-	">=":          true,
-	"<=":          true,
-	"EQ":          true,
-	"FN":          true,
-	"DEFUN":       true,
-	"IF":          true,
-	"LET":         true,
-	"DO":          true,
-	"PRINT":       true,
-	"CONS":        true,
-	"CAR":         true,
-	"CDR":         true,
-	"SET!":        true,
-	"DEFINE":      true,
-	"GOTO":        true,
-	"QUOTE":       true,
-	"NOT":         true,
-	"AND":         true,
-	"OR":          true,
-	"APPLY":       true,
-	"LAMBDA":      true,
-	"NIL?":        true,
-	"LIST":        true,
-	"AREF":        true,
-	"APUSH":       true,
-	"MAKE-ARRAY":  true,
-	"MAKE-HASH":   true,
-	"HASHREF":     true,
-	"HASH-SET":    true,
-	"DELETE-HASH": true,
-	"HAS-KEY":     true,
+	"T":              true,
+	"NIL":            true,
+	"+":              true,
+	"-":              true,
+	"*":              true,
+	"/":              true,
+	"<":              true,
+	">":              true,
+	">=":             true,
+	"<=":             true,
+	"EQ":             true,
+	"FN":             true,
+	"DEFUN":          true,
+	"IF":             true,
+	"LET":            true,
+	"DO":             true,
+	"PRINT":          true,
+	"CONS":           true,
+	"CAR":            true,
+	"CDR":            true,
+	"SET!":           true,
+	"DEFINE":         true,
+	"GOTO":           true,
+	"QUOTE":          true,
+	"NOT":            true,
+	"AND":            true,
+	"OR":             true,
+	"APPLY":          true,
+	"LAMBDA":         true,
+	"NIL?":           true,
+	"LIST":           true,
+	"AREF":           true,
+	"APUSH":          true,
+	"MAKE-ARRAY":     true,
+	"MAKE-HASH":      true,
+	"HASHREF":        true,
+	"HASH-SET":       true,
+	"HASH-DELETE":    true,
+	"HAS-KEY":        true,
+	"DEFMACRO":       true,
+	"REGEXP-COMPILE": true,
+	"REGEXP-MATCH":   true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -167,6 +174,8 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 	case value.Array:
 		return v, nil
 	case value.Hashtable:
+		return v, nil
+	case *value.Regexp:
 		return v, nil
 	default:
 		return nil, &TypeError{
@@ -262,6 +271,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalHashref(l)
 	case "HASH-SET":
 		return inter.evalHashSet(l)
+	case "HASH-DELETE":
+		return inter.evalHashDelete(l)
+	case "REGEXP-COMPILE":
+		return inter.evalRegexpCompile(l)
+	case "REGEXP-MATCH":
+		return inter.evalRegexpMatch(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -515,6 +530,10 @@ func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 	return value.NIL, nil
 } // func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error)
 
+/////////////////////////////////////////////////////////////////////////////
+// Arithmetic ///////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
 // I think it would be preferrable to have arithmetic use a matrix to determine what
 // operand gets promoted to what type.
 
@@ -710,7 +729,7 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 					return value.NIL, err
 				}
 			} else {
-				return nil, &ValueError{n}
+				return nil, &ValueError{val: n}
 			}
 
 			if v.Cdr == nil {
@@ -726,6 +745,10 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 
 	return res, nil
 } // func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error)
+
+/////////////////////////////////////////////////////////////////////////////
+// Fundamental Lisp stuff ///////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
 
 func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 	if inter.debug {
@@ -1631,6 +1654,10 @@ func (inter *Interpreter) evalList(l *value.List) (v value.LispValue, e error) {
 	return res, nil
 } // func (inter *Interpreter) evalList(l *value.List) (value.LispValue, error)
 
+/////////////////////////////////////////////////////////////////////////////
+// Arrays ///////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
 func (inter *Interpreter) evalAref(l *value.List) (v value.LispValue, e error) {
 	if inter.debug {
 		krylib.Trace()
@@ -1792,6 +1819,10 @@ func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e err
 	return arr, nil
 } // func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e error)
 
+/////////////////////////////////////////////////////////////////////////////
+// Hash tables //////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
 // Since we have literal syntax for hash tables, this function does not really need
 // any arguments, now, does it?
 func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error) {
@@ -1951,3 +1982,167 @@ func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error
 	tbl[key] = val
 	return val, nil
 } // func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	// (hash-delete tbl key)
+	if l == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("HASH-DELETE takes exactly *two* arguments")
+	}
+
+	var (
+		tmp1, tmp2, key value.LispValue
+		tbl             value.Hashtable
+		ok              bool
+		err             error
+	)
+
+	if tmp1, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if tmp2, err = inter.Eval(tmp1); err != nil {
+		return value.NIL, err
+	} else if tmp2.Type() != types.Hashtable {
+		return value.NIL, &TypeError{
+			expected: "Hashtable",
+			actual:   tmp2.Type().String(),
+		}
+	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
+		// CANTHAPPEN
+		return value.NIL, &TypeError{
+			expected: "Hashtable",
+			actual:   tmp2.Type().String(),
+		}
+	} else if tmp1, err = l.Nth(2); err != nil {
+		return value.NIL, err
+	} else if key, err = inter.Eval(tmp1); err != nil {
+		return value.NIL, err
+	}
+
+	_, ok = tbl[key]
+	delete(tbl, key)
+
+	if ok {
+		return value.T, nil
+	}
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e error)
+
+/////////////////////////////////////////////////////////////////////////////
+// Regular expressions //////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+func (inter *Interpreter) evalRegexpCompile(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 2 {
+		return value.NIL, SyntaxError("REGEXP-COMPILE takes exactly one argument")
+	}
+
+	var err error
+	var tmp, arg value.LispValue
+
+	tmp = l.Car.Cdr.(*value.ConsCell).Car
+
+	if arg, err = inter.Eval(tmp); err != nil {
+		return value.NIL, err
+	} else if arg.Type() != types.String {
+		return value.NIL, &TypeError{
+			expected: "String",
+			actual:   arg.Type().String(),
+		}
+	}
+
+	var re *regexp.Regexp
+
+	if re, err = regexp.Compile(string(arg.(value.StringValue))); err != nil {
+		return value.NIL, &ValueError{
+			val: arg,
+			msg: err.Error(),
+		}
+	}
+
+	var lispRe = &value.Regexp{Pat: re}
+
+	return lispRe, nil
+} // func (inter *Interpreter) evalRegexpCompile(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("REGEXP-MATCH takes exactly two arguments")
+	}
+
+	var raw1, raw2, val1, val2 value.LispValue
+	var err error
+
+	raw1 = l.Car.Cdr.(*value.ConsCell).Car
+	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
+
+	if val1, err = inter.Eval(raw1); err != nil {
+		return value.NIL, err
+	} else if val1.Type() != types.Regexp {
+		// We could make a special case here strings and compile them
+		// on the fly.
+		// But we don't have to. The interpreter is going to be slow
+		// enough as it is, and adding to that the cost of compiling
+		// regular expressions on very match does not make it better.
+		return value.NIL, &TypeError{
+			expected: "Regexp",
+			actual:   val1.Type().String(),
+		}
+	} else if val2, err = inter.Eval(raw2); err != nil {
+		return value.NIL, err
+	} else if val2.Type() != types.String {
+		return value.NIL, &TypeError{
+			expected: "String",
+			actual:   val2.Type().String(),
+		}
+	}
+
+	// This is going to be slightly more complex than compiling regexps,
+	// because Go has such a rich API for that, and I would like to keep
+	// the Lisp API as simple as possible.
+	// So what do I need?
+	// Check if the string matches at all.
+	// If it does, all the matches
+	// Plus, if there are groupings in the regexp, we want those, too.
+	//
+	// That leaves us with ... FindAllStringSubmatch
+
+	var (
+		pat     = val1.(*value.Regexp)
+		str     = val2.(value.StringValue)
+		matches [][]string
+	)
+
+	// We want all matches, so the count argument to FindAllStringSubmatch
+	// is -1.
+	if matches = pat.Pat.FindAllStringSubmatch(string(str), -1); matches == nil {
+		return value.NIL, nil
+	}
+
+	// If we arrive here, the regexp did match the string, and now we have
+	// to create a Lisp data structure analogous to the return value
+	// of FindAllStringSubmatch.
+
+	var result = make(value.Array, len(matches))
+
+	for i, match := range matches {
+		var groups = make(value.Array, len(match))
+		for j, sub := range match {
+			groups[j] = value.StringValue(sub)
+		}
+		result[i] = groups
+	}
+
+	return result, nil
+} // func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e error)
