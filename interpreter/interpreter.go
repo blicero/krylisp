@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 18:45:37 krylon>
+// Time-stamp: <2017-11-06 20:17:19 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -91,6 +91,7 @@ var specialSymbols = map[string]bool{
 	"DEFMACRO":       true,
 	"REGEXP-COMPILE": true,
 	"REGEXP-MATCH":   true,
+	//	"FOR-EACH":       true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -381,8 +382,8 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	if inv == nil || inv.Car == nil {
 		return nil, nil
 	} else if inter.debug {
-		fmt.Printf("DBG FUNCALL %s\n",
-			spew.Sdump(inv))
+		// fmt.Printf("DBG FUNCALL %s\n",
+		// 	spew.Sdump(inv))
 	}
 
 	// Sonntag, 10. 09. 2017, 18:55
@@ -1671,31 +1672,40 @@ func (inter *Interpreter) evalAref(l *value.List) (v value.LispValue, e error) {
 	}
 
 	var (
-		arrRaw, idxRaw value.LispValue
-		index          int
-		arr            value.Array
+		arrRaw, idxRaw, tmp value.LispValue
+		index               int
+		arr                 value.Array
+		err                 error
 	)
 
 	arrRaw, _ = l.Nth(1)
 	idxRaw, _ = l.Nth(2)
 
-	if arrRaw.Type() != types.Array {
+	if tmp, err = inter.Eval(arrRaw); err != nil {
+		return value.NIL, err
+	} else if tmp.Type() != types.Array {
+		if inter.debug {
+			spew.Printf("First argument (the array) to AREF is not an array: %#v\n",
+				tmp)
+		}
 		return value.NIL, &TypeError{
 			expected: "Array",
-			actual:   arrRaw.Type().String(),
+			actual:   tmp.Type().String(),
 		}
 	}
 
-	arr = arrRaw.(value.Array)
+	arr = tmp.(value.Array)
 
-	if idxRaw.Type() != types.Integer {
+	if tmp, err = inter.Eval(idxRaw); err != nil {
+		return value.NIL, err
+	} else if tmp.Type() != types.Integer {
 		return value.NIL, &TypeError{
 			expected: "Integer",
-			actual:   arrRaw.Type().String(),
+			actual:   tmp.Type().String(),
 		}
 	}
 
-	index = int(idxRaw.(value.IntValue))
+	index = int(tmp.(value.IntValue))
 
 	if index < 0 || index >= len(arr) {
 		return value.NIL, &ValueError{val: value.IntValue(index)}

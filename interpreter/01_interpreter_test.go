@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 19:12:07 krylon>
+// Time-stamp: <2017-11-06 20:11:34 krylon>
 
 package interpreter
 
@@ -1572,9 +1572,9 @@ func TestMakeArray(t *testing.T) {
 		expectedError  bool
 	}
 
-	var olddbg = interp.debug
-	interp.debug = true
-	defer func() { interp.debug = olddbg }()
+	// var olddbg = interp.debug
+	// interp.debug = true
+	// defer func() { interp.debug = olddbg }()
 
 	var testCases = []arrTest{
 		arrTest{
@@ -1688,6 +1688,8 @@ func TestAPush(t *testing.T) {
 		}
 	}
 } // func TestAPush(t *testing.T)
+
+//func
 
 func TestHashCreate(t *testing.T) {
 	type hashTest struct {
@@ -1952,9 +1954,9 @@ func TestRegexpCompile(t *testing.T) {
 		expectError    bool
 	}
 
-	var olddbg = interp.debug
-	interp.debug = true
-	defer func() { interp.debug = olddbg }()
+	// var olddbg = interp.debug
+	// interp.debug = true
+	// defer func() { interp.debug = olddbg }()
 
 	var testCases = []regexTest{
 		regexTest{
@@ -1990,9 +1992,11 @@ func TestRegexpCompile(t *testing.T) {
 			t.Errorf("Parser returned unexpected data type: %T",
 				parsed)
 		} else if val, err = interp.Eval(prog); err != nil {
-			t.Errorf("Error compiling regexp %s: %s",
-				test.input,
-				err.Error())
+			if !test.expectError {
+				t.Errorf("Error compiling regexp %s: %s",
+					test.input,
+					err.Error())
+			}
 		} else if val.Type() != types.Regexp {
 			t.Errorf("REGEXP-COMPILE did not return a regexp, but a %T: %v",
 				val,
@@ -2054,6 +2058,16 @@ func TestRegexpMatch(t *testing.T) {
 				},
 			},
 		},
+
+		regexTest{
+			input: `
+(define pat (regexp-compile "\d+ooo\d+"))
+(define str "123oooooo3423")
+
+(regexp-match pat str)
+`,
+			expectedResult: value.NIL,
+		},
 	}
 
 	for _, test := range testCases {
@@ -2075,9 +2089,11 @@ func TestRegexpMatch(t *testing.T) {
 			t.Errorf("Parser returned unexpected data type: %T",
 				parsed)
 		} else if val, err = interp.Eval(prog); err != nil {
-			t.Errorf("Error compiling regexp %s: %s",
-				test.input,
-				err.Error())
+			if !test.expectError {
+				t.Errorf("Error compiling regexp %s: %s",
+					test.input,
+					err.Error())
+			}
 		} else if val.Type() != types.Array && val.Type() != types.Nil {
 			t.Errorf("Unexpected return value from REGEXP-MATCH: %T - %v",
 				val,

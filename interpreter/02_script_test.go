@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 01:40:38 krylon>
+// Time-stamp: <2017-11-06 19:53:04 krylon>
 
 package interpreter
 
@@ -141,8 +141,8 @@ func TestFactorialBignum(t *testing.T) {
 		ok        bool
 	)
 
-	interp.debug = true
-	defer func() { interp.debug = false }()
+	// interp.debug = true
+	// defer func() { interp.debug = false }()
 
 	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
 		t.Errorf("Error creating Lexer for %s: %s",
@@ -172,32 +172,38 @@ func TestFactorialBignum(t *testing.T) {
 	// 3628800
 } // func TestFactorial(t *testing.T)
 
-// func TestRegexp(t *testing.T) {
-// 	const scriptPath = "testdata/test004.lisp"
-// 	var (
-// 		l         *lexer.Lexer
-// 		p         = parser.NewParser()
-// 		err       error
-// 		val       value.LispValue
-// 		parseTree interface{}
-// 		program   value.Program
-// 		ok        bool
-// 	)
+func TestRegexp(t *testing.T) {
+	const scriptPath = "testdata/test004.lisp"
+	var (
+		l         *lexer.Lexer
+		p         = parser.NewParser()
+		err       error
+		val       value.LispValue
+		parseTree interface{}
+		program   value.Program
+		ok        bool
+	)
 
-// 	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
-// 		t.Errorf("Error creating Lexer for %s: %s",
-// 			scriptPath,
-// 			err.Error())
-// 	} else if parseTree, err = p.Parse(l); err != nil {
-// 		t.Errorf("Error parsing %s: %s",
-// 			scriptPath,
-// 			err.Error())
-// 	} else if program, ok = parseTree.([]value.LispValue); !ok {
-// 		t.Errorf("Unexpected type returned from Parser: %T",
-// 			parseTree)
-// 	} else if val, err = interp.Eval(program); err != nil {
-// 		t.Errorf("Error running %s: %s",
-// 			scriptPath,
-// 			err.Error())
-// 	}
-// }
+	interp.debug = true
+	defer func() { interp.debug = false }()
+
+	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
+		t.Errorf("Error creating Lexer for %s: %s",
+			scriptPath,
+			err.Error())
+	} else if parseTree, err = p.Parse(l); err != nil {
+		t.Errorf("Error parsing %s: %s",
+			scriptPath,
+			err.Error())
+	} else if program, ok = parseTree.([]value.LispValue); !ok {
+		t.Errorf("Unexpected type returned from Parser: %T",
+			parseTree)
+	} else if val, err = interp.Eval(program); err != nil {
+		t.Errorf("Error running %s: %s",
+			scriptPath,
+			err.Error())
+	} else if val.Type() != types.Array {
+		t.Errorf("Expected an array, got a %T",
+			val)
+	}
+}

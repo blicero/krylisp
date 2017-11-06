@@ -1,7 +1,7 @@
 ;; /home/krylon/go/src/krylisp/interpreter/testdata/test004.lisp
 ;; created on 03. 11. 2017
 ;; (c) 2017 Benjamin Walkenhorst
-;; Time-stamp: <2017-11-03 20:18:43 krylon>
+;; Time-stamp: <2017-11-06 19:46:50 krylon>
 
 ;; I just added regular expressions to the type set, and now I need to figure
 ;; out what I want the API to look like.
@@ -14,7 +14,7 @@
 (define pattern (regexp-compile "(?im)^(\d+)\s+(\w+)$"))
 
 (let ((res (regexp-match pattern "1234     Peter")))
-  (print (car res))
+  (print (aref res 0))
   res)
 
 
