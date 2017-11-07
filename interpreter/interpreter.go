@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-07 19:59:36 krylon>
+// Time-stamp: <2017-11-07 20:30:30 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -91,6 +91,7 @@ var specialSymbols = map[string]bool{
 	"DEFMACRO":       true,
 	"REGEXP-COMPILE": true,
 	"REGEXP-MATCH":   true,
+	"LENGTH":         true,
 	//	"FOR-EACH":       true,
 }
 
@@ -283,6 +284,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalRegexpMatch(l)
 	case "DO":
 		return inter.evalDoLoop(l)
+	case "LENGTH":
+		return inter.evalLength(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -2367,3 +2370,44 @@ func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environme
 
 	return env, stepForms, nil
 } // func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environment, map[value.Symbol]value.LispValue, error)
+
+func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 2 {
+		return value.NIL, SyntaxError("LENGTH requires exactly one argument")
+	}
+
+	var arg = l.Car.Cdr.(*value.ConsCell).Car
+
+	if value.IsNil(arg) {
+		return value.IntValue(0), nil
+	}
+
+	var tmp value.LispValue
+	var err error
+
+	if tmp, err = inter.Eval(arg); err != nil {
+		return value.NIL, err
+	}
+
+	switch v := tmp.(type) {
+	case value.StringValue:
+		return value.IntValue(len(string(v))), nil
+	case *value.ConsCell:
+		return value.IntValue(v.ActualLength()), nil
+	case *value.List:
+		return value.IntValue(v.Length), nil
+	case value.Array:
+		return value.IntValue(len(v)), nil
+	case value.Hashtable:
+		return value.IntValue(len(v)), nil
+	default:
+		return value.NIL, &TypeError{
+			expected: "String, List, Array, or Hashtable",
+			actual:   tmp.Type().String(),
+		}
+	}
+} // func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error)

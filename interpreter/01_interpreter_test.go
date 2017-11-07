@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-07 19:39:39 krylon>
+// Time-stamp: <2017-11-07 20:34:59 krylon>
 
 package interpreter
 
@@ -2179,9 +2179,9 @@ func TestDoLoop(t *testing.T) {
 		expectError    bool
 	}
 
-	var olddbg = interp.debug
-	interp.debug = true
-	defer func() { interp.debug = olddbg }()
+	// var olddbg = interp.debug
+	// interp.debug = true
+	// defer func() { interp.debug = olddbg }()
 
 	var testCases = []doTest{
 		doTest{
@@ -2231,6 +2231,64 @@ func TestDoLoop(t *testing.T) {
 		}
 	}
 } // func TestDoLoop(t *testing.T)
+
+func TestLength(t *testing.T) {
+	type lengthTest struct {
+		input          string
+		expectedResult value.IntValue
+		expectError    bool
+	}
+
+	var testCases = []lengthTest{
+		lengthTest{
+			input:          "(length '(1 2 3))",
+			expectedResult: 3,
+		},
+		lengthTest{
+			input:          "(length [1 2 3 4 5])",
+			expectedResult: 5,
+		},
+		lengthTest{
+			input:          "(length { karl : 3, peter : 7, horst : 2, willi : 11 })",
+			expectedResult: 4,
+		},
+		lengthTest{
+			input:          `(length "Hallo, Welt!")`,
+			expectedResult: 12,
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectError {
+				t.Errorf("Error measuring length of %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if !test.expectedResult.Eq(val) {
+			t.Errorf("Unexpected result from LENGTH: Expected %s, actual %s",
+				test.expectedResult,
+				val)
+		}
+	}
+} // func TestLength(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////
