@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 20:11:34 krylon>
+// Time-stamp: <2017-11-07 19:39:39 krylon>
 
 package interpreter
 
@@ -1689,7 +1689,69 @@ func TestAPush(t *testing.T) {
 	}
 } // func TestAPush(t *testing.T)
 
-//func
+func TestARef(t *testing.T) {
+	type arefTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var testCases = []arefTest{
+		arefTest{
+			input: `
+(define arr [1 2 3 4])
+
+(aref arr 2)
+`,
+			expectedResult: value.IntValue(3),
+		},
+		arefTest{
+			input: `
+(define arr [1 2 3 4])
+
+(aref arr 6)
+`,
+			expectError: true,
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectError {
+				t.Errorf("Error evaluating MAKE-ARRAY form %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if test.expectError {
+			t.Errorf("Test program should have raised an error: %s",
+				test.input)
+		} else if value.IsNil(val) {
+			t.Errorf("Input %s evaluated to NIL",
+				test.input)
+		} else if !test.expectedResult.Eq(val) {
+			t.Errorf("Unexpected return value from AREF: Expected %s, got %s",
+				test.expectedResult.String(),
+				val.String())
+		}
+	}
+} // func TestARef(t *testing.T)
 
 func TestHashCreate(t *testing.T) {
 	type hashTest struct {
@@ -2006,9 +2068,9 @@ func TestRegexpCompile(t *testing.T) {
 } // func TestRegexpCompile(t *testing.T)
 
 func TestRegexpMatch(t *testing.T) {
-	var olddbg = interp.debug
-	interp.debug = true
-	defer func() { interp.debug = olddbg }()
+	// var olddbg = interp.debug
+	// interp.debug = true
+	// defer func() { interp.debug = olddbg }()
 
 	type regexTest struct {
 		input          string
@@ -2109,6 +2171,66 @@ Actual:   %T -> %v`,
 		}
 	}
 } // func TestRegexpMatch(t *testing.T)
+
+func TestDoLoop(t *testing.T) {
+	type doTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var olddbg = interp.debug
+	interp.debug = true
+	defer func() { interp.debug = olddbg }()
+
+	var testCases = []doTest{
+		doTest{
+			// Beispiel in Common Lisp:
+			// (defun factorial (x)
+			// (do ((i 1 (1+ i))
+			//      (j 1 (* j i)))
+			//      ((> i x) j)))
+			input: `
+(do ((i 1 (+ i 1))
+     (j 1 (* j i)))
+     (> i 9)
+     j)
+`,
+			expectedResult: value.IntValue(3628800),
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectError {
+				t.Errorf("Error running DO loop %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if !test.expectedResult.Eq(val) {
+			t.Errorf("Unexpected result from DO loop: Expected %s, actual %s",
+				test.expectedResult,
+				val)
+		}
+	}
+} // func TestDoLoop(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////

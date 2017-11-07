@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 20:17:19 krylon>
+// Time-stamp: <2017-11-07 19:59:36 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -197,6 +197,9 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 	// Maybe I should use a lookup table. As the number of special forms
 	// grows - and it WILL grow -, a switch might not be the most
 	// efficient solution.
+	//
+	// Dienstag, 07. 11. 2017, 18:56
+	// I wonder what number branches is the tipping point...
 	switch sym {
 	case "IF":
 		return inter.evalIf(l)
@@ -278,6 +281,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalRegexpCompile(l)
 	case "REGEXP-MATCH":
 		return inter.evalRegexpMatch(l)
+	case "DO":
+		return inter.evalDoLoop(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -949,7 +954,11 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 		}
 	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 		return value.NIL, err
-	} else if l.Length == 3 && res != compare.GreaterThan {
+	} else if l.Length == 3 {
+		if res == compare.GreaterThan {
+			return value.T, nil
+		}
+
 		return value.NIL, nil
 	}
 
@@ -2156,3 +2165,205 @@ func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e e
 
 	return result, nil
 } // func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e error)
+
+type loopVariable struct {
+	sym  value.Symbol
+	step value.LispValue
+}
+
+func (inter *Interpreter) evalDoLoop(l *value.List) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	// A DO loop requires at least three arguments:
+	// - Variables (may be an empty list)
+	// - Exit condition (may be nil)
+	// - Return value (may be nil)
+	// Anything beyond these three is the loop body, but it is legal to
+	// have loop with an empty body.
+	if l == nil || l.Length < 4 {
+		return value.NIL, SyntaxError("DO requires at least three arguments")
+	}
+
+	// The intimidating thing about DO is that is takes a rather large
+	// number of arguments..
+
+	var (
+		err                           error
+		varList, endTest, returnValue value.LispValue
+	)
+
+	if varList, err = l.Nth(1); err != nil {
+		return value.NIL, err
+	} else if endTest, err = l.Nth(2); err != nil {
+		return value.NIL, err
+	} else if returnValue, err = l.Nth(3); err != nil {
+		return value.NIL, err
+	}
+
+	var (
+		body *value.ConsCell
+		//stepForms map[value.Symbol]value.LispValue
+		stepForms []loopVariable
+		loopEnv   *value.Environment //= value.NewEnvironment(inter.env)
+		tmp       value.LispValue
+	)
+
+	if l.Length > 4 {
+		//       DO                        vars                  exit condition        return value
+		body = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
+	}
+
+	if value.IsNil(varList) {
+		goto LOOP
+	} else if varList.Type() != types.List {
+		fmt.Printf("Variable list in a DO-loop must be a *list*, not a %T\n",
+			varList.Type().String())
+		return value.NIL, &TypeError{
+			expected: "List",
+			actual:   varList.Type().String(),
+		}
+	} else if loopEnv, stepForms, err = inter.evalDoVariables(varList.(*value.List)); err != nil {
+		return value.NIL, err
+	}
+
+	inter.env = loopEnv
+	defer func() { inter.env = inter.env.Parent }()
+
+	// Now we have the loop environment-frame with the freshly initialized
+	// loop variables, it is time to execute the loop
+LOOP:
+
+	// Check for abort
+	if tmp, err = inter.Eval(endTest); err != nil {
+		var msg = fmt.Sprintf("Error evaluating end-test for DO-loop %s: %s",
+			endTest.String(),
+			err.Error())
+		fmt.Println(msg)
+		return value.NIL, errors.New(msg)
+	} else if tmp.Bool() {
+		// In the DO loop from Common Lisp, the test does not check,
+		// like C's for loop, if the loop should *continue* to run,
+		// but if it should be *ended*.
+		// So if our test gives a true value,
+		// we are done.
+		goto END
+	}
+
+	// Run the loop body
+	for cell := body; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		if tmp, err = inter.Eval(cell.Car); err != nil {
+			var msg = fmt.Sprintf("Error evaluating loop body %s: %s",
+				cell.Car.String(),
+				err.Error())
+			fmt.Println(msg)
+			return value.NIL, errors.New(msg)
+		}
+	}
+
+	// Evaluate the step forms for all loop variables
+	for _, loopVar := range stepForms {
+		var oldValue value.LispValue
+
+		if inter.debug {
+			oldValue, _ = loopEnv.Get(loopVar.sym.String())
+		}
+
+		if tmp, err = inter.Eval(loopVar.step); err != nil {
+			var msg = fmt.Sprintf("Error updating loop variable %s with form %s: %s",
+				loopVar.sym,
+				loopVar.step,
+				err.Error())
+			fmt.Println(msg)
+			return value.NIL, errors.New(msg)
+		}
+
+		loopEnv.Ins(loopVar.sym.String(), tmp)
+
+		if inter.debug {
+			fmt.Printf("DO: Update loop variable %s from %s to %s\n",
+				loopVar.sym,
+				oldValue,
+				tmp)
+		}
+	}
+
+	// Play it again, Sam...
+	goto LOOP
+
+END:
+	if tmp, err = inter.Eval(returnValue); err != nil {
+		var msg = fmt.Sprintf("Error evaluating return form %s: %s",
+			returnValue.String(),
+			err.Error())
+		fmt.Println(msg)
+		return value.NIL, errors.New(msg)
+	}
+
+	return tmp, nil
+} // func (inter *Interpreter) evalDoLoop(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environment, []loopVariable, error) {
+	var (
+		env       = value.NewEnvironment(inter.env)
+		stepForms = make([]loopVariable, 0, varList.Length)
+		err       error
+	)
+
+	for cell := varList.Car; !value.IsNil(cell); cell = cell.Cdr.(*value.ConsCell) {
+		// Dienstag, 07. 11. 2017, 13:59
+		// Bindings have the following form:
+		// (<identifier> <init-form> <step-form>)
+		// So I have to take this apart, first.
+		var (
+			loopvDecl               *value.List
+			ok                      bool
+			identifier              value.Symbol
+			initForm, stepForm, tmp value.LispValue
+		)
+
+		if loopvDecl, ok = cell.Car.(*value.List); !ok {
+			var msg = fmt.Sprintf("Loop variable declaration must be a List, not a %s",
+				cell.Car.Type().String())
+			fmt.Println("Error in DO-form: " + msg)
+			return nil, nil, errors.New(msg)
+		} else if loopvDecl.Length != 3 {
+			var msg = fmt.Sprintf("Declaration of DO-loop variable must contain exactly three elements, found %d: %s",
+				loopvDecl.Length,
+				loopvDecl.String())
+			fmt.Println(msg)
+			return nil, nil, errors.New(msg)
+		} else if identifier, ok = loopvDecl.Car.Car.(value.Symbol); !ok {
+			return nil, nil, SyntaxErrorf("First element of declaration of loop variable must be a Symbol, not a %s",
+				loopvDecl.Car.Car.Type().String())
+		} else if initForm, err = loopvDecl.Nth(1); err != nil {
+			fmt.Printf("DO-loop: Error getting init-form from loop variable declaration %s: %s",
+				loopvDecl.String(),
+				err.Error())
+			return nil, nil, err
+		} else if stepForm, err = loopvDecl.Nth(2); err != nil {
+			fmt.Printf("DO-loop: Error getting step-form from loop variable declaration %s: %s",
+				loopvDecl.String(),
+				err.Error())
+			return nil, nil, err
+		} else if tmp, err = inter.Eval(initForm); err != nil {
+			var msg = fmt.Sprintf("Error initializing loop variable %s with %s: %s",
+				identifier.String(),
+				loopvDecl.String(),
+				err.Error())
+			fmt.Println(msg)
+			return nil, nil, errors.New(msg)
+		}
+
+		env.Ins(identifier.String(), tmp)
+		//stepForms[identifier] = stepForm
+		stepForms = append(stepForms, loopVariable{identifier, stepForm})
+
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+	return env, stepForms, nil
+} // func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environment, map[value.Symbol]value.LispValue, error)

@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-06 17:25:08 krylon>
+# Time-stamp: <2017-11-06 22:13:01 krylon>
 
 
 * kryLisp
@@ -131,3 +131,15 @@
     erweiterbar bleibt. Da schreibe ich für den Anfang vielleicht
     erstmal Test-Code und schaue dann, wie ich das zum Laufen
     bekomme. 
+**** [2017-11-06 Mo 21:46]
+     Wenn ich so darüber nachdenke, will ich zwei
+     Schleifen-Konstrukte, eins um über eine Collection von Sachen
+     drüber zu eiern, und eins für den Menschen, der schon alles hat.
+     Dann brauche ich aber immer noch mein Gegenstück zu Python's
+     Iterator-Protokoll.
+     Dann müsste ich ja sowas wie Multi-Methods / Multi-Dispatch drauf
+     haben.
+     Oder ich mache das _sehr_ minimalistisch und sage, man muss nur
+     zwei Funktionen übergeben, eine, die sagt, ob ich am Ende bin,
+     und eine, die mich einen Platz vorrücken lässt und mir das
+     aktuelle Element gibt. Aber das klingt etwas ... optimistisch.
