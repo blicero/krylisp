@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-07 20:30:30 krylon>
+// Time-stamp: <2017-11-09 22:30:54 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -23,6 +23,13 @@
 //
 // Okay, I have hashtables and arrays. Now, maybe I want to add some looping
 // constructs?
+//
+// Dienstag, 07. 11. 2017, 21:21
+// This file has gotten ... quite large. Maybe I should break it up into
+// several smaller files?
+// I'll keep that in mind, but for now I am sticking with the big file.
+// I am not even sure if Go allows spreading the methods for a type across
+// several files.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -92,6 +99,7 @@ var specialSymbols = map[string]bool{
 	"REGEXP-COMPILE": true,
 	"REGEXP-MATCH":   true,
 	"LENGTH":         true,
+	"CONCAT":         true,
 	//	"FOR-EACH":       true,
 }
 
@@ -286,6 +294,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalDoLoop(l)
 	case "LENGTH":
 		return inter.evalLength(l)
+	case "CONCAT":
+		return inter.evalConcat(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -2411,3 +2421,264 @@ func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error) {
 		}
 	}
 } // func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalConcat(l *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if value.IsNil(l) {
+		// We need the two-step form to shut up golint
+		var msg = "CANTHAPPEN: Call to CONCAT is nil?!?!"
+		return value.NIL, errors.New(msg)
+	} else if l.Length == 1 {
+		return value.NIL, nil
+	} else if l.Length == 2 {
+		// FIXME I really think I should add the same kind of type checking here
+		//       I will (hopefully) use later on!
+		return l.Car.Cdr.(*value.ConsCell).Car, nil
+	}
+
+	var (
+		acc  value.LispValue //  = l.Car.Cdr.(*value.ConsCell).Car
+		err  error
+		rest = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
+	)
+
+	if acc, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
+		return value.NIL, err
+	}
+
+	for cell := rest; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		// var val  = cell.Car
+		var tmp value.LispValue
+		var val value.LispValue
+
+		if val, err = inter.Eval(cell.Car); err != nil {
+			return value.NIL, err
+		}
+
+		switch acc.Type() {
+		case types.Nil:
+			acc = cell.Car
+			continue
+		case types.String:
+			tmp, err = inter.evalConcatString(acc.(value.StringValue), val)
+		case types.ConsCell:
+			// This should not really happen in real life?
+			// ... This should only ever happen if acc is not
+			// a proper list, but a cons pair.
+			// In that case we cannot really append anything
+			// to it, right?
+			var msg = "Cannot append stuff to a ConsCell"
+			fmt.Println(msg)
+			return value.NIL, errors.New(msg)
+		case types.List:
+			tmp, err = inter.evalConcatList(acc.(*value.List), val)
+		case types.Array:
+			tmp, err = inter.evalConcatArray(acc.(value.Array), val)
+		case types.Hashtable:
+			tmp, err = inter.evalConcatHashtable(acc.(value.Hashtable), val)
+		default:
+			return value.NIL, fmt.Errorf("Cannot append anything to a %s",
+				acc.Type())
+		}
+
+		if err != nil {
+			var e = fmt.Errorf("Error appending a %s to a %s: %s",
+				val.Type(),
+				acc.Type(),
+				err.Error())
+			fmt.Println(e.Error())
+			return value.NIL, e
+		}
+
+		acc = tmp
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+	return acc, nil
+} // func (inter *Interpreter) evalConcat(l *value.List) (value.LispValue, error)
+
+func mkConcatList(v1, v2 value.LispValue) *value.List {
+	return &value.List{
+		Car: &value.ConsCell{
+			Car: value.Symbol("CONCAT"),
+			Cdr: &value.ConsCell{
+				Car: v1,
+				Cdr: &value.ConsCell{
+					Car: v2,
+				},
+			},
+		},
+		Length: 2,
+	}
+} // func mkConcatList(v1, v2 value.LispValue) *value.List
+
+func (inter *Interpreter) evalConcatString(acc value.StringValue, other value.LispValue) (value.StringValue, error) {
+	var ok bool
+	var err error
+
+	// We are skipping Hashtable deliberately, because in a Hashtable the
+	// ordering of entries is kind of arbitrary/random, and there is no
+	// good way to decide upon a certain order.
+	// So (concat <string> <hash-table>) is "undefined, if you will.
+	switch other.Type() {
+	case types.Nil:
+		return acc, nil
+	case types.Integer, types.Float, types.BigInt:
+		return acc + value.StringValue(other.String()), nil
+	case types.String:
+		return acc + value.StringValue(string(string(other.(value.StringValue)))), nil
+	case types.Symbol:
+		var sym = other.(value.Symbol)
+		var retval value.StringValue
+		if sym.IsKeyword() {
+			retval = acc + value.StringValue(string(value.StringValue(sym))[1:])
+		} else {
+			retval = value.StringValue(string(sym))
+		}
+		return retval, nil
+	case types.List:
+		var iter = other.(*value.List).Car
+		var tmp = acc
+		for cell := iter; !value.IsNil(cell); cell = cell.Cdr.(*value.ConsCell) {
+			if tmp, err = inter.evalConcatString(tmp, cell.Car); err != nil {
+				return "", err
+			}
+		}
+
+		return tmp, nil
+	case types.Array:
+		var arr = other.(value.Array)
+		var tmp = acc
+		for _, elt := range arr {
+			var strVal value.LispValue
+			if strVal, err = inter.evalConcat(mkConcatList(tmp, elt)); err != nil {
+				return "", err
+			}
+			if tmp, ok = strVal.(value.StringValue); !ok {
+				return "", err
+			}
+		}
+
+		return tmp, nil
+	default:
+		var msg = fmt.Sprintf("ERROR Don't know how to append %s to String",
+			other.Type())
+		fmt.Println(msg)
+		return "", errors.New(msg)
+	}
+} // func (inter *Interpreter) evalConcatString(acc value.StringValue, other value.LispValue) (value.StringValue, error)
+
+func (inter *Interpreter) evalConcatList(acc *value.List, other value.LispValue) (*value.List, error) {
+	var last *value.ConsCell
+
+	for cell := acc.Car; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		if cell.Cdr == nil {
+			last = cell
+			break
+		}
+	}
+
+	if last == nil {
+		var msg = spew.Sprintf("Did not find end-of-list in %v",
+			acc)
+		fmt.Println(msg)
+		return value.ListNil(), errors.New(msg)
+	}
+
+	switch other.Type() {
+	case types.Nil:
+		return acc, nil
+	case types.Integer, types.Float, types.BigInt, types.String:
+		last.Cdr = &value.ConsCell{
+			Car: other,
+		}
+		acc.Length++
+		return acc, nil
+	case types.ConsCell:
+		// Mittwoch, 08. 11. 2017, 00:42
+		// It would not be *that* hard to deal with this case, but
+		// it really should not happen under real-world conditions.
+		// Not ever.
+		var msg = "CANTHAPPEN: Cannot append raw ConsCell to List"
+		fmt.Println(msg)
+		return value.ListNil(), errors.New(msg)
+	case types.List:
+		last.Cdr = other.(*value.List).Car
+		acc.Length += other.(*value.List).Length
+		return acc, nil
+	case types.Array:
+		// Donnerstag, 09. 11. 2017, 19:41
+		// Not sure if this matters or how much, but I could make this
+		// slightly less inefficient, if I built up the second list from
+		// the back and then set the first list's tail to the head of the
+		// second one.
+		// Since our second argument is an Array, that should not be
+		// a problem, right?
+		for _, v := range other.(value.Array) {
+			// if val, err = inter.Eval(v); err != nil {
+			// 	return value.ListNil(), err
+			// }
+
+			var newLast = &value.ConsCell{
+				Car: v,
+			}
+
+			last.Cdr = newLast
+			//last = last.Cdr.(*value.ConsCell)
+			last = newLast
+			acc.Length++
+		}
+
+		return acc, nil
+	default:
+		return value.ListNil(), &TypeError{
+			expected: "Number, or List, or Array",
+			actual:   other.Type().String(),
+		}
+	}
+} // func (inter *Interpreter) evalConcatList(acc *value.List, other value.LispValue) (*value.List, error)
+
+func (inter *Interpreter) evalConcatArray(acc value.Array, other value.LispValue) (value.Array, error) {
+	switch other.Type() {
+	case types.Integer, types.Float, types.BigInt, types.String, types.Regexp, types.Symbol, types.KeySym:
+		return append(acc, other), nil
+	case types.ConsCell:
+		var msg = "CANTHAPPEN: Raw ConsCell value should NEVER appear in real life"
+		fmt.Println(msg)
+		return value.EmptyArray(), nil
+	case types.List:
+		var idx = len(acc)
+		var newArray = make([]value.LispValue, idx+other.(*value.List).Length)
+		copy(newArray, acc)
+
+		for cell := other.(*value.List).Car; !value.IsNil(cell); cell = cell.Cdr.(*value.ConsCell) {
+			// Donnerstag, 09. 11. 2017, 19:35
+			// XXX I do not need to evaluate each member of the list
+			// if tmp, err = inter.Eval(cell.Car); err != nil {
+			// 	var msg = fmt.Sprintf("Error evaluating List member %s: %s",
+			// 		cell.Car,
+			// 		err.Error())
+			// 	fmt.Println(msg)
+			// 	return nil, nil
+			// }
+
+			newArray[idx] = cell.Car
+			idx++
+		}
+
+		return newArray, nil
+	default:
+		fmt.Printf("Don't know how to append a %s to an Array\n",
+			other.Type().String())
+		return value.EmptyArray(), nil
+	}
+} // func (inter *Interpreter) evalConcatArray(acc value.Array) (value.Array, error)
+
+func (inter *Interpreter) evalConcatHashtable(acc value.Hashtable, other value.LispValue) (value.Hashtable, error) {
+	return acc, nil
+} // func (inter *Interpreter) evalConcatHashtable(acc value.Hashtable, other value.LispValue) (value.Hashtable, error)

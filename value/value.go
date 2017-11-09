@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 18:18:06 krylon>
+// Time-stamp: <2017-11-09 22:19:17 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -18,6 +18,12 @@
 // und das eine Menge Fleißarbeit wird.
 // Aber ohne generische Typen und Operatoren-Überladung bleibt mir nicht
 // viel übrig, oder?
+//
+// Donnerstag, 09. 11. 2017, 22:08
+// I do not remember why, but I decided to finally add an Equal-method to
+// the LispValue interface. Now that I have that, I think I could make
+// Eq stricter. Right now, Eq checks for structural equality on most
+// types.
 
 package value
 
@@ -44,6 +50,7 @@ type LispValue interface {
 	String() string
 	Bool() bool
 	Eq(other LispValue) bool
+	Equal(other LispValue) bool
 	Convert(id types.ID) (LispValue, error)
 }
 
@@ -75,20 +82,26 @@ func (n NilValue) Bool() bool {
 
 // Eq compares the receiver with the argument for identity.
 func (n NilValue) Eq(other LispValue) bool {
-	if other == nil {
-		return true
-	} else if other.Type() == types.List {
-		var l = other.(*List)
+	// if other == nil {
+	// 	return true
+	// } else if other.Type() == types.List {
+	// 	var l = other.(*List)
 
-		if l.Length == 0 || l.Car == nil {
-			return true
-		}
-	} else if other.Type() == types.Nil {
-		return true
-	}
+	// 	if l.Length == 0 || l.Car == nil {
+	// 		return true
+	// 	}
+	// } else if other.Type() == types.Nil {
+	// 	return true
+	// }
 
-	return false
+	// return false
+	return IsNil(other)
 } // func (n NilValue) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (n NilValue) Equal(other LispValue) bool {
+	return IsNil(other)
+} // func (n NilValue) Equal(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
@@ -151,6 +164,27 @@ func (i IntValue) Eq(other LispValue) bool {
 
 	return i == other.(IntValue)
 } // func (i IntValue) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (i IntValue) Equal(other LispValue) bool {
+	switch o := other.(type) {
+	case NilValue:
+		return false
+	case IntValue:
+		return i == o
+	case FloatValue:
+		if IsFloatInteger(o) {
+			return FloatValue(float64(i)) == o
+		}
+
+		return false
+	case *BigInt:
+		var tmp = big.NewInt(int64(i))
+		return tmp.Cmp(o.Value) == 0
+	default:
+		return false
+	}
+} // func (i IntValue) Equal(other LispValue) bool
 
 // Num identifies the receiver as kind of Number.
 func (i IntValue) Num() {
@@ -225,6 +259,29 @@ func (f FloatValue) Eq(other LispValue) bool {
 
 	return f == other.(FloatValue)
 } // func (f FloatValue) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (f FloatValue) Equal(other LispValue) bool {
+	switch other.Type() {
+	case types.Integer:
+		if IsFloatInteger(f) {
+			return FloatValue(float64(other.(IntValue))) == f
+		}
+
+		return false
+	case types.Float:
+		return f == other.(FloatValue)
+	case types.BigInt:
+		if IsFloatInteger(f) {
+			var tmp = big.NewInt(int64(f))
+			return tmp.Cmp(other.(*BigInt).Value) == 0
+		}
+
+		return false
+	default:
+		return false
+	}
+} // func (f FloatValue) Equal(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
@@ -318,32 +375,60 @@ func (b *BigInt) Bool() bool {
 // Eq return true if the receiver and the argument are the same.
 // If the argument is a Number, the two are compared for value equality.
 func (b *BigInt) Eq(other LispValue) bool {
-	if other == nil {
-		return false
-	} else if !IsNumber(other) {
+	if other == nil || other.Type() != types.BigInt {
 		return false
 	}
 
-	switch ot := other.(type) {
-	case *BigInt:
-		return b.Value.Cmp(ot.Value) == 0
-	case IntValue:
-		var ob = big.NewInt(int64(ot))
-		return b.Value.Cmp(ob) == 0
-	case FloatValue:
-		var of = new(big.Float)
-		of.SetFloat64(float64(ot))
-		if of.IsInt() {
-			var oi, _ = of.Int(nil)
-			return b.Value.Cmp(oi) == 0
+	return b == other.(*BigInt)
+
+	// if other == nil {
+	// 	return false
+	// } else if !IsNumber(other) {
+	// 	return false
+	// }
+
+	// switch ot := other.(type) {
+	// case *BigInt:
+	// 	return b.Value.Cmp(ot.Value) == 0
+	// case IntValue:
+	// 	var ob = big.NewInt(int64(ot))
+	// 	return b.Value.Cmp(ob) == 0
+	// case FloatValue:
+	// 	var of = new(big.Float)
+	// 	of.SetFloat64(float64(ot))
+	// 	if of.IsInt() {
+	// 		var oi, _ = of.Int(nil)
+	// 		return b.Value.Cmp(oi) == 0
+	// 	}
+
+	// 	return false
+	// default:
+
+	// 	return false
+	// }
+} // func (b *BigInt) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (b *BigInt) Equal(other LispValue) bool {
+	switch other.Type() {
+	case types.Integer:
+		var tmp = big.NewInt(int64(other.(IntValue)))
+		return b.Value.Cmp(tmp) == 0
+	case types.Float:
+		if IsFloatInteger(other.(FloatValue)) {
+			var tmp1 = big.NewFloat(float64(other.(FloatValue)))
+			tmp2, _ := tmp1.Int(nil)
+
+			return b.Value.Cmp(tmp2) == 0
 		}
 
 		return false
+	case types.BigInt:
+		return b.Value.Cmp(other.(*BigInt).Value) == 0
 	default:
-
 		return false
 	}
-} // func (b *BigInt) Eq(other LispValue) bool
+} // func (b *BigInt) Equal(other LispValue) bool
 
 // Num identifies the receiver as kind of Number.
 func (b *BigInt) Num() {
@@ -429,6 +514,16 @@ func (s StringValue) Eq(other LispValue) bool {
 	return 0 == strings.Compare(string(s), string(other.(StringValue)))
 } // func (s StringValue) Eq(other LispValue) bool
 
+// Equal compares two Lisp values for equality.
+func (s StringValue) Equal(other LispValue) bool {
+	switch other.Type() {
+	case types.String:
+		return s == other.(StringValue)
+	default:
+		return false
+	}
+} // func (s StringValue) Equal(other LispValue) bool
+
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
 // Converting a value to types.String may invoke the type's String method to
@@ -503,6 +598,20 @@ func (s Symbol) Eq(other LispValue) bool {
 		return false
 	}
 } // func (s Symbol) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (s Symbol) Equal(other LispValue) bool {
+	switch other.Type() {
+	case types.Nil:
+		return s == nilString
+	case types.List:
+		return (s == nilString) && (other.(*List).Length == 0 || other.(*List).Car == nil)
+	case types.Symbol:
+		return s == other.(Symbol)
+	default:
+		return false
+	}
+} // func (s Symbol) Equal(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
@@ -658,6 +767,35 @@ func (s *ConsCell) Eq(other LispValue) bool {
 	return false
 } // func (s *ConsCell) Eq(other LispValue) bool
 
+// Equal compares two Lisp values for equality.
+func (s *ConsCell) Equal(other LispValue) bool {
+	if other == nil {
+		return s == nil
+	} else if c, ok := other.(*ConsCell); ok {
+		var cell1, cell2 *ConsCell
+
+		cell1 = s
+		cell2 = c
+
+		for cell1 != nil && cell2 != nil {
+			if !cell1.Car.Equal(cell2.Car) {
+				return false
+			} else if IsNil(cell1.Cdr) {
+				return IsNil(cell2.Cdr)
+			} else if IsNil(cell2.Cdr) {
+				return false
+			}
+
+			cell1 = cell1.Cdr.(*ConsCell)
+			cell2 = cell2.Cdr.(*ConsCell)
+		}
+
+		return true
+	}
+
+	return false
+} // func (s *ConsCell) Equal(other LispValue) bool
+
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
 // Converting a value to types.String may invoke the type's String method to
@@ -687,6 +825,14 @@ func (s *ConsCell) Convert(id types.ID) (LispValue, error) {
 type List struct {
 	Car    *ConsCell
 	Length int
+}
+
+// ListNil returns a new, empty List
+func ListNil() *List {
+	return &List{
+		Car:    nil,
+		Length: 0,
+	}
 }
 
 // Type returns the type ID of the receiver.
@@ -810,11 +956,34 @@ func (l *List) Eq(other LispValue) bool {
 	return l.Car == other.(*List).Car
 } // func (l *List) Eq(other LispValue) bool
 
-// Eq return true if the receiver and the argument are the same, i.e. if both
-// lists' Car member points to the same ConsCell.
-// func (l *List) Eq(other *List) bool {
-// 	return l.Car == other.Car
-// } // func (l *List) Eq(other *List) bool
+// Equal compares two Lisp values for equality.
+func (l *List) Equal(other LispValue) bool {
+	if other == nil || other.Type() != types.List {
+		return false
+	}
+
+	var o = other.(*List)
+
+	var cell1, cell2 *ConsCell
+
+	cell1 = l.Car
+	cell2 = o.Car
+
+	for cell1 != nil && cell2 != nil {
+		if !cell1.Car.Equal(cell2.Car) {
+			return false
+		} else if IsNil(cell1.Cdr) {
+			return IsNil(cell2.Cdr)
+		} else if IsNil(cell2.Cdr) {
+			return false
+		}
+
+		cell1 = cell1.Cdr.(*ConsCell)
+		cell2 = cell2.Cdr.(*ConsCell)
+	}
+
+	return true
+} // func (l *List) Equal(other LispValue) bool
 
 // ActualLength counts the number of elements in the list and returns the
 // result. The main purpose is for debugging/testing, but it is also used
@@ -955,6 +1124,11 @@ func (f *Function) Eq(other LispValue) bool {
 	return false
 } // func (f *Function) Eq(other LispValue) bool
 
+// Equal compares two Lisp values for equality.
+func (f *Function) Equal(other LispValue) bool {
+	return f.Eq(other)
+} // func (f *Function) Equal(other LispValue) bool
+
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
 // Converting a value to types.String may invoke the type's String method to
@@ -1020,6 +1194,11 @@ func (p Program) Eq(other LispValue) bool {
 	return true
 } // func (p Program) Eq(other LispValue) bool
 
+// Equal compares two Lisp values for equality.
+func (p Program) Equal(other LispValue) bool {
+	return p.Eq(other)
+} // func (p Program) Equal(other LispValue) bool
+
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
 // Converting a value to types.String may invoke the type's String method to
@@ -1057,12 +1236,21 @@ func (re *Regexp) Bool() bool {
 
 // Eq compares the receiver with the argument for identity.
 func (re *Regexp) Eq(other LispValue) bool {
+	if other == nil || other.Type() != types.Regexp {
+		return false
+	}
+
+	return re == other.(*Regexp)
+} // func (re *Regexp) Eq(other value.LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (re *Regexp) Equal(other LispValue) bool {
 	if nil == other || other.Type() != types.Regexp {
 		return false
 	}
 
 	return re.String() == other.(*Regexp).String()
-} // func (re *Regexp) Eq(other value.LispValue) bool
+} // func (re *Regexp) Equal(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
@@ -1080,6 +1268,11 @@ func (re *Regexp) Convert(id types.ID) (LispValue, error) {
 
 // Array is a one-dimensional array of Lisp values.
 type Array []LispValue
+
+// EmptyArray returns a new, empty Array
+func EmptyArray() Array {
+	return make(Array, 0)
+}
 
 // Type returns the type ID of the value, in this case types.Regexp
 func (arr Array) Type() types.ID {
@@ -1122,6 +1315,23 @@ func (arr Array) Eq(other LispValue) bool {
 
 	return true
 } // func Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (arr Array) Equal(other LispValue) bool {
+	if other == nil || other.Type() != types.Array {
+		return false
+	}
+
+	var oarr = other.(Array)
+
+	for idx, val := range arr {
+		if !val.Equal(oarr[idx]) {
+			return false
+		}
+	}
+
+	return true
+} // func (arr Array) Equal(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
@@ -1207,6 +1417,37 @@ func (ht Hashtable) Eq(other LispValue) bool {
 
 	return true
 } // func (ht Hashtable) Eq() bool
+
+// Equal compares two Lisp values for equality.
+func (ht Hashtable) Equal(other LispValue) bool {
+	if other == nil || other.Type() != types.Hashtable {
+		return false
+	}
+
+	var ot = other.(Hashtable)
+
+	if len(ot) != len(ht) {
+		return false
+	}
+
+	// To be really sure, I need to check if the other table
+	// has keys that we do not have. ...
+	// I promise to implement that sometimes.
+	for key, val := range ht {
+		var (
+			oval LispValue
+			ok   bool
+		)
+
+		if oval, ok = ot[key]; !ok {
+			return false
+		} else if !val.Equal(oval) {
+			return false
+		}
+	}
+
+	return true
+} // func (ht Hashtable) Eq(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.

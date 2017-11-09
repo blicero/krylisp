@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 19:53:04 krylon>
+// Time-stamp: <2017-11-07 21:24:26 krylon>
 
 package interpreter
 
@@ -28,9 +28,9 @@ func TestRunScript001(t *testing.T) {
 
 	interp.stdout = os.Stdout
 	interp.stderr = os.Stderr
-	interp.debug = true
 
-	defer func() { interp.debug = false }()
+	// interp.debug = true
+	// defer func() { interp.debug = false }()
 
 	var testCases = []scriptTest{
 		scriptTest{
@@ -184,8 +184,8 @@ func TestRegexp(t *testing.T) {
 		ok        bool
 	)
 
-	interp.debug = true
-	defer func() { interp.debug = false }()
+	// interp.debug = true
+	// defer func() { interp.debug = false }()
 
 	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
 		t.Errorf("Error creating Lexer for %s: %s",

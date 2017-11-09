@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-09-23 13:17:40 krylon>
+// Time-stamp: <2017-11-09 20:16:01 krylon>
 
 package value
 
@@ -63,3 +63,20 @@ func TestIsNil(t *testing.T) {
 		}
 	}
 } // func TestIsNil(t *testing.T)
+
+func TestMakeList(t *testing.T) {
+	// MakeList(...) is really trivial, so I don't see why the
+	// test should be more sophisticated.
+	var l = MakeList(IntValue(1), IntValue(2), IntValue(3))
+
+	if l == nil {
+		t.Fatalf("MakeList should return nil only on empty input")
+	} else if l.Length != 3 {
+		t.Errorf("Expected list of exactly three elements, not %d => %s",
+			l.Length,
+			l)
+	} else if !l.Car.Car.Eq(IntValue(1)) {
+		t.Errorf("First element in List should be 1, not %s",
+			l.Car.Car)
+	}
+} // func TestMakeList(t *testing.T)

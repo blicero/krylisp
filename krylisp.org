@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-06 22:13:01 krylon>
+# Time-stamp: <2017-11-07 21:48:25 krylon>
 
 
 * kryLisp
@@ -123,7 +123,18 @@
     und vielleicht für komplexe Zahlen.
 *** TODO [#B] I/O
     Ist auf Dauer blöd, wenn das nicht geht.
+**** [2017-11-07 Di 21:15]
+     Okay, allmählich habe ich die Grundlagen so weit, dass ich I/O
+     implementieren könnte. Glaube ich jedenfalls.
+     Aber wenn ich das gut machen will, wird es nicht ganz
+     einfach. Ich würde am liebsten einen Weg ähnlich wie Go
+     einschlagen, und Reader und Writer haben, bei denen erstmal keine
+     Rolle spielt, ob das Dateien, Netzwerkverbindungen, oder was auch
+     immer sind.
 *** TODO [#C] Datenstrukturen und Collections
+**** [2017-11-07 Di 21:16]
+     Arrays und Hashtables habe ich inzwischen umgesetzt, structs aber
+     noch nicht.
 *** TODO Schleifen
     Ich will gern richtige Iteration haben, weil ich keine Lust habe
     mich zu informieren, wie ich Endrekursion weg optimiere.
@@ -143,3 +154,33 @@
      zwei Funktionen übergeben, eine, die sagt, ob ich am Ende bin,
      und eine, die mich einen Platz vorrücken lässt und mir das
      aktuelle Element gibt. Aber das klingt etwas ... optimistisch.
+**** [2017-11-07 Di 21:08]
+     Eine DO-Schleife, deren Syntax und Semantik ich weitgehend bei
+     Common Lisp abgekupfert habe, habe ich beisammen, und der einsame
+     Test, den ich dafür geschrieben habe, läuft auch.
+     Jetzt stellt sich die Frage, will ich immer noch ein FOREACH
+     bauen?
+     Mmmh, ich glaube, ich will erstmal Makros implementieren.
+     Vielleicht kann ich dann ja FOREACH als Makro umsetzen?
+     Und vielleicht wäre es allmählich an der Zeit, ein paar
+     Benchmarks zu schreiben?
+     Aber Moment! Mir fehlt noch etwas Wichtiges, nämlich I/O! Das
+     könnte auch ein bisschen knifflig werden... 
+*** TODO Testen
+    Das schöne an einem Interpreter für eine Programmiersprache, ist
+    dass es relativ gesehen /sehr/ einfach ist, alle möglichen Aspekte
+    isoliert durch zu testen.
+    Darum mache ich von der Möglichkeit regen Gebrauch und versuche
+    auch wo immer es geht table-driven-testing zu praktizieren. In ein
+    paar Fällen hat sich das auch schon rentiert, z.B. als ich neue
+    numerische Typen hinzugefügt habe - neue Tests für alle möglichen
+    Konstellationen hinzuzufügen war ziemlich trivial.
+**** TODO [#A] Fuzzing
+     Fuzzing ist ja der zeit der heiße Scheiß. Und das Schicksal es
+     will, gibt es auch für Go eine Fuzzing-Bibliothek. Ich würde gern
+     versuchen die zu benutzen, um meinen Parser/Interpreter noch
+     brutaler zu testen.
+     Und Fuzzer haben ja offenbar einen sehr guten Track Record bei
+     großen Codebasen subtile Bugs aufzuspüren, die auch
+     hochkompetenten und sehr erfahrenen Programmier_innen nicht ins
+     Auge gestochen sind. 

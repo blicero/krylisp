@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 23:27:42 krylon>
+// Time-stamp: <2017-11-09 22:28:57 krylon>
 
 package value
 
@@ -50,3 +50,28 @@ func IsNumber(v LispValue) bool {
 func IsFloatInteger(f FloatValue) bool {
 	return math.Floor(float64(f)) == float64(f)
 } // func IsFloatInteger(f FloatValue) bool
+
+// MakeList takes a variable number of LispValues and returns a List,
+// containing those values, in the order they are passed to the function.
+func MakeList(values ...LispValue) *List {
+	var max = len(values) - 1
+	var list = &List{
+		Length: len(values),
+		Car:    new(ConsCell),
+	}
+
+	var cell = list.Car
+
+	for idx, val := range values {
+		cell.Car = val
+		if idx < max {
+			tmp := new(ConsCell)
+			cell.Cdr = tmp
+			cell = tmp
+		} else {
+			cell.Cdr = nil
+		}
+	}
+
+	return list
+} // func MakeList(v ...LispValue) *List

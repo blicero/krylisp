@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-07 20:34:59 krylon>
+// Time-stamp: <2017-11-09 22:46:58 krylon>
 
 package interpreter
 
@@ -2289,6 +2289,59 @@ func TestLength(t *testing.T) {
 		}
 	}
 } // func TestLength(t *testing.T)
+
+func TestConcatList(t *testing.T) {
+	type concatTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var testCases = []concatTest{
+		concatTest{
+			input: "(concat '(1 2 3) '(4 5 6))",
+			expectedResult: value.MakeList(
+				value.IntValue(1),
+				value.IntValue(2),
+				value.IntValue(3),
+				value.IntValue(4),
+				value.IntValue(5),
+				value.IntValue(6),
+			),
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectError {
+				t.Errorf("Error measuring length of %s: %s",
+					test.input,
+					err.Error())
+			}
+		} else if !test.expectedResult.Equal(val) {
+			t.Errorf("Unexpected result from ConcatList: %s (expected %s)",
+				test.expectedResult,
+				val)
+		}
+	}
+} // func TestConcatList(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////
