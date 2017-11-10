@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-09 22:30:54 krylon>
+// Time-stamp: <2017-11-09 23:15:37 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -2669,6 +2669,9 @@ func (inter *Interpreter) evalConcatArray(acc value.Array, other value.LispValue
 
 			newArray[idx] = cell.Car
 			idx++
+			if cell.Cdr == nil {
+				break
+			}
 		}
 
 		return newArray, nil
