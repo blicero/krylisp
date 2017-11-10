@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-10 16:58:06 krylon>
+// Time-stamp: <2017-11-10 19:17:04 krylon>
 
 package interpreter
 
@@ -2461,6 +2461,105 @@ func TestConcatString(t *testing.T) {
 		}
 	}
 } // func TestConcatString(t *testing.T)
+
+// I don't want to rely on specific environment variables existing
+// or having a specific value. This is going to be awkward.
+// I COULD manually set a few environment variables "manually",
+// then call GETENV in Lisp and see if the correct result comes
+// back.
+func TestGetenv(t *testing.T) {
+	type envTest struct {
+		name string
+		val  string
+	}
+
+	var testCases = []envTest{
+		envTest{
+			name: "TEST123",
+			val:  "TEST456",
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			err      error
+			oldValue string
+			res      value.LispValue
+			call     = value.MakeList(
+				value.Symbol("GETENV"),
+				value.StringValue(test.name),
+			)
+		)
+
+		oldValue = os.Getenv(test.name)
+
+		if err = os.Setenv(test.name, test.val); err != nil {
+			t.Errorf("Error setting environment variable %s to %s: %s",
+				test.name,
+				test.val,
+				err.Error())
+		} else if res, err = interp.Eval(call); err != nil {
+			t.Errorf("Error calling GETENV: %s", err.Error())
+		} else if !res.Equal(value.StringValue(test.val)) {
+			t.Errorf("Unexpected return value from (GETENV %s): %s (expected %s)",
+				test.name,
+				res,
+				test.val)
+		}
+
+		if oldValue != "" {
+			_ = os.Setenv(test.name, oldValue)
+		}
+	}
+} // func TestGetenv(t *testing.T)
+
+func TestSetEnv(t *testing.T) {
+	type envTest struct {
+		name string
+		val  string
+	}
+
+	var testCases = []envTest{
+		envTest{
+			name: "TEST123",
+			val:  "HALLOWELT",
+		},
+		envTest{
+			name: "TESTUMLAUT",
+			val:  "äöüÄÖÜ",
+		},
+	}
+
+	for _, test := range testCases {
+		var (
+			err             error
+			oldValue, check string
+			call            = value.MakeList(
+				value.Symbol("SETENV"),
+				value.StringValue(test.name),
+				value.StringValue(test.val),
+			)
+		)
+
+		oldValue = os.Getenv(test.name)
+
+		if _, err = interp.Eval(call); err != nil {
+			t.Errorf("Error setting environment variable %s to %s: %s",
+				test.name,
+				test.val,
+				err.Error())
+		} else if check = os.Getenv(test.name); check != test.val {
+			t.Errorf("Unexpected value found in environment variable %s: %s (expected %s)",
+				test.name,
+				check,
+				test.val)
+		}
+
+		if oldValue != "" {
+			_ = os.Setenv(test.name, oldValue)
+		}
+	}
+} // func TestSetEnv(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-09 23:15:37 krylon>
+// Time-stamp: <2017-11-10 17:36:06 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -100,6 +100,8 @@ var specialSymbols = map[string]bool{
 	"REGEXP-MATCH":   true,
 	"LENGTH":         true,
 	"CONCAT":         true,
+	"GETENV":         true,
+	"SETENV":         true,
 	//	"FOR-EACH":       true,
 }
 
@@ -296,6 +298,10 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalLength(l)
 	case "CONCAT":
 		return inter.evalConcat(l)
+	case "GETENV":
+		return inter.evalGetenv(l)
+	case "SETENV":
+		return inter.evalSetenv(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -2683,5 +2689,81 @@ func (inter *Interpreter) evalConcatArray(acc value.Array, other value.LispValue
 } // func (inter *Interpreter) evalConcatArray(acc value.Array) (value.Array, error)
 
 func (inter *Interpreter) evalConcatHashtable(acc value.Hashtable, other value.LispValue) (value.Hashtable, error) {
+	// Do I really need this?
 	return acc, nil
 } // func (inter *Interpreter) evalConcatHashtable(acc value.Hashtable, other value.LispValue) (value.Hashtable, error)
+
+func (inter *Interpreter) evalGetenv(l *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 2 {
+		return value.NIL, SyntaxError("GETENV takes exactly one argument")
+	}
+
+	var err error
+	var val, raw value.LispValue
+
+	raw = l.Car.Cdr.(*value.ConsCell).Car
+
+	if val, err = inter.Eval(raw); err != nil {
+		return value.NIL, err
+	} else if val.Type() != types.String {
+		return value.NIL, &TypeError{
+			expected: "String",
+			actual:   val.Type().String(),
+		}
+	}
+
+	var rawEnv = os.Getenv(string(val.(value.StringValue)))
+
+	return value.StringValue(rawEnv), nil
+} // func (inter *Interpreter) evalGetenv(l *value.List) (value.LispValue, error)
+
+func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if l == nil || l.Length != 3 {
+		return value.NIL, SyntaxError("SETENV takes exactly two arguments")
+	}
+
+	var env, newValue, rawEnv, rawVal value.LispValue
+	var err error
+
+	rawEnv, _ = l.Nth(1)
+	rawVal, _ = l.Nth(2)
+
+	if env, err = inter.Eval(rawEnv); err != nil {
+		return value.NIL, err
+	} else if newValue, err = inter.Eval(rawVal); err != nil {
+		return value.NIL, err
+	} else if env.Type() != types.String {
+		return value.NIL, &TypeError{
+			expected: "String",
+			actual:   env.Type().String(),
+		}
+	} else if newValue.Type() != types.String {
+		return value.NIL, &TypeError{
+			expected: "String",
+			actual:   newValue.Type().String(),
+		}
+	}
+
+	var (
+		key = string(env.(value.StringValue))
+		val = string(newValue.(value.StringValue))
+	)
+
+	if err = os.Setenv(key, val); err != nil {
+		fmt.Printf("Error setting environment variable %s to value %s: %s",
+			key,
+			val,
+			err.Error())
+		return value.NIL, err
+	}
+
+	return newValue, nil
+} // func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error)
