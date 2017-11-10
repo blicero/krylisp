@@ -1,7 +1,7 @@
 ;; /home/krylon/go/src/krylisp/interpreter/testdata/test005.lisp
 ;; created on 06. 11. 2017
 ;; (c) 2017 Benjamin Walkenhorst
-;; Time-stamp: <2017-11-06 21:33:07 krylon>
+;; Time-stamp: <2017-11-10 20:49:50 krylon>
 ;;
 ;; Montag, 06. 11. 2017, 21:32
 ;; So, now we're on to loops. I *could* just copy Common Lisp's DO special form,
@@ -16,6 +16,10 @@
 ;; going to get processed. Kind of like Python's Iterator protocol. *NOT* like C++'s
 ;; iterators (I like them, asthetically, but I would not like to have to implement them).
 
+
+;; Freitag, 10. 11. 2017, 20:49
+;; XXX For now, this script is unused. I might come back later to write test
+;;     using this script, but for now it is just dead code.
 
 (define measures [ [ 5.5 7.3 8.1]['Peter 'Karl 'Horst]])
 

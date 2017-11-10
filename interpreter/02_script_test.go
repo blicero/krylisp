@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-07 21:24:26 krylon>
+// Time-stamp: <2017-11-10 20:47:32 krylon>
 
 package interpreter
 
@@ -207,3 +207,43 @@ func TestRegexp(t *testing.T) {
 			val)
 	}
 }
+
+func TestEnvVariable(t *testing.T) {
+	const scriptPath = "testdata/test006.lisp"
+	var (
+		l                   *lexer.Lexer
+		p                   = parser.NewParser()
+		err                 error
+		val, expectedResult value.LispValue
+		parseTree           interface{}
+		program             value.Program
+		ok                  bool
+	)
+
+	expectedResult = value.StringValue(os.Getenv("HOME") + "test.file")
+
+	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
+		t.Errorf("Error creating Lexer for %s: %s",
+			scriptPath,
+			err.Error())
+	} else if parseTree, err = p.Parse(l); err != nil {
+		t.Errorf("Error parsing %s: %s",
+			scriptPath,
+			err.Error())
+	} else if program, ok = parseTree.([]value.LispValue); !ok {
+		t.Errorf("Unexpected type returned from Parser: %T",
+			parseTree)
+	} else if val, err = interp.Eval(program); err != nil {
+		t.Errorf("Error running %s: %s",
+			scriptPath,
+			err.Error())
+	} else if val.Type() != types.String {
+		t.Errorf("Unexpected type returned from Script: %s (expected String)",
+			val.Type().String())
+	} else if !val.Equal(expectedResult) {
+		t.Errorf("Unexpected result from Script: %s (expected %s)",
+			val,
+			expectedResult,
+		)
+	}
+} // func TestEnvVariable(t *testing.T)
