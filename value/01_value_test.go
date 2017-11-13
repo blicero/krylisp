@@ -2,13 +2,21 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 03:14:27 krylon>
+// Time-stamp: <2017-11-13 21:13:36 krylon>
 
 package value
 
 import (
+	"fmt"
+	"krylisp/permission"
 	"krylisp/types"
+	"math/rand"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestTypeID(t *testing.T) {
@@ -305,6 +313,91 @@ func TestListNth(t *testing.T) {
 		}
 	}
 } // func TestListNth(t *testing.T)
+
+func TestFileHandle(t *testing.T) {
+	var (
+		fh                     *FileHandle
+		err                    error
+		path, filename, folder string
+		status                 bool
+	)
+
+	folder = os.TempDir()
+	filename = time.Now().Format("kryLisp_test_filehandle_20060102_150405")
+	path = filepath.Join(folder, filename)
+
+	if fh, err = OpenFile(path, 0600, permission.Read|permission.Write); err != nil {
+		t.Fatalf("Error opening test file %s: %s",
+			path,
+			err.Error())
+	} else {
+		defer func() {
+			if status {
+				os.Remove(path)
+			}
+		}()
+	}
+
+	const nCount = 100
+
+	var numbers = make([]int64, nCount)
+
+	for idx := range numbers {
+		var (
+			n       = rand.Int63n(65536)
+			nstring = fmt.Sprintf("%d\n", n)
+		)
+
+		if _, err = fh.Write([]byte(nstring)); err != nil {
+			t.Fatalf("Error writing line no. %d to test file %s: %s",
+				idx,
+				path,
+				err.Error())
+		} else {
+			numbers[idx] = n
+		}
+	}
+
+	var pos int64
+
+	if pos, err = fh.Seek(0, 0); err != nil {
+		t.Fatalf("Error seeking to beginning of file: %s",
+			err.Error())
+	} else if pos != 0 {
+		t.Errorf("Seek to beginning of file returned wrong offset %d. SRSLY?!?!",
+			pos)
+	}
+
+	for _, val := range numbers {
+		var (
+			n       int64
+			nstring string
+		)
+
+		if nstring, err = fh.ReadLine(); err != nil {
+			t.Fatalf("Error reading line from %s: %s",
+				path,
+				err.Error())
+		} else if n, err = strconv.ParseInt(strings.TrimRight(nstring, "\n"), 10, 64); err != nil {
+			t.Errorf("Error reading number from string \"%s\": %s",
+				nstring,
+				err.Error())
+			continue
+		} else if n != val {
+			t.Fatalf("Read wrong number from file: Expected %d, got %d",
+				val,
+				n)
+		}
+	}
+
+	if err = fh.Close(); err != nil {
+		t.Errorf("Error _CLOSING_ %s: %s",
+			path,
+			err.Error())
+	} else {
+		status = true
+	}
+} // func TestFileHandle(t *testing.T)
 
 ///////////////////
 //// Utilities ////

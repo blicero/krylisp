@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-09 22:19:17 krylon>
+// Time-stamp: <2017-11-13 20:56:49 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -28,19 +28,37 @@
 package value
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"krylib"
+	"krylisp/permission"
 	"krylisp/types"
 	"math"
 	"math/big"
+	"nosy/common"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
+///////////////////////////////////////////////////////////////////////
+// General stuff //////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
 const (
+	// T is for truth.
+	// In a boolean context, anything but NIL is considered "true", but
+	// if a function wants to make a point of it, it return T to indicate something
+	// to be true.
+	// For compatibility with Common Lisp, T gets special treatment and evaluates
+	// to itself.
+	T         = Symbol("T")
 	nilString = "NIL"
+	ioBufSize = 1 << 18
 )
 
 // LispValue is the "abstract base class", so to speak, for Lisp data.
@@ -61,6 +79,18 @@ type Number interface {
 	Num()
 	IsZero() bool
 }
+
+// IOHandle is a Handle used for general I/O, regardless of whether it is file
+// I/O or network I/O.
+type IOHandle struct {
+	LispValue
+	io.ReadWriter
+	io.Closer
+}
+
+///////////////////////////////////////////////////////////////////////
+// Nil ////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // A NilValue represents nil, the strange list-symbol duality.
 type NilValue int
@@ -125,6 +155,10 @@ func (n NilValue) Convert(id types.ID) (LispValue, error) {
 // NIL is the canonical nil value. In theory, we could get away with just
 // having a single value.
 const NIL NilValue = 1
+
+///////////////////////////////////////////////////////////////////////
+// IntValue ///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // IntValue is an integer.
 // At this point, a signed, 64-bit integer is the only numeric type supported.
@@ -214,6 +248,10 @@ func (i IntValue) Convert(id types.ID) (LispValue, error) {
 		return nil, &TypeConversionError{types.Integer, id}
 	}
 } // func (i IntValue) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// FloatValue /////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // FloatValue is a 64-bit floating point number.
 type FloatValue float64
@@ -306,6 +344,10 @@ func (f FloatValue) Convert(id types.ID) (LispValue, error) {
 		return NIL, &TypeConversionError{types.Float, id}
 	}
 } // func (f FloatValue) Convert(types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// BigInt /////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // Donnerstag, 26. 10. 2017, 10:50
 // I think I have to wrap bignums in a struct or array because of the method
@@ -481,6 +523,10 @@ func (b *BigInt) Clone() *BigInt {
 	return n
 } // func (b *BigInt) Clone() *BigInt
 
+///////////////////////////////////////////////////////////////////////
+// StringValue ////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
 // StringValue is a string. Strings are implemented in terms of Go strings, so
 // the same rules and restrictions apply: Strings are encoded in UTF-8 and
 // immutable.
@@ -555,6 +601,10 @@ func (s StringValue) Convert(id types.ID) (LispValue, error) {
 		return NIL, &TypeConversionError{types.String, id}
 	}
 } // func (s StringValue) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// Symbol /////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // I am not sure if should represent symbols as plain strings.
 // But for now I cannot think of a good reason not to.
@@ -636,13 +686,11 @@ func (s Symbol) IsKeyword() bool {
 	return s[0] == ':'
 } // func (s Symbol) IsKeyword() bool
 
-// T is for truth.
-// In a boolean context, anything but NIL is considered "true", but
-// if a function wants to make a point of it, it return T to indicate something
-// to be true.
-// For compatibility with Common Lisp, T gets special treatment and evaluates
-// to itself.
-const T = Symbol("T")
+///////////////////////////////////////////////////////////////////////
+// ConsCell ///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+// NB, ConsCell is not really meant to be exposed to the Lisp-programmer.
 
 // ConsCell is a pair of two Lisp values, used mainly for constructing lists.
 type ConsCell struct {
@@ -812,6 +860,10 @@ func (s *ConsCell) Convert(id types.ID) (LispValue, error) {
 		return NIL, &TypeConversionError{types.ConsCell, id}
 	}
 } // func (s *ConsCell) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// List ///////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // List is ... well, a singly-linked list, the kind that is so common in Lisp
 // they named the language after it.
@@ -1069,6 +1121,10 @@ func (l *List) Convert(id types.ID) (LispValue, error) {
 	}
 } // func (l *List) Convert(id types.ID) (LispValue, error)
 
+///////////////////////////////////////////////////////////////////////
+// Function ///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
 // Function represents a Lisp function.
 // Technically, one could implement functions purely in terms of lists,
 // but for efficiency reasons - and functions are used a *lot* in Lisp,
@@ -1213,6 +1269,10 @@ func (p Program) Convert(id types.ID) (LispValue, error) {
 	return NIL, &TypeConversionError{types.Program, id}
 } // func (p Program) Convert(id types.ID) (LispValue, error)
 
+///////////////////////////////////////////////////////////////////////
+// Regexp /////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
 // Regexp is a regular expression. Duh!
 // Since Go kindly provides a regex engine, we can map this directly to
 // a Go *regexp.Regexp.
@@ -1265,6 +1325,10 @@ func (re *Regexp) Convert(id types.ID) (LispValue, error) {
 
 	return NIL, &TypeConversionError{types.Regexp, id}
 } // func (re *Regexp) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// Array //////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // Array is a one-dimensional array of Lisp values.
 type Array []LispValue
@@ -1358,6 +1422,10 @@ func (arr Array) Convert(id types.ID) (LispValue, error) {
 		return NIL, &TypeConversionError{types.Array, id}
 	}
 } // func (arr Array) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// Hashtable //////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // Hashtable is ... a hash table. (Under the hood, it's a Go map)
 type Hashtable map[LispValue]LispValue
@@ -1464,3 +1532,324 @@ func (ht Hashtable) Convert(id types.ID) (LispValue, error) {
 		}
 	}
 } // func (ht Hashtable) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// FileHandle /////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+// Montag, 13. 11. 2017, 19:06
+// I just realized that it is slightly more complicated: I assume that file I/O
+// means reading and writing text, line by line, most of the time.
+// To get that, I need to wrap the *os.File in a bufio.Reader, or alternatively
+// implement my own way of reading text files line by line.
+// ... Mmmh, that is not going to be easy.
+// The buffered reader has the disadvantage that it makes writing more
+// complicated.
+// ...
+// Aaaah, there is bufio.ReadWriter, which is a struct of a Reader and
+// a Writer...
+
+// FileHandle represents a file on disk or on some other mass storage medium. Name one.
+type FileHandle struct {
+	path        string
+	raw         *os.File
+	r           *bufio.Reader
+	w           *bufio.Writer
+	permissions permission.FilePermission
+	bufRead     bool
+	bufWrite    bool
+}
+
+// OpenFile opens a file at the given location with the given access rights.
+func OpenFile(path string, perm int, access permission.FilePermission) (*FileHandle, error) {
+	// First, we map the access flags to the file flags in the OS package:
+	var flags = os.O_CREATE
+	const rw = permission.Read | permission.Write
+
+	if access&rw == rw {
+		flags |= os.O_RDWR
+	} else if access&permission.Read != 0 {
+		flags |= os.O_RDONLY
+	} else if access&permission.Write != 0 {
+		flags |= os.O_WRONLY
+	} else {
+		var msg = "Opening a file with neither read nor write access does not make sense"
+		fmt.Println(msg)
+		return nil, errors.New(msg)
+	}
+
+	if (access & permission.Append) != 0 {
+		flags |= os.O_APPEND
+	}
+
+	if (access & permission.Sync) != 0 {
+		flags |= os.O_SYNC
+	}
+
+	var fh = &FileHandle{
+		path:        path,
+		permissions: access,
+	}
+	var err error
+
+	//if fh.raw, err = os.OpenFile(path, perm, os.FileMode(flags|os.O_CREATE)); err != nil {
+	if fh.raw, err = os.OpenFile(path, flags, os.FileMode(perm)); err != nil {
+		fmt.Printf("Error opening %s: %s",
+			path,
+			err.Error())
+		return nil, err
+	}
+
+	if fh.isRead() {
+		fh.r = bufio.NewReader(fh.raw)
+		fh.bufRead = true
+	}
+
+	if fh.isWrite() {
+		if !fh.isSync() {
+			fh.w = bufio.NewWriter(fh.raw)
+			fh.bufWrite = true
+		}
+	}
+
+	return fh, nil
+} // func OpenFile(path string, access permission.FilePermission) (*FileHandle, error)
+
+// Close closes the file. Using a filehandle after it has been closed will
+// result in an error.
+func (fh *FileHandle) Close() error {
+	err := fh.raw.Close()
+	//fh.handle = nil
+	return err
+} // func (fh *FileHandle) Close() error
+
+// Type returns the type ID of the value, in this case types.FileHandle
+func (fh *FileHandle) Type() types.ID {
+	return types.FileHandle
+} // func (fh *FileHandle) Type() types.ID
+
+func (fh *FileHandle) String() string {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	return fmt.Sprintf("FileHandle<@path=%s, @read=%t, @write=%t>",
+		fh.path,
+		fh.isRead(),
+		fh.isWrite(),
+	)
+} // func (fh *FileHandle) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (fh *FileHandle) Bool() bool {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	if IsNil(fh) {
+		return false
+	}
+
+	return !IsNil(fh)
+} // func (fh *FileHandle) Bool() bool
+
+// Eq compares the receiver with the argument for identity.
+func (fh *FileHandle) Eq(other LispValue) bool {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	if other == nil {
+		return false
+	} else if other.Type() != types.FileHandle {
+		return false
+	}
+
+	var cmp = other.(*FileHandle)
+
+	return fh == cmp
+} // func (fh *FileHandle) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (fh *FileHandle) Equal(other LispValue) bool {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	if other.Type() != types.FileHandle {
+		return false
+	}
+
+	if other == nil {
+		return false
+	}
+
+	var of = other.(*FileHandle)
+
+	if fh.path != of.path {
+		return false
+	} else if fh.isRead() != of.isRead() || fh.isWrite() != of.isWrite() {
+		return false
+	}
+
+	return true
+} // func (fh *FileHandle) Equal(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+func (fh *FileHandle) Convert(id types.ID) (LispValue, error) {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	if id == types.FileHandle {
+		return fh, nil
+	}
+
+	return NIL, &TypeConversionError{
+		source:      types.FileHandle,
+		destination: id,
+	}
+} // func (fh *FileHandle) Convert(id types.ID) (LispValue, error)
+
+func (fh *FileHandle) isRead() bool {
+	return (fh.permissions & permission.Read) != 0
+} // func (fh *FileHandle) isRead() bool
+
+func (fh *FileHandle) isWrite() bool {
+	return (fh.permissions & permission.Write) != 0
+} // func (fh *FileHandle) isWrite() bool
+
+func (fh *FileHandle) isAppend() bool {
+	return (fh.permissions & permission.Append) != 0
+} // func (fh *FileHandle) isAppend() bool
+
+func (fh *FileHandle) isSync() bool {
+	return (fh.permissions & permission.Sync) != 0
+} // func (fh *FileHandle) isSync() bool
+
+func (fh *FileHandle) Read(b []byte) (n int, e error) {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	var (
+		buf = make([]byte, 262144)
+		err error
+		// numSize = len(buf)
+	)
+
+	if _, err = fh.raw.Read(buf); err != nil {
+		fmt.Printf("Error reading from I/O stream @(%s) -- %s",
+			fh.path,
+			err.Error())
+		return 0, err
+	}
+
+	return 0, krylib.NotImplemented
+} // func (fh *FileHandle) Read([]byte) (n int, e error)
+
+func (fh *FileHandle) readBuffered(b []byte) (n int, e error) {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	var (
+		buf = make([]byte, 262144)
+		err error
+		// numSize = len(buf)
+	)
+
+	if _, err = fh.r.Read(buf); err != nil {
+		fmt.Printf("Error reading from I/O stream @(%s) -- %s",
+			fh.path,
+			err.Error())
+		return 0, err
+	}
+
+	return 0, krylib.NotImplemented
+} // func (fh *FileHandle) readBuffered([]byte) (n int, e error)
+
+// ReadLine attempts to read a line of text from the file handle.
+func (fh *FileHandle) ReadLine() (string, error) {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	return fh.r.ReadString('\n')
+} // func (fh *FileHandle) ReadLine() (string, error)
+
+func (fh *FileHandle) Write(b []byte) (n int, e error) {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	var (
+		bytesWritten int
+		err          error
+	)
+
+	if bytesWritten, err = fh.raw.Write(b); err != nil {
+		fmt.Printf("Error writing to I/O stream @(%s) -- %s",
+			fh.path,
+			err.Error())
+		return 0, err
+	}
+
+	return bytesWritten, nil
+} // func (fh *FileHandle) Write(b []byte) (n int, e error)
+
+// Seek the file handle to the given position, analog to File.Seek from the
+// os package.
+func (fh *FileHandle) Seek(offset int64, whence int) (int64, error) {
+	if common.Debug {
+		krylib.Trace()
+	}
+
+	var (
+		newOffset int64
+		err       error
+	)
+
+	if fh.isAppend() {
+		return 0, fmt.Errorf("FH %s is append-only", fh)
+	}
+
+	if newOffset, err = fh.raw.Seek(offset, whence); err != nil {
+		fmt.Printf("Error seeking %s to (%d)%d: %s\n",
+			fh,
+			whence,
+			offset,
+			err.Error())
+		return 0, err
+	}
+
+	if fh.bufRead {
+		fh.r.Reset(fh.raw)
+	}
+
+	if fh.bufWrite {
+		fh.w.Reset(fh.raw)
+	}
+
+	return newOffset, nil
+} // func (fh *FileHandle) Seek(offset int64, orig int) (int64, error)
+
+// Tell returns the current absolute offset within the file.
+func (fh *FileHandle) Tell() (int64, error) {
+	return fh.raw.Seek(0, 1)
+} // func (fh *FileHandle) Tell() (int64, error)
+
+// Sync forces all unwritten data to be written to disk.
+func (fh *FileHandle) Sync() error {
+	var err error
+
+	if err = fh.raw.Sync(); err != nil {
+		var msg = fmt.Sprintf("Error sync()ing %s: %s",
+			fh.path,
+			err.Error())
+		fmt.Println(msg)
+		return err
+	}
+
+	return nil
+} // func (fh *FileHandle) Sync() error

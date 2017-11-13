@@ -2,17 +2,21 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-10 20:47:32 krylon>
+// Time-stamp: <2017-11-13 18:26:05 krylon>
 
 package interpreter
 
 import (
+	"fmt"
+	"io/ioutil"
 	"krylisp/lexer"
 	"krylisp/parser"
 	"krylisp/types"
 	"krylisp/value"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -247,3 +251,47 @@ func TestEnvVariable(t *testing.T) {
 		)
 	}
 } // func TestEnvVariable(t *testing.T)
+
+func TestFileIO(t *testing.T) {
+	// Montag, 13. 11. 2017, 18:24
+	// In order to test our file wrapper, we first create a file, by hand,
+	// write a bunch of numbers in it while computing the sum of those numbers,
+	// then we run a Lisp script to read that file, line by line,
+	// parse the numbers and compute the sum.
+	// If all goes well, we should end up with a number equal to the one
+	// we got when writing the file.
+
+	var (
+		tmpDir  = os.TempDir()
+		prefix  = time.Now().Format("kryLisp_test_io_20060102_150405")
+		path    string
+		fh      *os.File
+		err     error
+		counter int
+		rng     *rand.Rand
+		status  bool
+	)
+
+	if fh, err = ioutil.TempFile(tmpDir, prefix); err != nil {
+		t.Fatalf("Error creating temp file: %s",
+			err.Error())
+	} else {
+		path = fh.Name()
+		defer func() {
+			if status {
+				os.Remove(path)
+			}
+		}()
+	}
+
+	rng = rand.New(rand.NewSource(time.Now().Unix()))
+
+	for i := 0; i < 100; i++ {
+		var n = rng.Int63n(65536)
+		fmt.Fprintf(fh, "%d\n", n)
+		counter += n
+	}
+
+	fh.Close()
+
+} // func TestFileIO(t *testing.T)

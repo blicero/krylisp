@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-08 00:54:24 krylon>
+// Time-stamp: <2017-11-10 22:09:27 krylon>
 
 package types
 
@@ -28,4 +28,5 @@ const (
 	Hashtable
 	Function
 	Program
+	FileHandle
 )
