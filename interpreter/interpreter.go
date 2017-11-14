@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-10 17:36:06 krylon>
+// Time-stamp: <2017-11-14 18:19:28 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -30,6 +30,13 @@
 // I'll keep that in mind, but for now I am sticking with the big file.
 // I am not even sure if Go allows spreading the methods for a type across
 // several files.
+//
+// Dienstag, 14. 11. 2017, 18:17
+// While trying to add I/O, I discovered that I would probably like to have
+// keyword arguments that are passed in a hashtable-like structure.
+// The downside is that I will have do major work on the function call
+// mechanism, the upside is that keyword arguments are a desirable for
+// purposes other than I/O.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -102,7 +109,13 @@ var specialSymbols = map[string]bool{
 	"CONCAT":         true,
 	"GETENV":         true,
 	"SETENV":         true,
-	//	"FOR-EACH":       true,
+	"FOPEN":          true,
+	"FCLOSE":         true,
+	"FREAD":          true,
+	"FWRITE":         true,
+	"FSYNC":          true,
+	"FSEEK":          true,
+	"FGETPOS":        true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -2767,3 +2780,62 @@ func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error) {
 
 	return newValue, nil
 } // func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error)
+
+// Montag, 13. 11. 2017, 22:25
+// How do I pass permissions and flags from Lisp?
+// ... How does Common Lisp do this?
+// Ah, like this: (open <path> :direction :input)
+// That sounds kind of nice, I guess...
+// func (inter *Interpreter) evalFopen(l *value.List) (value.LispValue, error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 	}
+
+// 	if l == nil || l.Length < 2 {
+// 		return value.NIL, SyntaxError("FOPEN needs at least one argument")
+// 	}
+
+// 	var (
+// 		err   error
+// 		fh    *value.FileHandle
+// 		perm  permission.FilePermission = permission.Read
+// 		chmod int                       = 0644
+// 		path  string
+// 	)
+
+// 	// Dienstag, 14. 11. 2017, 17:36
+// 	// If I want to pass parameters to FOPEN as in Common Lisp, I am getting
+// 	// damn close to needing a proper state machine for parsing the arguments.
+// 	// That sucks.
+// 	// Could I add support for keyword arguments to make this less painful?
+// 	// At least that way I could have other builtins benefit from that as
+// 	// well, if were to add, say, networking.
+// 	// But it *would* make things a lot more complicated.
+
+// 	if path, err = l.Nth(1); err != nil {
+// 		return value.NIL, err
+// 	}
+
+// 	if l.Length > 2 {
+// 		var (
+// 			expectDirection  bool
+// 			expectPermission bool
+// 		)
+
+// 		for cell := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+// 			switch c := cell.Car.(type) {
+// 			case value.Symbol:
+// 				if c.IsKeyword() {
+// 					switch c {
+// 					case ":DIRECTION":
+// 						// ...
+// 						expectDirection = true
+// 					case ":PERMISSIONS":
+// 						// ...
+// 						expectPermission = true
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// } // func (inter *Interpreter) evalFopen(l *value.List) (value.LispValue, error)

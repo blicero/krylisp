@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-13 20:56:49 krylon>
+// Time-stamp: <2017-11-13 21:27:16 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -41,6 +41,7 @@ import (
 	"nosy/common"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -1599,6 +1600,13 @@ func OpenFile(path string, perm int, access permission.FilePermission) (*FileHan
 			err.Error())
 		return nil, err
 	}
+
+	runtime.SetFinalizer(fh, func(arg *FileHandle) {
+		if arg.raw != nil {
+			arg.raw.Close()
+			arg.raw = nil
+		}
+	})
 
 	if fh.isRead() {
 		fh.r = bufio.NewReader(fh.raw)
