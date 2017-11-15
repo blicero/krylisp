@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-07 21:48:25 krylon>
+# Time-stamp: <2017-11-14 19:26:06 krylon>
 
 
 * kryLisp
@@ -115,13 +115,31 @@
     Dann wird es wohl langsam Zeit für Makros, right?
     Das wird kein Spaß.
 ** Aufgaben
+*** TODO Keyword-Argumente
+**** [2017-11-14 Di 19:06]
+     Nachdem ich angefangen habe, die I/O-Anbindung zu schreiben,
+     stellte ich fest, dass ich gern Keyword-Argumente hätte, dass ich
+     quasi Parameter nicht über die Position sondern über den Namen
+     übergebe, wie das ja z.B. auch in Python möglich ist.
+     Jetzt habe ich aber gerade eine kleine Schreibblockade und keine
+     Idee, wie ich das am besten - oder überhaupt! - umsetze.
+     Ich könnte es so machen wie in Python und sagen, sobald ein
+     Keyword-Argument auftaucht, müssen alle folgenden Argument
+     Keyword-Argumente sein, und ein Keyword-Argument besteht immer
+     aus einem Paar von Argumenten, Schlüssel und Wert, klar.
+     Muss ich dafür an der Syntax was machen?
+     Wenn ich mich recht entsinne, sieht das in Common Lisp etwa so
+     aus:
+     =(defun fopen (path &key (<key> <default value>) ...) ...)=
+     Ja, dann muss ich wohl erstmal dem Parser beibringen, dass ein & legal
+     ist.
 *** TODO [#A] Makros
 *** DONE [#A] Zahlen
     CLOSED: [2017-11-03 Fr 18:45]
     Ich will gern bignum-Support und Support für Floating Point,
     eventuell, wenn es nicht zu haarig ist, auch Support für rationale
     und vielleicht für komplexe Zahlen.
-*** TODO [#B] I/O
+*** IMPLEMENT [#B] I/O
     Ist auf Dauer blöd, wenn das nicht geht.
 **** [2017-11-07 Di 21:15]
      Okay, allmählich habe ich die Grundlagen so weit, dass ich I/O
@@ -135,7 +153,7 @@
 **** [2017-11-07 Di 21:16]
      Arrays und Hashtables habe ich inzwischen umgesetzt, structs aber
      noch nicht.
-*** TODO Schleifen
+*** IMPLEMENT Schleifen
     Ich will gern richtige Iteration haben, weil ich keine Lust habe
     mich zu informieren, wie ich Endrekursion weg optimiere.
     Ich hätte gern eine Art foreach-Konstrukt, will aber, dass das
@@ -175,7 +193,7 @@
     paar Fällen hat sich das auch schon rentiert, z.B. als ich neue
     numerische Typen hinzugefügt habe - neue Tests für alle möglichen
     Konstellationen hinzuzufügen war ziemlich trivial.
-**** TODO [#A] Fuzzing
+**** TODO [#C] Fuzzing
      Fuzzing ist ja der zeit der heiße Scheiß. Und das Schicksal es
      will, gibt es auch für Go eine Fuzzing-Bibliothek. Ich würde gern
      versuchen die zu benutzen, um meinen Parser/Interpreter noch
@@ -184,3 +202,6 @@
      großen Codebasen subtile Bugs aufzuspüren, die auch
      hochkompetenten und sehr erfahrenen Programmier_innen nicht ins
      Auge gestochen sind. 
+***** [2017-11-14 Di 19:05]
+      Bislang bin ich nicht dazu gekommen, aber der gute Vorsatz
+      bleibt bestehen.

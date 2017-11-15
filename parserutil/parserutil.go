@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 02:51:28 krylon>
+// Time-stamp: <2017-11-14 19:48:04 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:51
 // I am going to need some way of handling errors properly.
@@ -14,6 +14,7 @@ package parserutil
 
 import (
 	"krylisp/value"
+	"math/big"
 	"regexp"
 	"strconv"
 )
@@ -27,9 +28,9 @@ func IntValue(s string) value.Number {
 	if n, err := strconv.ParseInt(s, 10, 64); err != nil {
 		if erangePat.MatchString(err.Error()) {
 			return Bignum(s)
-		} else {
-			panic(err)
 		}
+
+		panic(err)
 	} else {
 		return value.IntValue(n)
 	}
@@ -44,12 +45,6 @@ func FloatValue(s string) value.Number {
 	}
 } // func FloatValue(s string) value.Number
 
-// StringValue takes a string token and return a Lisp string,
-// minus the double quotes.
-func StringValue(s []byte) value.StringValue {
-	return value.StringValue(s[1 : len(s)-1])
-} // func StringValue(s []byte) value.StringValue
-
 // Bignum attempts to parse a string into a BigInt value
 func Bignum(s string) value.Number {
 	if b, e := value.BigIntFromString(s[:len(s)-1]); e != nil {
@@ -59,7 +54,36 @@ func Bignum(s string) value.Number {
 	}
 } // func Bignum(s string) value.Number
 
+// OctalNumber parses a number in octal notation from a string.
+func OctalNumber(s string) value.Number {
+	if n, err := strconv.ParseInt(s, 8, 64); err != nil {
+		if erangePat.MatchString(err.Error()) {
+			var ok bool
+			var biggie = new(value.BigInt)
+
+			biggie.Value = big.NewInt(0)
+			if _, ok = biggie.Value.SetString(s, 8); !ok {
+				panic(s)
+			} else {
+				return biggie
+			}
+		} else {
+			panic(err)
+		}
+	} else {
+		return value.IntValue(n)
+	}
+} // func OctalNumber(s string) value.Number
+
+// HashAdd adds a key-value-pair to a Hashtable and returns the table, multiple calls
+// can be chained.
 func HashAdd(tbl value.Hashtable, key, val value.LispValue) value.Hashtable {
 	tbl[key] = val
 	return tbl
 } // func HashAdd(tbl map[value.LispValue]value.LispValue, key, val value.LispValue) map[value.LispValue]value.LispValue
+
+// StringValue takes a string token and return a Lisp string,
+// minus the double quotes.
+func StringValue(s []byte) value.StringValue {
+	return value.StringValue(s[1 : len(s)-1])
+} // func StringValue(s []byte) value.StringValue

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-14 18:19:28 krylon>
+// Time-stamp: <2017-11-15 18:03:50 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -359,36 +359,83 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 		return nil, errors.New("Argument is not a lambda list")
 	} else if lst.Car.Cdr.(*value.ConsCell).Car.Type() != types.List {
 		//return nil, errors.New("Second element in List should be a list (of arguments)")
-		return nil, fmt.Errorf("Second element in lambda list should be a list (of arguments), not a %s",
-			lst.Car.Cdr.(*value.ConsCell).Car.Type())
+		return nil, fmt.Errorf("Second element in lambda list should be a list (of arguments), not a %s: %s",
+			lst.Car.Cdr.(*value.ConsCell).Car.Type(),
+			lst.String())
 	}
 
+	// Mittwoch, 15. 11. 2017, 17:56
+	// XXX When I use keyword arguments, I need to to consider them in a
+	//     special way. The &key symbol does not count towards the length of
+	//     the arg list.
+	//     I have to keep track of how many elements I add to the arg list
+	//     and then make a slice of it at the end to cut off the "empty" rest.
+
 	var (
-		args = lst.Car.Cdr.(*value.ConsCell).Car.(*value.List)
-		idx  = 0
-		fn   = &value.Function{
-			Env:  inter.env,
-			Args: make([]value.Symbol, args.Length),
+		keywords bool
+		args     = lst.Car.Cdr.(*value.ConsCell).Car.(*value.List)
+		idx      = 0
+		fn       = &value.Function{
+			Env:         inter.env,
+			Args:        make([]value.Symbol, args.Length),
+			Keywordargs: make(map[value.Symbol]value.LispValue),
 		}
 	)
 
 	for symlist := args.Car; symlist != nil; symlist = symlist.Cdr.(*value.ConsCell) {
-		if symlist.Car.Type() != types.Symbol {
-			return nil, &TypeError{
-				expected: types.Symbol.String(),
-				actual:   symlist.Car.Type().String(),
+		if !keywords {
+			if symlist.Car.Type() != types.Symbol {
+				return nil, &TypeError{
+					expected: types.Symbol.String(),
+					actual:   symlist.Car.Type().String(),
+				}
 			}
+
+			var car = symlist.Car.(value.Symbol)
+
+			if car == "&KEY" {
+				keywords = true
+				continue
+			}
+
+			fn.Args[idx] = car
+			idx++
+
+		} else {
+			if symlist.Car.Type() != types.List {
+				return nil, &TypeError{
+					expected: "List (keyword argument)",
+					actual:   symlist.Car.Type().String(),
+				}
+			}
+
+			var (
+				keyword      = symlist.Car.(*value.List)
+				key          value.Symbol
+				defaultValue value.LispValue
+				ok           bool
+			)
+
+			if keyword.Length != 2 {
+				return nil, SyntaxError("Keyword arguments must be declared as pairs")
+			} else if key, ok = keyword.Car.Car.(value.Symbol); !ok {
+				return nil, &TypeError{
+					expected: "Symbol (keyword name)",
+					actual:   keyword.Car.Car.Type().String(),
+				}
+			}
+
+			defaultValue = keyword.Car.Cdr.(*value.ConsCell).Car
+
+			fn.Keywordargs[key] = defaultValue
 		}
-
-		var car = symlist.Car.(value.Symbol)
-
-		fn.Args[idx] = car
-		idx++
 
 		if symlist.Cdr == nil {
 			break
 		}
 	}
+
+	fn.Args = fn.Args[:idx]
 
 	var body = lst.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
 	var len = body.ActualLength()
@@ -402,6 +449,12 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 		if body.Cdr == nil {
 			break
 		}
+	}
+
+	if inter.debug {
+		spew.Printf("Evaluated LAMBDA list %s -> %#v\n",
+			lst,
+			fn)
 	}
 
 	return fn, nil
@@ -444,9 +497,11 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 		}
 	case *value.List:
 		if inter.debug {
-			fmt.Printf("Evaluate function call: %s\n",
-				//f.String())
-				spew.Sdump(f))
+			spew.Printf("Evaluate function call: %#v\n",
+				f)
+			// fmt.Printf("Evaluate function call: %s\n",
+			// 	//f.String())
+			// 	spew.Sdump(f))
 		}
 
 		if f.IsLambda() {
@@ -473,6 +528,11 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	// If a function is called without any parameters, the argument list
 	// might be nil!
 
+	if inter.debug {
+		spew.Printf("Evaluating call to this function: %#v\n",
+			fn)
+	}
+
 	var argList *value.ConsCell
 	var ok bool
 	var argCnt, idx int
@@ -486,11 +546,29 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 		}
 	}
 
-	if argCnt = argList.ActualLength(); argCnt != len(fn.Args) {
-		return nil, fmt.Errorf("Wrong number of arguments for funcall: Expected %d, got %d %s",
+	// Mittwoch, 15. 11. 2017, 06:36
+	// FIXME I will have to adjust this check to account for keyword arguments
+	//       and maybe later on optional arguments, too.
+	//       I need to check if argCnt is between the number of mandatory
+	//       and the maximum number of optional arguments.
+	//
+	//       Mittwoch, 15. 11. 2017, 17:52
+	//       More precisely, when a function is called with keyword
+	//       arguments, there are two elements in the list per
+	//       keyword. I have to account for that.
+	//       Then again, I thought I was doing exactly that already
+	//       by... wait a second.
+	argCnt = argList.ActualLength()
+	// I need to add twice the number of keyword arguments, because the
+	// keyword arguments in the function call come in pairs.
+	var maxCnt = len(fn.Args) + len(fn.Keywordargs)*2
+	//if argCnt = argList.ActualLength(); argCnt != len(fn.Args) {
+	if argCnt < len(fn.Args) || argCnt > maxCnt {
+		return nil, fmt.Errorf("Wrong number of arguments for funcall: Expected %d, got %d %s\n%s",
 			len(fn.Args),
 			argCnt,
-			argList.String())
+			argList.String(),
+			fn.ArglistString())
 	}
 
 	// Dienstag, 03. 10. 2017, 00:12
@@ -506,15 +584,35 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	}
 
 	for ; argList != nil; argList = argList.Cdr.(*value.ConsCell) {
-		var sym = fn.Args[idx]
 		var val value.LispValue
 
-		if val, err = inter.Eval(argList.Car); err != nil {
-			return nil, err
+		if argList.Car.Type() == types.Symbol && argList.Car.(value.Symbol).IsKeyword() {
+			var name = argList.Car.(value.Symbol)[1:]
+			if argList.Cdr == nil {
+				var msg = fmt.Sprintf("Keyword argument %s without matching value",
+					name)
+				fmt.Println(msg)
+				return value.NIL, SyntaxError(msg)
+			}
+
+			argList = argList.Cdr.(*value.ConsCell)
+
+			if val, err = inter.Eval(argList.Car); err != nil {
+				return value.NIL, err
+			}
+
+			env.Data[string(name)] = val
+		} else {
+			var sym = fn.Args[idx]
+
+			if val, err = inter.Eval(argList.Car); err != nil {
+				return value.NIL, err
+			}
+
+			env.Data[string(sym)] = val
+			idx++
 		}
 
-		env.Data[string(sym)] = val
-		idx++
 		if argList.Cdr == nil {
 			break
 		}
@@ -816,6 +914,12 @@ func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 	//
 	// The rest is the body of the function; when the function is called, the
 	// body evaluated sequentially.
+	//
+	// Dienstag, 14. 11. 2017, 21:40
+	// I thought I had found a bug here and set the index of the doc string to 3,
+	// which is correct for the full DEFUN-form, but at this point... wait.
+	// It SHOULD be 3, but for some reason that causes various tests to fail.
+	// That is weird.
 	if val, _ = l.Nth(1); err != nil {
 		return value.NIL, err
 	} else if name, ok = val.(value.Symbol); !ok {

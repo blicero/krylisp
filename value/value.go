@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-13 21:27:16 krylon>
+// Time-stamp: <2017-11-15 16:18:05 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -34,11 +34,11 @@ import (
 	"fmt"
 	"io"
 	"krylib"
+	"krylisp/common"
 	"krylisp/permission"
 	"krylisp/types"
 	"math"
 	"math/big"
-	"nosy/common"
 	"os"
 	"regexp"
 	"runtime"
@@ -65,8 +65,8 @@ const (
 // LispValue is the "abstract base class", so to speak, for Lisp data.
 // All values usable in kryLisp internally implement this interface.
 type LispValue interface {
+	fmt.Stringer
 	Type() types.ID
-	String() string
 	Bool() bool
 	Eq(other LispValue) bool
 	Equal(other LispValue) bool
@@ -1131,10 +1131,11 @@ func (l *List) Convert(id types.ID) (LispValue, error) {
 // but for efficiency reasons - and functions are used a *lot* in Lisp,
 // obviously - they get their own type.
 type Function struct {
-	Env       *Environment
-	Args      []Symbol
-	Body      []LispValue
-	DocString StringValue
+	Env         *Environment
+	Args        []Symbol
+	Keywordargs map[Symbol]LispValue
+	Body        []LispValue
+	DocString   StringValue
 }
 
 // Type returns the type ID of the value, in this case types.Function
@@ -1199,6 +1200,32 @@ func (f *Function) Convert(id types.ID) (LispValue, error) {
 
 	return NIL, &TypeConversionError{types.Function, id}
 } // func (f *Function) Convert(id types.ID) (LispValue, error)
+
+// ArglistString returns a string representation of the complete argument list
+// of the function, including keyword arguments and optional arguments.
+// This is mainly meant for debugging, but *might* be useful for other
+// purposes, too.
+func (f *Function) ArglistString() string {
+	var (
+		argCnt  = len(f.Args) + len(f.Keywordargs)
+		arglist = make([]string, argCnt)
+		idx     int
+		arg     Symbol
+	)
+
+	for idx, arg = range f.Args {
+		arglist[idx] = arg.String()
+	}
+
+	for key, val := range f.Keywordargs {
+		idx++
+		arglist[idx] = fmt.Sprintf(`(%s %s)`,
+			key,
+			val)
+	}
+
+	return "(" + strings.Join(arglist, " ") + ")"
+} // func (f *Function) ArglistString() string
 
 // Program represents a sequence of lisp expressions.
 type Program []LispValue

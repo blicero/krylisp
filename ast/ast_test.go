@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 19:38:23 krylon>
+// Time-stamp: <2017-11-14 19:32:41 krylon>
 
 package ast
 
@@ -392,3 +392,27 @@ func TestHash(t *testing.T) {
 		}
 	}
 } // func TestHash(t *testing.T)
+
+func TestAmp(t *testing.T) {
+	const input = "(defun fopen (path &key (direction 3) (mode 0644)) (print 2))"
+
+	var (
+		tree interface{}
+		err  error
+		prog value.Program
+		ok   bool
+		p    = parser.NewParser()
+		l    = lexer.NewLexer([]byte(input))
+	)
+
+	if tree, err = p.Parse(l); err != nil {
+		t.Errorf("Error parsing defun with keyword arguments: %s",
+			err.Error())
+	} else if prog, ok = tree.([]value.LispValue); !ok {
+		t.Errorf("CANTHAPPEN Parser returned wrong data type: %T",
+			tree)
+	} else if len(prog) != 1 {
+		t.Errorf("Parsed program has an unexpected number forms: %d (expected 1)",
+			len(prog))
+	}
+} // func TestAmp(t *testing.T)
