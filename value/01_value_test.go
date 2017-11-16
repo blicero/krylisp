@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-13 21:13:36 krylon>
+// Time-stamp: <2017-11-16 09:38:55 krylon>
 
 package value
 
@@ -398,6 +398,64 @@ func TestFileHandle(t *testing.T) {
 		status = true
 	}
 } // func TestFileHandle(t *testing.T)
+
+func TestGoFunction(t *testing.T) {
+	type fnTest struct {
+		fn             *GoFunction
+		args           *Arguments
+		expectedResult LispValue
+		expectError    bool
+	}
+
+	var testCases = []fnTest{
+		fnTest{
+			fn: &GoFunction{
+				fn: func(a *Arguments) (LispValue, error) {
+					var n1, n2 IntValue
+					var ok bool
+
+					if n1, ok = a.positional[0].(IntValue); !ok {
+						return NIL, &TypeError{"Number", a.positional[0].Type().String()}
+					} else if n2, ok = a.positional[1].(IntValue); !ok {
+						return NIL, &TypeError{"Number", a.positional[1].Type().String()}
+					}
+
+					if n1 > n2 {
+						return n1, nil
+					}
+
+					return n2, nil
+				},
+				name: "max",
+			},
+			args: &Arguments{
+				positional: []LispValue{
+					IntValue(23),
+					IntValue(42),
+				},
+			},
+			expectedResult: IntValue(42),
+		},
+	}
+
+	for _, test := range testCases {
+		var res LispValue
+		var err error
+
+		if res, err = test.fn.fn(test.args); err != nil {
+			if !test.expectError {
+				t.Errorf("Unexpected error returned from native function %s: %s",
+					test.fn.name,
+					err.Error())
+			}
+		} else if !test.expectedResult.Equal(res) {
+			t.Errorf("Unexpected return value from native function %s: %s (expected %s)",
+				test.fn.name,
+				res,
+				err.Error())
+		}
+	}
+} // func TestGoFunction(t *testing.T)
 
 ///////////////////
 //// Utilities ////

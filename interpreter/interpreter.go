@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-15 18:03:50 krylon>
+// Time-stamp: <2017-11-16 09:45:04 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -37,6 +37,17 @@
 // The downside is that I will have do major work on the function call
 // mechanism, the upside is that keyword arguments are a desirable for
 // purposes other than I/O.
+//
+// Donnerstag, 16. 11. 2017, 09:42
+// So, I added keyword arguments, and then I realized that it was not a good
+// idea to have all those "functions" implemented in Go be special forms
+// from the interpreters point of view.
+// So I created a new data type, GoFunction, that encapsulates a function
+// written in, well, Go. The next step is to check all the eval* functions
+// here if they need to be special forms and to convert them to GoFunctions
+// otherwise, AND adjust the function call mechanism to handle GoFunctions,
+// AND adjust all the tests.
+// This is going to be a lot of work.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -203,9 +214,9 @@ func (inter *Interpreter) Eval(lval value.LispValue) (value.LispValue, error) {
 	case *value.Regexp:
 		return v, nil
 	default:
-		return nil, &TypeError{
-			expected: "Atom or List",
-			actual:   v.Type().String(),
+		return nil, &value.TypeError{
+			Expected: "Atom or List",
+			Actual:   v.Type().String(),
 		}
 	}
 } // func (inter *Interpreter) Eval(v value.LispValue) (value.LispValue, error)
@@ -385,9 +396,9 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 	for symlist := args.Car; symlist != nil; symlist = symlist.Cdr.(*value.ConsCell) {
 		if !keywords {
 			if symlist.Car.Type() != types.Symbol {
-				return nil, &TypeError{
-					expected: types.Symbol.String(),
-					actual:   symlist.Car.Type().String(),
+				return nil, &value.TypeError{
+					Expected: types.Symbol.String(),
+					Actual:   symlist.Car.Type().String(),
 				}
 			}
 
@@ -403,9 +414,9 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 
 		} else {
 			if symlist.Car.Type() != types.List {
-				return nil, &TypeError{
-					expected: "List (keyword argument)",
-					actual:   symlist.Car.Type().String(),
+				return nil, &value.TypeError{
+					Expected: "List (keyword argument)",
+					Actual:   symlist.Car.Type().String(),
 				}
 			}
 
@@ -419,9 +430,9 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 			if keyword.Length != 2 {
 				return nil, SyntaxError("Keyword arguments must be declared as pairs")
 			} else if key, ok = keyword.Car.Car.(value.Symbol); !ok {
-				return nil, &TypeError{
-					expected: "Symbol (keyword name)",
-					actual:   keyword.Car.Car.Type().String(),
+				return nil, &value.TypeError{
+					Expected: "Symbol (keyword name)",
+					Actual:   keyword.Car.Car.Type().String(),
 				}
 			}
 
@@ -509,15 +520,15 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 				return nil, err
 			}
 		} else {
-			return nil, &TypeError{
-				expected: "Lambda List",
-				actual:   "Not a Lambda List",
+			return nil, &value.TypeError{
+				Expected: "Lambda List",
+				Actual:   "Not a Lambda List",
 			}
 		}
 	default:
-		return nil, &TypeError{
-			expected: "Symbol or function literal",
-			actual:   fmt.Sprintf("%T", f),
+		return nil, &value.TypeError{
+			Expected: "Symbol or function literal",
+			Actual:   fmt.Sprintf("%T", f),
 		}
 	}
 
@@ -687,21 +698,21 @@ func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
 		var err error
 
 		if v.(*value.ConsCell).Car == nil {
-			return nil, &TypeError{expected: "Number", actual: "nil"}
+			return nil, &value.TypeError{Expected: "Number", Actual: "nil"}
 		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
 			return nil, err
 		} else if !value.IsNumber(val) {
-			return nil, &TypeError{
-				expected: "Number",
-				actual:   val.Type().String(),
+			return nil, &value.TypeError{
+				Expected: "Number",
+				Actual:   val.Type().String(),
 			}
 		} else if cnt, err = evalAddition(cnt, val.(value.Number)); err != nil {
 			return nil, err
 		}
 		/*else if val.Type() != types.Integer {
-			return nil, &TypeError{
-				expected: "Number",
-				actual:   val.Type().String(),
+			return nil, &value.TypeError{
+				Expected: "Number",
+				Actual:   val.Type().String(),
 			}
 		} */
 
@@ -733,9 +744,9 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 		if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 			return nil, err
 		} else if !value.IsNumber(val) {
-			return nil, &TypeError{
-				expected: "Number",
-				actual:   l.Car.Cdr.(*value.ConsCell).Car.Type().String(),
+			return nil, &value.TypeError{
+				Expected: "Number",
+				Actual:   l.Car.Cdr.(*value.ConsCell).Car.Type().String(),
 			}
 		}
 
@@ -748,9 +759,9 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
 	} else if !value.IsNumber(val) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   val.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   val.Type().String(),
 		}
 	}
 
@@ -760,9 +771,9 @@ func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 		if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
 			return value.NIL, err
 		} else if !value.IsNumber(val) {
-			return value.NIL, &TypeError{
-				expected: "Number",
-				actual:   val.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   val.Type().String(),
 			}
 		} else if cnt, err = evalSubtraction(cnt, val.(value.Number)); err != nil {
 			return nil, err
@@ -796,9 +807,9 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 		return value.NIL, err
 		//} else if resRaw.Type() == types.Integer {
 	} else if !value.IsNumber(resRaw) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   resRaw.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   resRaw.Type().String(),
 		}
 	}
 
@@ -815,9 +826,9 @@ func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
 		if cval, err = inter.Eval(v.Car); err != nil {
 			return value.NIL, err
 		} else if !value.IsNumber(cval) {
-			return value.NIL, &TypeError{
-				expected: "Number",
-				actual:   cval.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   cval.Type().String(),
 			}
 		} else if res, err = evalMultiplication(res, cval.(value.Number)); err != nil {
 			return nil, err
@@ -846,9 +857,9 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
 		return value.NIL, err
 	} else if !value.IsNumber(val) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   val.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   val.Type().String(),
 		}
 	}
 
@@ -872,9 +883,9 @@ func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
 				v = nil
 			}
 		} else {
-			return nil, &TypeError{
-				expected: "Number",
-				actual:   v.Car.Type().String(),
+			return nil, &value.TypeError{
+				Expected: "Number",
+				Actual:   v.Car.Type().String(),
 			}
 		}
 	}
@@ -1008,14 +1019,14 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
 	} else if !value.IsNumber(v1) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v1.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v1.Type().String(),
 		}
 	} else if !value.IsNumber(v2) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v2.Type().String(),
 		}
 	} else if l.Length == 2 {
 		return value.T, nil
@@ -1039,9 +1050,9 @@ func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
 		} else if !value.IsNumber(v2) {
-			return value.NIL, &TypeError{
-				expected: "Number",
-				actual:   v2.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   v2.Type().String(),
 			}
 		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 			return value.NIL, err
@@ -1079,14 +1090,14 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
 	} else if !value.IsNumber(v1) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v1.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v1.Type().String(),
 		}
 	} else if !value.IsNumber(v2) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v2.Type().String(),
 		}
 	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 		return value.NIL, err
@@ -1105,9 +1116,9 @@ func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
 		} else if !value.IsNumber(v2) {
-			return value.NIL, &TypeError{
-				expected: "Number",
-				actual:   v2.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   v2.Type().String(),
 			}
 		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 			return value.NIL, err
@@ -1145,14 +1156,14 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
 	} else if !value.IsNumber(v1) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v1.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v1.Type().String(),
 		}
 	} else if value.IsNumber(v2) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v2.Type().String(),
 		}
 	} else if res, err := evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 		return value.NIL, err
@@ -1171,9 +1182,9 @@ func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) 
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
 		} else if !value.IsNumber(v2) {
-			return value.NIL, &TypeError{
-				expected: "Number",
-				actual:   v2.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   v2.Type().String(),
 			}
 		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 			return value.NIL, err
@@ -1211,14 +1222,14 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 	} else if v2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
 	} else if !value.IsNumber(v1) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v1.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v1.Type().String(),
 		}
 	} else if !value.IsNumber(v2) {
-		return value.NIL, &TypeError{
-			expected: "Number",
-			actual:   v2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   v2.Type().String(),
 		}
 	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 		return value.NIL, err
@@ -1237,9 +1248,9 @@ func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, erro
 		if v2, err = inter.Eval(raw2); err != nil {
 			return value.NIL, err
 		} else if !value.IsNumber(v2) {
-			return value.NIL, &TypeError{
-				expected: "Number",
-				actual:   v2.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   v2.Type().String(),
 			}
 		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
 			return value.NIL, err
@@ -1324,9 +1335,9 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 	if bindings, err = l.Nth(1); err != nil {
 		return value.NIL, err
 	} else if bindings.Type() != types.List {
-		return value.NIL, &TypeError{
-			expected: "List",
-			actual:   bindings.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "List",
+			Actual:   bindings.Type().String(),
 		}
 	}
 
@@ -1343,9 +1354,9 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 		}
 
 		if symbol.Type() != types.Symbol {
-			return value.NIL, &TypeError{
-				expected: "Symbol",
-				actual:   symbol.Type().String(),
+			return value.NIL, &value.TypeError{
+				Expected: "Symbol",
+				Actual:   symbol.Type().String(),
 			}
 		} else if val, err = inter.Eval(rawValue); err != nil {
 			return value.NIL, err
@@ -1551,18 +1562,18 @@ func (inter *Interpreter) evalApply(l *value.List) (value.LispValue, error) {
 	} else if fn, err = inter.Eval(fnspec); err != nil {
 		return value.NIL, err
 	} else if fn.Type() != types.Function {
-		return value.NIL, &TypeError{
-			expected: "Function",
-			actual:   fn.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Function",
+			Actual:   fn.Type().String(),
 		}
 	} else if val, err = l.Nth(2); err != nil {
 		return value.NIL, err
 	} else if arglist, err = inter.Eval(val); err != nil {
 		return value.NIL, err
 	} else if arglist.Type() != types.List {
-		return value.NIL, &TypeError{
-			expected: "List",
-			actual:   arglist.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "List",
+			Actual:   arglist.Type().String(),
 		}
 	}
 
@@ -1617,9 +1628,9 @@ func (inter *Interpreter) evalCar(l *value.List) (v value.LispValue, e error) {
 	case value.NilValue:
 		return value.NIL, nil
 	default:
-		return value.NIL, &TypeError{
-			expected: "ConsCell or List",
-			actual:   val.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "ConsCell or List",
+			Actual:   val.Type().String(),
 		}
 	}
 } // func (inter *Interpreter) evalCar(l *value.List) (value.LispValue, error)
@@ -1671,9 +1682,9 @@ func (inter *Interpreter) evalCdr(l *value.List) (v value.LispValue, e error) {
 	case types.Nil:
 		return value.NIL, nil
 	default:
-		return nil, &TypeError{
-			expected: "List or ConsCell",
-			actual:   val.Type().String(),
+		return nil, &value.TypeError{
+			Expected: "List or ConsCell",
+			Actual:   val.Type().String(),
 		}
 	}
 } // func (inter *Interpreter) evalCdr(l *value.List) (value.LispValue, error)
@@ -1708,9 +1719,9 @@ func (inter *Interpreter) evalFn(l *value.List) (value.LispValue, error) {
 		fn = cadr.(*value.Function)
 	default:
 		fmt.Printf("FN: Invalid argument %s\n", spew.Sdump(cadr))
-		return value.NIL, &TypeError{
-			expected: "Symbol",
-			actual:   cadr.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Symbol",
+			Actual:   cadr.Type().String(),
 		}
 	}
 
@@ -1833,9 +1844,9 @@ func (inter *Interpreter) evalAref(l *value.List) (v value.LispValue, e error) {
 			spew.Printf("First argument (the array) to AREF is not an array: %#v\n",
 				tmp)
 		}
-		return value.NIL, &TypeError{
-			expected: "Array",
-			actual:   tmp.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Array",
+			Actual:   tmp.Type().String(),
 		}
 	}
 
@@ -1844,9 +1855,9 @@ func (inter *Interpreter) evalAref(l *value.List) (v value.LispValue, e error) {
 	if tmp, err = inter.Eval(idxRaw); err != nil {
 		return value.NIL, err
 	} else if tmp.Type() != types.Integer {
-		return value.NIL, &TypeError{
-			expected: "Integer",
-			actual:   tmp.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Integer",
+			Actual:   tmp.Type().String(),
 		}
 	}
 
@@ -1879,19 +1890,19 @@ func (inter *Interpreter) evalApush(l *value.List) (v value.LispValue, e error) 
 	if tmp, err = l.Nth(1); err != nil {
 		return value.NIL, err
 	} else if arr, ok = tmp.(value.Array); !ok {
-		return value.NIL, &TypeError{
-			expected: "Array",
-			actual:   tmp.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Array",
+			Actual:   tmp.Type().String(),
 		}
 	} else if arr == nil {
-		return value.NIL, &TypeError{
-			expected: "Array",
-			actual:   "nil",
+		return value.NIL, &value.TypeError{
+			Expected: "Array",
+			Actual:   "nil",
 		}
 	} else if arr.Type() != types.Array {
-		return value.NIL, &TypeError{
-			expected: "Array",
-			actual:   arr.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Array",
+			Actual:   arr.Type().String(),
 		}
 	}
 
@@ -1936,9 +1947,9 @@ func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e err
 	if tmp2, err = inter.Eval(tmp1); err != nil {
 		return value.NIL, err
 	} else if lst, ok = tmp2.(*value.List); !ok {
-		return value.NIL, &TypeError{
-			expected: "List",
-			actual:   tmp2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "List",
+			Actual:   tmp2.Type().String(),
 		}
 	}
 
@@ -2004,9 +2015,9 @@ func (inter *Interpreter) evalHashref(l *value.List) (v value.LispValue, e error
 	} else if tmp, err = inter.Eval(tmp); err != nil {
 		return value.NIL, err
 	} else if tmp.Type() != types.Hashtable {
-		return value.NIL, &TypeError{
-			expected: "Hashtable",
-			actual:   tmp.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   tmp.Type().String(),
 		}
 	}
 
@@ -2057,9 +2068,9 @@ func (inter *Interpreter) evalHasKey(l *value.List) (v value.LispValue, e error)
 	} else if tmp, err = inter.Eval(tmp); err != nil {
 		return value.NIL, err
 	} else if tmp.Type() != types.Hashtable {
-		return value.NIL, &TypeError{
-			expected: "Hashtable",
-			actual:   tmp.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   tmp.Type().String(),
 		}
 	}
 
@@ -2114,15 +2125,15 @@ func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error
 	} else if tmp2, err = inter.Eval(tmp1); err != nil {
 		return value.NIL, err
 	} else if tmp2.Type() != types.Hashtable {
-		return value.NIL, &TypeError{
-			expected: "Hashtable",
-			actual:   tmp2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   tmp2.Type().String(),
 		}
 	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
 		// CANTHAPPEN
-		return value.NIL, &TypeError{
-			expected: "Hashtable",
-			actual:   tmp2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   tmp2.Type().String(),
 		}
 	} else if tmp1, err = l.Nth(2); err != nil {
 		return value.NIL, err
@@ -2160,15 +2171,15 @@ func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e er
 	} else if tmp2, err = inter.Eval(tmp1); err != nil {
 		return value.NIL, err
 	} else if tmp2.Type() != types.Hashtable {
-		return value.NIL, &TypeError{
-			expected: "Hashtable",
-			actual:   tmp2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   tmp2.Type().String(),
 		}
 	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
 		// CANTHAPPEN
-		return value.NIL, &TypeError{
-			expected: "Hashtable",
-			actual:   tmp2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   tmp2.Type().String(),
 		}
 	} else if tmp1, err = l.Nth(2); err != nil {
 		return value.NIL, err
@@ -2207,9 +2218,9 @@ func (inter *Interpreter) evalRegexpCompile(l *value.List) (v value.LispValue, e
 	if arg, err = inter.Eval(tmp); err != nil {
 		return value.NIL, err
 	} else if arg.Type() != types.String {
-		return value.NIL, &TypeError{
-			expected: "String",
-			actual:   arg.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   arg.Type().String(),
 		}
 	}
 
@@ -2250,16 +2261,16 @@ func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e e
 		// But we don't have to. The interpreter is going to be slow
 		// enough as it is, and adding to that the cost of compiling
 		// regular expressions on very match does not make it better.
-		return value.NIL, &TypeError{
-			expected: "Regexp",
-			actual:   val1.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "Regexp",
+			Actual:   val1.Type().String(),
 		}
 	} else if val2, err = inter.Eval(raw2); err != nil {
 		return value.NIL, err
 	} else if val2.Type() != types.String {
-		return value.NIL, &TypeError{
-			expected: "String",
-			actual:   val2.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   val2.Type().String(),
 		}
 	}
 
@@ -2356,9 +2367,9 @@ func (inter *Interpreter) evalDoLoop(l *value.List) (v value.LispValue, e error)
 	} else if varList.Type() != types.List {
 		fmt.Printf("Variable list in a DO-loop must be a *list*, not a %T\n",
 			varList.Type().String())
-		return value.NIL, &TypeError{
-			expected: "List",
-			actual:   varList.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "List",
+			Actual:   varList.Type().String(),
 		}
 	} else if loopEnv, stepForms, err = inter.evalDoVariables(varList.(*value.List)); err != nil {
 		return value.NIL, err
@@ -2538,9 +2549,9 @@ func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error) {
 	case value.Hashtable:
 		return value.IntValue(len(v)), nil
 	default:
-		return value.NIL, &TypeError{
-			expected: "String, List, Array, or Hashtable",
-			actual:   tmp.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "String, List, Array, or Hashtable",
+			Actual:   tmp.Type().String(),
 		}
 	}
 } // func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error)
@@ -2759,9 +2770,9 @@ func (inter *Interpreter) evalConcatList(acc *value.List, other value.LispValue)
 
 		return acc, nil
 	default:
-		return value.ListNil(), &TypeError{
-			expected: "Number, or List, or Array",
-			actual:   other.Type().String(),
+		return value.ListNil(), &value.TypeError{
+			Expected: "Number, or List, or Array",
+			Actual:   other.Type().String(),
 		}
 	}
 } // func (inter *Interpreter) evalConcatList(acc *value.List, other value.LispValue) (*value.List, error)
@@ -2827,9 +2838,9 @@ func (inter *Interpreter) evalGetenv(l *value.List) (value.LispValue, error) {
 	if val, err = inter.Eval(raw); err != nil {
 		return value.NIL, err
 	} else if val.Type() != types.String {
-		return value.NIL, &TypeError{
-			expected: "String",
-			actual:   val.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   val.Type().String(),
 		}
 	}
 
@@ -2858,14 +2869,14 @@ func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error) {
 	} else if newValue, err = inter.Eval(rawVal); err != nil {
 		return value.NIL, err
 	} else if env.Type() != types.String {
-		return value.NIL, &TypeError{
-			expected: "String",
-			actual:   env.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   env.Type().String(),
 		}
 	} else if newValue.Type() != types.String {
-		return value.NIL, &TypeError{
-			expected: "String",
-			actual:   newValue.Type().String(),
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   newValue.Type().String(),
 		}
 	}
 

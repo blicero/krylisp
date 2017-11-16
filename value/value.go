@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-15 16:18:05 krylon>
+// Time-stamp: <2017-11-16 09:37:02 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -40,6 +40,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -1888,3 +1889,94 @@ func (fh *FileHandle) Sync() error {
 
 	return nil
 } // func (fh *FileHandle) Sync() error
+
+///////////////////////////////////////////////////////////////////////
+// Go-Funktionen //////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+// At first I thought, I could make GoFunction simply a pointer to
+// the function itself, but I want/need GoFunction to be a LispValue,
+// so I need to implement e.g. String(), and for that, a naked
+// function pointer is not enough.
+// Hence the struct, which contains the name.
+
+// Arguments is meant to carry arguments from Lisp into the Go-side of
+// the interpreter. Like the stack Lua's C API uses for crossing the boundary.
+// Well, not exactly like that, but close enough.
+type Arguments struct {
+	positional []LispValue
+	keyword    map[Symbol]LispValue
+}
+
+// GoFunction is a function that is implemented in Go, but is directly
+// callable from Lisp. To a Lisp programmer, GoFunctions should
+// look, feel, and behave like a regular function written in Lisp,
+// except for the fact that it might do things that are not possible
+// in pure Lisp, or for the performance.
+type GoFunction struct {
+	fn   func(arg *Arguments) (LispValue, error)
+	name string
+}
+
+// String returns a string representation of the Lisp value.
+func (gf *GoFunction) String() string {
+	return fmt.Sprintf("<native function %s>", gf.name)
+} // func (gf *GoFunction) String() string
+
+// Type returns the type ID of the value, in this case types.GoFunction
+func (gf *GoFunction) Type() types.ID {
+	return types.GoFunction
+} // func (gf *GoFunction) Type() types.ID
+
+// Bool returns the "truthiness" of a Lisp value.
+func (gf *GoFunction) Bool() bool {
+	return gf != nil
+} // func (gf *GoFunction) Bool() bool
+
+func (gf *GoFunction) equals(other *GoFunction) bool {
+	var v1, v2 = reflect.ValueOf(gf.fn), reflect.ValueOf(other.fn)
+
+	return v1.Pointer() == v2.Pointer()
+} // func (gf *GoFunction) equals(other *GoFunction) bool
+
+// Eq compares the receiver with the argument for identity.
+func (gf *GoFunction) Eq(other LispValue) bool {
+	if other == nil || other.Type() != types.GoFunction {
+		return false
+	}
+
+	return gf.equals(other.(*GoFunction))
+} // func (gf *GoFunction) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+// In case of native functions, Equal also compares identities, because
+// I have no better way of determining if two functions are "equal".
+// I *could* go by the name, but without deeper thinking that does not sound
+// like a very solid idea.
+func (gf *GoFunction) Equal(other LispValue) bool {
+	if other == nil || other.Type() != types.GoFunction {
+		return false
+	}
+
+	return gf.equals(other.(*GoFunction))
+} // func (gf *GoFunction) Equal(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+// GoFunctions can be converted to type GoFunction (returns the reciver) and
+// type Function (returns the receiver as well). Any other type
+// causes a TypeConversionError.
+func (gf *GoFunction) Convert(id types.ID) (LispValue, error) {
+	// From the Lisp side, native functions and Lisp functions should be the
+	// same in almost every way. So returning a GoFunction when someone tries
+	// to convert a GoFunction to a Function *should* not cause any problems,
+	// but if does, I can come back here and read about how past-me had
+	// considered that case and not thought about it thoroughly.
+	// Serves you right!
+	if id == types.GoFunction || id == types.Function {
+		return gf, nil
+	}
+
+	return NIL, &TypeConversionError{
+		source:      types.GoFunction,
+		destination: id,
+	}
+} // func (gf *GoFunction) Convert(id types.ID) (LispValue, error)

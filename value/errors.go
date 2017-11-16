@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 13:19:06 krylon>
+// Time-stamp: <2017-11-16 09:39:26 krylon>
 
 package value
 
@@ -24,3 +24,16 @@ func (tce *TypeConversionError) Error() string {
 		tce.source,
 		tce.destination)
 }
+
+// TypeError indicates a type mismatch between expected and provided values.
+type TypeError struct {
+	Expected string
+	Actual   string
+}
+
+// Error returns the error message.
+func (te *TypeError) Error() string {
+	return fmt.Sprintf("Type %s is not allowed (expected %s)",
+		te.Actual,
+		te.Expected)
+} // func (te *TypeError) Error() string

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 18:13:34 krylon>
+// Time-stamp: <2017-11-16 09:38:07 krylon>
 
 package interpreter
 
@@ -32,19 +32,6 @@ type MissingFunctionError value.Symbol
 func (sym MissingFunctionError) Error() string {
 	return fmt.Sprintf("No function definition wss found for %s", string(sym))
 } // var (sym MissingFunctionError) Error string
-
-// TypeError indicates a type mismatch between expected and provided values.
-type TypeError struct {
-	expected string
-	actual   string
-}
-
-// Error returns the error message.
-func (te *TypeError) Error() string {
-	return fmt.Sprintf("Type %s is not allowed (expected %s)",
-		te.actual,
-		te.expected)
-} // func (te *TypeError) Error() string
 
 // ValueError indicates that a value was of the correct type, but that value
 // still was not permitted in that context. Think if division by zero, for

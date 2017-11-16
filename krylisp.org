@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-14 19:26:06 krylon>
+# Time-stamp: <2017-11-15 20:21:54 krylon>
 
 
 * kryLisp
@@ -115,7 +115,39 @@
     Dann wird es wohl langsam Zeit für Makros, right?
     Das wird kein Spaß.
 ** Aufgaben
-*** TODO Keyword-Argumente
+*** TODO Trennung von Special forms und Go-Funktionen
+**** [2017-11-15 Mi 19:05]
+     Es dämmert mir langsam, dass es ein Fehler war, alle "intrinsics"
+     als special form zu implementieren. Auf der einen Seite macht das
+     jedes Mal den Interpreter etwas komplexer, auf der anderen Seite
+     heißt das aber auch, dass diese zwar wie Funktionen aufgerufen
+     werden, aber es ist nicht möglich sie z.B. als Parameter an eine
+     Funktion zu übergeben.
+     Darum will ich einen Weg finden, Funktionen, die in Go
+     implementiert sind, auf der Lisp-Seite als normale Funktionen zu
+     behandeln.
+     Wie mache ich das am besten?
+     Ich könnte einen neuen Datentypen definieren (das /muss/ ich in
+     jedem Fall, glaube ich), der Funktionsaufruf schaut ja schon auf
+     den Typ des ersten Arguments, weil das ja auch eine Lambda-Liste
+     sein könnte.
+     Da einen weiteren Typen einzubauen ist nicht schwierig.
+     Aber ich muss mir ein gutes Interface für die Übergänge zwischen
+     Lisp und Go finden.
+**** [2017-11-15 Mi 20:17]
+     Das bisherige Interface ist ja gar kein schlechter Anfang.
+     Aber für reguläre Funktionen muss ich nicht die rohe Liste
+     übergeben, sondern kann vorher schon die Argumente evaluieren und
+     in einem slice übergeben.
+     Jein, einige dieser Funktionen werden ja wohl auch
+     Keyword-Argumente entgegen nehmen. Also ein struct mit einem
+     slice und einer map? Ist zumindest das sinnvollste, was mir im
+     Moment einfällt.
+     ...
+     Die ganzen Funktionen umzuschreiben wird natürlich ein gewaltiger
+     Aufwand sein... ;-/
+*** DONE Keyword-Argumente
+    CLOSED: [2017-11-15 Mi 19:04]
 **** [2017-11-14 Di 19:06]
      Nachdem ich angefangen habe, die I/O-Anbindung zu schreiben,
      stellte ich fest, dass ich gern Keyword-Argumente hätte, dass ich
@@ -133,6 +165,15 @@
      =(defun fopen (path &key (<key> <default value>) ...) ...)=
      Ja, dann muss ich wohl erstmal dem Parser beibringen, dass ein & legal
      ist.
+**** [2017-11-15 Mi 18:42]
+     Okay, Keyword-Argumente gehen. Es war ein bisschen schwierig,
+     aber jetzt geht's.
+     Aber dabei ist mir aufgefallen, dass ich alle Lisp-"Funktionen",
+     die ich in Go implementiere, bislang als special form behandle.
+     Die meisten brauchen aber keine Sonderbehandlung wenn um den
+     Aufrufmechanismus auf der Lisp-Seit geht.
+     Ich sollte vielleicht einen neuen Typen Go-Function oder so
+     hinzufügen, damit ich das besser trennen kann.
 *** TODO [#A] Makros
 *** DONE [#A] Zahlen
     CLOSED: [2017-11-03 Fr 18:45]
