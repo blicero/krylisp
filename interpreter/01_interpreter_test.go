@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-15 18:12:53 krylon>
+// Time-stamp: <2017-11-17 13:03:47 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -41,6 +41,16 @@
 // so that seems to have worked out alright.
 //
 // Remind me to turn the interpreter into a local variable.
+//
+// Freitag, 17. 11. 2017, 12:41
+// Note to self: Several of these tests instantiate a fresh interpreter
+// by using a literal. Since native functions are resolved in the same way
+// as Lisp functions, they need to be present int the function environment
+// of the interpreter.
+// I have started writing a method for that, but when I instiate an
+// Interpreter as a Literal instead of calling an "constructor" function,
+// this method is not called. In the long run, I should factor that part out
+// into a helper function.
 
 package interpreter
 
@@ -68,144 +78,71 @@ var interp *Interpreter
 
 func TestPlus(t *testing.T) {
 	type testPlus struct {
-		input         *value.List
+		input         string
 		expectedValue value.LispValue
-		expectedError bool
+		expectError   bool
 	}
 
 	var testCases = []testPlus{
 		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: nil,
-				},
-				Length: 1,
-			},
+			input:         "(+)",
 			expectedValue: value.IntValue(0),
 		},
 		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: &value.ConsCell{
-						Car: value.IntValue(42),
-						Cdr: nil,
-					},
-				},
-				Length: 2,
-			},
+			input:         "(+ 42)",
 			expectedValue: value.IntValue(42),
 		},
 		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: &value.ConsCell{
-						Car: value.IntValue(64),
-						Cdr: &value.ConsCell{
-							Car: value.IntValue(128),
-							Cdr: nil,
-						},
-					},
-				},
-				Length: 3,
-			},
+			input:         "(+ 64 128)",
 			expectedValue: value.IntValue(192),
 		},
 		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: &value.ConsCell{
-						Car: value.IntValue(42),
-						Cdr: &value.ConsCell{
-							Car: value.FloatValue(3.5),
-						},
-					},
-				},
-				Length: 3,
-			},
+			input:         "(+ 42 3.5)",
 			expectedValue: value.FloatValue(45.5),
 		},
 		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: &value.ConsCell{
-						Car: value.FloatValue(2.5),
-						Cdr: &value.ConsCell{
-							Car: value.IntValue(5),
-						},
-					},
-				},
-				Length: 3,
-			},
+			input:         "(+ 2.5 5)",
 			expectedValue: value.FloatValue(7.5),
 		},
 		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: &value.ConsCell{
-						Car: value.IntValue(42),
-						Cdr: &value.ConsCell{
-							Car: parseBigInt("4096"),
-						},
-					},
-				},
-				Length: 3,
-			},
-			//expectedValue: &value.BigInt{Value: big.NewInt(4138)},
-			expectedValue: value.IntValue(4138),
-		},
-		testPlus{
-			input: &value.List{
-				Car: &value.ConsCell{
-					Car: plus,
-					Cdr: &value.ConsCell{
-						Car: parseBigInt("4096"),
-						Cdr: &value.ConsCell{
-							Car: value.IntValue(42),
-						},
-					},
-				},
-				Length: 3,
-			},
-			//expectedValue: &value.BigInt{Value: big.NewInt(4138)},
+			input:         "(+ 4096b 42)",
 			expectedValue: value.IntValue(4138),
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	interp = freshInterpreter()
 
-	for idx, test := range testCases {
-		var result value.LispValue
-		var err error
+	for _, test := range testCases {
 
-		if result, err = interp.evalPlus(test.input); err != nil {
-			if !test.expectedError {
-				t.Errorf("Unexpected error from test case #%d: %s",
-					idx+1,
+		var (
+			parsed interface{}
+			prog   value.Program
+			ok     bool
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			err    error
+			val    value.LispValue
+		)
+
+		if parsed, err = p.Parse(l); err != nil {
+			t.Errorf("Error parsing test input %s: %s",
+				test.input,
+				err.Error())
+		} else if prog, ok = parsed.([]value.LispValue); !ok {
+			t.Errorf("Parser returned unexpected data type: %T",
+				parsed)
+		} else if val, err = interp.Eval(prog); err != nil {
+			if !test.expectError {
+				t.Errorf("Error measuring length of %s: %s",
+					test.input,
 					err.Error())
 			}
-		} else if err == nil && test.expectedError {
-			t.Errorf("Test case #%d returned value %s, but expected an error",
-				idx+1,
-				result.String())
-		} else if !result.Eq(test.expectedValue) {
-			t.Errorf("Unexpected return value from test case #%d: %s (expected %s)",
-				idx+1,
-				result.String(),
-				test.expectedValue.String())
+		} else if !test.expectedValue.Equal(val) {
+			t.Errorf("Unexpected result from ConcatArray: %s (expected %s)",
+				test.expectedValue,
+				val)
 		}
+
 	}
 } // func TestPlus(t *testing.T)
 
@@ -424,14 +361,15 @@ func TestMultiply(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+	interp = freshInterpreter()
 
 	for idx, test := range testCases {
 		var err error
@@ -574,14 +512,16 @@ func TestDivide(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for idx, test := range testCases {
 		var err error
@@ -656,14 +596,16 @@ func TestIf(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for idx, test := range testCases {
 		var err error
@@ -741,14 +683,16 @@ func TestLambda(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var fn *value.Function
@@ -831,14 +775,16 @@ func TestDefun(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for idx, test := range testCases {
 		fmt.Printf("Running DEFUN-test #%d\n",
@@ -941,14 +887,16 @@ func TestDefunKeyword(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -1033,14 +981,16 @@ func TestLT(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var tree interface{}
@@ -1105,14 +1055,16 @@ func TestOverflow(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	x := 2 * 4
 	fmt.Printf("%d\n", x)
@@ -1182,14 +1134,16 @@ func TestCons(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var p = parser.NewParser()
@@ -1246,14 +1200,18 @@ func TestLet(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	//interp._initNativeFunctions()
+
+	interp = freshInterpreter()
 
 	var oldEnv = interp.env
 	defer func() { interp.env = oldEnv }()
@@ -1316,14 +1274,16 @@ func TestNot(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1379,14 +1339,16 @@ func TestAnd(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1454,14 +1416,16 @@ func TestOr(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1521,14 +1485,16 @@ func TestDefine(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1614,14 +1580,16 @@ func TestSet(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1678,14 +1646,16 @@ func TestPrint(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	var oldOut = interp.stdout
 	defer func() { interp.stdout = oldOut }()
@@ -1759,14 +1729,17 @@ func TestApply(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+	// interp._initNativeFunctions()
+
+	interp = freshInterpreter()
 
 	var oldOut = interp.stdout
 	defer func() { interp.stdout = oldOut }()
@@ -1829,14 +1802,16 @@ func TestList(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -1897,14 +1872,16 @@ func TestMakeArray(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -1966,14 +1943,16 @@ func TestAPush(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2039,14 +2018,16 @@ func TestARef(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2108,14 +2089,16 @@ func TestHashCreate(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2191,14 +2174,16 @@ func TestHashLookup(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2253,14 +2238,16 @@ func TestHashSet(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2331,14 +2318,16 @@ func TestHashDelete(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2404,14 +2393,16 @@ func TestRegexpCompile(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2510,14 +2501,16 @@ func TestRegexpMatch(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2587,14 +2580,18 @@ func TestDoLoop(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
+
+	interp._initNativeFunctions()
 
 	for _, test := range testCases {
 		var (
@@ -2654,14 +2651,16 @@ func TestLength(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2727,14 +2726,16 @@ func TestConcatList(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2798,14 +2799,16 @@ func TestConcatArray(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2853,14 +2856,16 @@ func TestConcatString(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2912,14 +2917,16 @@ func TestGetenv(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	for _, test := range testCases {
 		var (
@@ -2971,14 +2978,14 @@ func TestSetEnv(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
 
 	for _, test := range testCases {
 		var (
@@ -3031,14 +3038,16 @@ func TestKeywordArgs(t *testing.T) {
 		},
 	}
 
-	interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+	// interp = &Interpreter{
+	// 	debug:  false,
+	// 	env:    value.NewEnvironment(nil),
+	// 	fnEnv:  value.NewEnvironment(nil),
+	// 	stdin:  os.Stdin,
+	// 	stdout: os.Stdout,
+	// 	stderr: os.Stderr,
+	// }
+
+	interp = freshInterpreter()
 
 	var oldDebug = interp.debug
 	interp.debug = true
@@ -3088,6 +3097,19 @@ func parseBigInt(s string) *value.BigInt {
 	}
 } // func parseBigInt(s string) *BigInt
 
+func freshInterpreter() *Interpreter {
+	var inter = &Interpreter{
+		debug:  false,
+		env:    value.NewEnvironment(nil),
+		fnEnv:  value.NewEnvironment(nil),
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
+	}
+	inter._initNativeFunctions()
+	return inter
+}
+
 ///////////////////////////////////////////////////////////
 // main ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -3102,6 +3124,8 @@ func TestMain(m *testing.M) {
 		env:   value.NewEnvironment(nil),
 		fnEnv: value.NewEnvironment(nil),
 	}
+
+	interp._initNativeFunctions()
 
 	os.Exit(m.Run())
 }

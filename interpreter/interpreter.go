@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-16 09:45:04 krylon>
+// Time-stamp: <2017-11-17 13:08:00 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -48,6 +48,21 @@
 // otherwise, AND adjust the function call mechanism to handle GoFunctions,
 // AND adjust all the tests.
 // This is going to be a lot of work.
+//
+// Freitag, 17. 11. 2017, 12:12
+// Okay, I think I haved most of the way towards ... let's call them native
+// functions.
+// Now I need to hook up the interpreter to these, so it detects when a function
+// call refers to a native function and chooses the appropriate path.
+// ...
+// Maybe, just maybe, if I am really lucky, all I need to do is to "implant" those
+// functions into the interpreter's function environment (we're a Lisp-2, remember?)
+// From there, I am almost sure it should Just Work(tm).
+//
+// Freitag, 17. 11. 2017, 13:04
+// With my single test case, the humble "+", it worked perfectly.
+// So now I am stuck with the rather tedious task inspect all eval* methods,
+// and converting those that do not need to be treated as special form.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -74,9 +89,9 @@ import (
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
+	//	"+":              true,
 	"T":              true,
 	"NIL":            true,
-	"+":              true,
 	"-":              true,
 	"*":              true,
 	"/":              true,
@@ -167,8 +182,26 @@ func New(debug bool) *Interpreter {
 		stderr:        os.Stderr,
 	}
 
+	inter._initNativeFunctions()
+
 	return inter
 } // func New(debug bool) *Interpreter
+
+// I sorta kinda suspect, that I could do this part with code generation.
+// It would probably be rather difficult and tedious, but in the long run,
+// it could make dealing with native functions A LOT easier.
+func (inter *Interpreter) _initNativeFunctions() {
+	var nativeFunctions = map[string]*value.GoFunction{
+		"+": &value.GoFunction{
+			Fn:   inter.evalPlus,
+			Name: "+",
+		},
+	}
+
+	for sym, fn := range nativeFunctions {
+		inter.fnEnv.Ins(sym, fn)
+	}
+} // func (inter *Interpreter) _initNativeFunctions()
 
 // Eval evaluates a Lisp value and returns the result.
 // nolint: gocyclo
@@ -238,8 +271,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 	switch sym {
 	case "IF":
 		return inter.evalIf(l)
-	case "+":
-		return inter.evalPlus(l)
+	// case "+":
+	// 	return inter.evalPlus(l)
 	case "-":
 		return inter.evalMinus(l)
 	case "*":
@@ -498,7 +531,21 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 		if IsSpecial(f) {
 			return inter.evalSpecialForm(inv)
 		} else if v, ok := inter.fnEnv.Get(string(f)); ok {
-			fn = v.(*value.Function)
+			// Hier muss ich den Code anpassen, dass GoFunction auch
+			// berücksichtigt wird.
+			// Oder ich mache "Function" zu einem Interface, dass
+			// dann von GoFunction und LispFunction implementiert
+			// wird. Von der Performance wäre das wahrscheinlich
+			// nicht so prall, aber wenn ich drüber nachdenke,
+			// stecke ich in dem Schlamassel ohnehin schon
+			// knietief, wenn nicht mehr.
+			if gfn, ok := v.(*value.GoFunction); ok {
+				return inter.evalGoFunction(gfn, inv)
+				// return value.NIL, krylib.NotImplemented
+			} else if fn, ok = v.(*value.Function); !ok {
+				return value.NIL, fmt.Errorf("Function lookup returned a %s",
+					v.Type().String())
+			}
 		} else {
 			if inter.debug {
 				fmt.Printf("No such function: %s\n",
@@ -651,6 +698,76 @@ EVALUATE:
 	return res, nil
 } // func (inter *Interpreter) evalFuncall(fun value.Function) (value.LispValue, errror)
 
+func (inter *Interpreter) evalGoFunction(fn *value.GoFunction, lst *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if fn == nil {
+		panic("evalGoFunction was called with a nil function pointer")
+	} else if lst == nil {
+		panic("evalGoFunction was called with an empty invocation list")
+	}
+
+	var args = &value.Arguments{
+		Positional: make([]value.LispValue, 0, 5),
+		Keyword:    make(map[value.Symbol]value.LispValue),
+	}
+
+	if lst.Car.Cdr == nil {
+		goto FUNCALL
+	}
+
+	for cell := lst.Car.Cdr.(*value.ConsCell); cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		var (
+			val value.LispValue
+			err error
+		)
+
+		if cell.Car.Type() == types.Symbol && cell.Car.(value.Symbol).IsKeyword() {
+			var name = cell.Car.(value.Symbol)[1:]
+			if cell.Cdr == nil {
+				var msg = fmt.Sprintf("GoFunc: Keyword argument %s without matching value",
+					name)
+				fmt.Println(msg)
+				return value.NIL, SyntaxError(msg)
+			}
+
+			cell = cell.Cdr.(*value.ConsCell)
+
+			if val, err = inter.Eval(cell.Car); err != nil {
+				var msg = fmt.Sprintf("GoFunc: Error in call to GoFunc %s while evaluating arguments: %s",
+					fn.Name,
+					err.Error())
+
+				if inter.debug {
+					fmt.Println(msg)
+				}
+
+				return value.NIL, errors.New(msg)
+			}
+
+			args.Keyword[name] = val
+		} else if val, err = inter.Eval(cell.Car); err != nil {
+			var msg = fmt.Sprintf("GoFunc: Error evaluating argument %s: %s",
+				cell.Car,
+				err.Error())
+			fmt.Println(msg)
+			return value.NIL, errors.New(msg)
+		}
+
+		args.Positional = append(args.Positional, val)
+
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+FUNCALL:
+
+	return fn.Fn(args)
+} // func (inter *Interpreter) evalGoFunction(fn *value.GoFunction, lst *value.List) (LispValue, error)
+
 func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -683,45 +800,94 @@ func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 
 // I think it would be preferrable to have arithmetic use a matrix to determine what
 // operand gets promoted to what type.
+//
+// Donnerstag, 16. 11. 2017, 17:18
+// I am about to embark on a big experiment, turning many special forms
+// into the newly created GoFunctions, so they will behave more like functions
+// from the Lisp point of view. I think the arithmnetic functions are
+// predestined to be the starting point for this.
 
-func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalPlus(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
-		fmt.Println(l.String())
-		spew.Dump(l)
 	}
 
-	var cnt value.Number = value.IntValue(0)
-
-	for v := l.Car.Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
-		var val value.LispValue
-		var err error
-
-		if v.(*value.ConsCell).Car == nil {
-			return nil, &value.TypeError{Expected: "Number", Actual: "nil"}
-		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
-			return nil, err
-		} else if !value.IsNumber(val) {
-			return nil, &value.TypeError{
+	if len(arg.Positional) < 1 {
+		return value.IntValue(0), nil
+	} else if len(arg.Positional) == 1 {
+		if !value.IsNumber(arg.Positional[0]) {
+			return value.NIL, &value.TypeError{
 				Expected: "Number",
-				Actual:   val.Type().String(),
+				Actual:   arg.Positional[0].Type().String(),
 			}
-		} else if cnt, err = evalAddition(cnt, val.(value.Number)); err != nil {
-			return nil, err
 		}
-		/*else if val.Type() != types.Integer {
-			return nil, &value.TypeError{
-				Expected: "Number",
-				Actual:   val.Type().String(),
-			}
-		} */
 
-		//cnt += val.(value.IntValue)
-
+		return arg.Positional[0], nil
 	}
 
-	return cnt, nil
-} // func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error)
+	var acc value.Number = value.IntValue(0)
+
+	for _, item := range arg.Positional {
+		var (
+			num, tmp value.Number
+			ok       bool
+			err      error
+		)
+
+		if num, ok = item.(value.Number); !ok {
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   item.Type().String(),
+			}
+		} else if tmp, err = evalAddition(acc, num); err != nil {
+			return value.NIL, err
+		}
+
+		acc = tmp
+	}
+
+	return acc, nil
+} // func (inter *Interpreter) evalPlus(arg *value.Arguments) (value.LispValue, error)
+
+// func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 		fmt.Println(l.String())
+// 		spew.Dump(l)
+// 	}
+
+// 	var cnt value.Number = value.IntValue(0)
+
+// 	for v := l.Car.Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
+// 		var val value.LispValue
+// 		var err error
+
+// 		if v.(*value.ConsCell).Car == nil {
+// 			return nil, &value.TypeError{Expected: "Number", Actual: "nil"}
+// 		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
+// 			return nil, err
+// 		} else if !value.IsNumber(val) {
+// 			return nil, &value.TypeError{
+// 				Expected: "Number",
+// 				Actual:   val.Type().String(),
+// 			}
+// 		} else if cnt, err = evalAddition(cnt, val.(value.Number)); err != nil {
+// 			return nil, err
+// 		}
+// 		/*else if val.Type() != types.Integer {
+// 			return nil, &value.TypeError{
+// 				Expected: "Number",
+// 				Actual:   val.Type().String(),
+// 			}
+// 		} */
+
+// 		//cnt += val.(value.IntValue)
+
+// 	}
+
+// 	return cnt, nil
+// }
+// func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error)
 
 func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
 	var cnt value.Number

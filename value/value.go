@@ -1903,8 +1903,8 @@ func (fh *FileHandle) Sync() error {
 // the interpreter. Like the stack Lua's C API uses for crossing the boundary.
 // Well, not exactly like that, but close enough.
 type Arguments struct {
-	positional []LispValue
-	keyword    map[Symbol]LispValue
+	Positional []LispValue
+	Keyword    map[Symbol]LispValue
 }
 
 // GoFunction is a function that is implemented in Go, but is directly
@@ -1913,13 +1913,13 @@ type Arguments struct {
 // except for the fact that it might do things that are not possible
 // in pure Lisp, or for the performance.
 type GoFunction struct {
-	fn   func(arg *Arguments) (LispValue, error)
-	name string
+	Fn   func(arg *Arguments) (LispValue, error)
+	Name string
 }
 
 // String returns a string representation of the Lisp value.
 func (gf *GoFunction) String() string {
-	return fmt.Sprintf("<native function %s>", gf.name)
+	return fmt.Sprintf("<native function %s>", gf.Name)
 } // func (gf *GoFunction) String() string
 
 // Type returns the type ID of the value, in this case types.GoFunction
@@ -1933,7 +1933,7 @@ func (gf *GoFunction) Bool() bool {
 } // func (gf *GoFunction) Bool() bool
 
 func (gf *GoFunction) equals(other *GoFunction) bool {
-	var v1, v2 = reflect.ValueOf(gf.fn), reflect.ValueOf(other.fn)
+	var v1, v2 = reflect.ValueOf(gf.Fn), reflect.ValueOf(other.Fn)
 
 	return v1.Pointer() == v2.Pointer()
 } // func (gf *GoFunction) equals(other *GoFunction) bool

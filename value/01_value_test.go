@@ -410,14 +410,14 @@ func TestGoFunction(t *testing.T) {
 	var testCases = []fnTest{
 		fnTest{
 			fn: &GoFunction{
-				fn: func(a *Arguments) (LispValue, error) {
+				Fn: func(a *Arguments) (LispValue, error) {
 					var n1, n2 IntValue
 					var ok bool
 
-					if n1, ok = a.positional[0].(IntValue); !ok {
-						return NIL, &TypeError{"Number", a.positional[0].Type().String()}
-					} else if n2, ok = a.positional[1].(IntValue); !ok {
-						return NIL, &TypeError{"Number", a.positional[1].Type().String()}
+					if n1, ok = a.Positional[0].(IntValue); !ok {
+						return NIL, &TypeError{"Number", a.Positional[0].Type().String()}
+					} else if n2, ok = a.Positional[1].(IntValue); !ok {
+						return NIL, &TypeError{"Number", a.Positional[1].Type().String()}
 					}
 
 					if n1 > n2 {
@@ -426,10 +426,10 @@ func TestGoFunction(t *testing.T) {
 
 					return n2, nil
 				},
-				name: "max",
+				Name: "max",
 			},
 			args: &Arguments{
-				positional: []LispValue{
+				Positional: []LispValue{
 					IntValue(23),
 					IntValue(42),
 				},
@@ -442,15 +442,15 @@ func TestGoFunction(t *testing.T) {
 		var res LispValue
 		var err error
 
-		if res, err = test.fn.fn(test.args); err != nil {
+		if res, err = test.fn.Fn(test.args); err != nil {
 			if !test.expectError {
 				t.Errorf("Unexpected error returned from native function %s: %s",
-					test.fn.name,
+					test.fn.Name,
 					err.Error())
 			}
 		} else if !test.expectedResult.Equal(res) {
 			t.Errorf("Unexpected return value from native function %s: %s (expected %s)",
-				test.fn.name,
+				test.fn.Name,
 				res,
 				err.Error())
 		}
