@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-17 13:08:00 krylon>
+// Time-stamp: <2017-11-18 18:28:47 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -86,15 +86,17 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+const one = value.IntValue(1)
+
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
 	//	"+":              true,
-	"T":              true,
-	"NIL":            true,
-	"-":              true,
-	"*":              true,
-	"/":              true,
+	"T":   true,
+	"NIL": true,
+	// "-":              true,
+	//	"*":              true,
+	//	"/":              true,
 	"<":              true,
 	">":              true,
 	">=":             true,
@@ -196,6 +198,18 @@ func (inter *Interpreter) _initNativeFunctions() {
 			Fn:   inter.evalPlus,
 			Name: "+",
 		},
+		"-": &value.GoFunction{
+			Fn:   inter.evalMinus,
+			Name: "-",
+		},
+		"*": &value.GoFunction{
+			Fn:   inter.evalMultiply,
+			Name: "*",
+		},
+		"/": &value.GoFunction{
+			Fn:   inter.evalDivide,
+			Name: "/",
+		},
 	}
 
 	for sym, fn := range nativeFunctions {
@@ -273,12 +287,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalIf(l)
 	// case "+":
 	// 	return inter.evalPlus(l)
-	case "-":
-		return inter.evalMinus(l)
-	case "*":
-		return inter.evalMultiply(l)
-	case "/":
-		return inter.evalDivide(l)
+	// case "-":
+	// 	return inter.evalMinus(l)
+	// case "*":
+	// 	return inter.evalMultiply(l)
+	// case "/":
+	// 	return inter.evalDivide(l)
 	case "<":
 		return inter.evalLessThan(l)
 	case ">":
@@ -849,215 +863,190 @@ func (inter *Interpreter) evalPlus(arg *value.Arguments) (value.LispValue, error
 	return acc, nil
 } // func (inter *Interpreter) evalPlus(arg *value.Arguments) (value.LispValue, error)
 
-// func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error) {
-// 	if inter.debug {
-// 		krylib.Trace()
-// 		fmt.Println(l.String())
-// 		spew.Dump(l)
-// 	}
-
-// 	var cnt value.Number = value.IntValue(0)
-
-// 	for v := l.Car.Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
-// 		var val value.LispValue
-// 		var err error
-
-// 		if v.(*value.ConsCell).Car == nil {
-// 			return nil, &value.TypeError{Expected: "Number", Actual: "nil"}
-// 		} else if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
-// 			return nil, err
-// 		} else if !value.IsNumber(val) {
-// 			return nil, &value.TypeError{
-// 				Expected: "Number",
-// 				Actual:   val.Type().String(),
-// 			}
-// 		} else if cnt, err = evalAddition(cnt, val.(value.Number)); err != nil {
-// 			return nil, err
-// 		}
-// 		/*else if val.Type() != types.Integer {
-// 			return nil, &value.TypeError{
-// 				Expected: "Number",
-// 				Actual:   val.Type().String(),
-// 			}
-// 		} */
-
-// 		//cnt += val.(value.IntValue)
-
-// 	}
-
-// 	return cnt, nil
-// }
-// func (inter *Interpreter) evalPlus(l *value.List) (value.LispValue, error)
-
-func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error) {
-	var cnt value.Number
-	var val value.LispValue
-	var err error
-
-	// Mittwoch, 25. 10. 2017, 15:01
-	// XXX Ich glaube, folgendes Programm funktioniert im Moment nicht:
-	// (define x 10)
-	// (print (- x))
-
+func (inter *Interpreter) evalMinus(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l.Length < 2 {
-		return value.NIL, SyntaxError("Too few arguments for -")
-	} else if l.Length == 2 {
-		// FIXME Evaluate the argument!!!
-		if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
-			return nil, err
-		} else if !value.IsNumber(val) {
-			return nil, &value.TypeError{
-				Expected: "Number",
-				Actual:   l.Car.Cdr.(*value.ConsCell).Car.Type().String(),
-			}
+	if len(arg.Positional) < 1 {
+		return value.IntValue(0), nil
+	} else if len(arg.Positional) == 1 {
+		if value.IsNumber(arg.Positional[0]) {
+			return evalNegate(arg.Positional[0].(value.Number))
 		}
 
-		//return -(l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)), nil
-		return evalNegate(val.(value.Number))
-	}
-
-	// I need to eval all arguments!!!
-	//cnt = l.Car.Cdr.(*value.ConsCell).Car.(value.IntValue)
-	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
-		return value.NIL, err
-	} else if !value.IsNumber(val) {
 		return value.NIL, &value.TypeError{
 			Expected: "Number",
-			Actual:   val.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
-	}
-
-	cnt = val.(value.Number)
-
-	for v := l.Car.Cdr.(*value.ConsCell).Cdr; v != nil; v = v.(*value.ConsCell).Cdr {
-		if val, err = inter.Eval(v.(*value.ConsCell).Car); err != nil {
-			return value.NIL, err
-		} else if !value.IsNumber(val) {
-			return value.NIL, &value.TypeError{
-				Expected: "Number",
-				Actual:   val.Type().String(),
-			}
-		} else if cnt, err = evalSubtraction(cnt, val.(value.Number)); err != nil {
-			return nil, err
-		}
-	}
-
-	return cnt, nil
-} // func (inter *Interpreter) evalMinus(l *value.List) (value.LispValue, error)
-
-func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error) {
-	if inter.debug {
-		krylib.Trace()
-	}
-
-	if l.Length == 1 {
-		return value.IntValue(1), nil
-	} else if l.Length == 2 {
-		return inter.Eval(l.Car.Cdr.(*value.ConsCell).Car)
-	} else if inter.debug {
-		spew.Printf("evalMultiply %#v\n",
-			l)
 	}
 
 	var (
-		err    error
-		resRaw value.LispValue
-		res    value.Number
+		acc value.Number
+		ok  bool
 	)
 
-	if resRaw, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
-		return value.NIL, err
-		//} else if resRaw.Type() == types.Integer {
-	} else if !value.IsNumber(resRaw) {
+	if acc, ok = arg.Positional[0].(value.Number); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Number",
-			Actual:   resRaw.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
 
-	res = resRaw.(value.Number)
-
-	if inter.debug {
-		spew.Printf("MULTIPLY the following numbers: %#v\n",
-			l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell))
-	}
-
-	for v := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); v != nil; v = v.Cdr.(*value.ConsCell) {
-		// Ich muss hier v.Car evaluieren!
-		var cval value.LispValue
-		if cval, err = inter.Eval(v.Car); err != nil {
-			return value.NIL, err
-		} else if !value.IsNumber(cval) {
+	for _, n := range arg.Positional[1:] {
+		if !value.IsNumber(n) {
 			return value.NIL, &value.TypeError{
 				Expected: "Number",
-				Actual:   cval.Type().String(),
+				Actual:   n.Type().String(),
 			}
-		} else if res, err = evalMultiplication(res, cval.(value.Number)); err != nil {
-			return nil, err
-		} else if v.Cdr == nil {
-			break
 		}
+
+		var (
+			num, tmp value.Number
+			err      error
+		)
+
+		num = n.(value.Number)
+
+		if tmp, err = evalSubtraction(acc, num); err != nil {
+			return value.NIL, err
+		}
+
+		acc = tmp
+
 	}
 
-	return res, nil
-} // func (inter *Interpreter) evalMultiply(l *value.List) (value.LispValue, error)
+	return acc, nil
+} // func (inter *Interpreter) evalMinus(arg *value.Arguments) (value.LispValue, error)
 
-func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalMultiply(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
-	// Montag, 11. 09. 2017, 20:12
-	// In Common Lisp and Scheme, passing a single argument x returns
-	// 1/x, as a rational number. We do not support rational numbers, yet.
-	if l.Length < 3 {
-		return nil, SyntaxError("Too few arguments for division (need at least 2)")
+
+	if len(arg.Positional) == 0 {
+		return value.IntValue(1), nil
+	} else if len(arg.Positional) == 1 {
+		return arg.Positional[0], nil
 	}
 
-	var val value.LispValue
-	var err error
+	var (
+		acc, tmp value.Number = one, one
+		err      error
+	)
 
-	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
-		return value.NIL, err
-	} else if !value.IsNumber(val) {
-		return value.NIL, &value.TypeError{
-			Expected: "Number",
-			Actual:   val.Type().String(),
-		}
-	}
-
-	var res = val.(value.Number)
-
-	for c := l.Car.Cdr.(*value.ConsCell).Cdr; c != nil; c = c.(*value.ConsCell).Cdr {
-		v := c.(*value.ConsCell)
-		if val, err = inter.Eval(v.Car); err != nil {
-			return value.NIL, err
-		} else if value.IsNumber(val) {
-			var n = val.(value.Number)
-			if !n.IsZero() {
-				if res, err = evalDivision(res, n); err != nil {
-					return value.NIL, err
-				}
-			} else {
-				return nil, &ValueError{val: n}
-			}
-
-			if v.Cdr == nil {
-				v = nil
-			}
-		} else {
-			return nil, &value.TypeError{
+	for _, n := range arg.Positional {
+		if !value.IsNumber(n) {
+			return value.NIL, &value.TypeError{
 				Expected: "Number",
-				Actual:   v.Car.Type().String(),
+				Actual:   n.Type().String(),
 			}
+		} else if tmp, err = evalMultiplication(acc, n.(value.Number)); err != nil {
+			return value.NIL, err
 		}
+
+		acc = tmp
 	}
 
-	return res, nil
-} // func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error)
+	return acc, nil
+} // func (inter *Interpreter) evalMultiply(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalDivide(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+
+		spew.Printf("DIV - args: %#v\n",
+			arg.Positional)
+	}
+
+	// This makes me think how nice it would be to have rational numbers.
+	// Ah, one day...
+	if len(arg.Positional) == 0 {
+		return value.NIL, SyntaxError("Calling divide (/) without arguments is not legal")
+	} else if len(arg.Positional) == 1 {
+		return evalDivision(value.FloatValue(1.0), arg.Positional[0].(value.Number))
+	}
+
+	var (
+		acc, tmp, num value.Number
+		err           error
+		ok            bool
+	)
+
+	if acc, ok = arg.Positional[0].(value.Number); !ok {
+		return value.NIL, fmt.Errorf("All arguments to DIVIDE must be numbers; %s is a %T",
+			arg.Positional[0],
+			arg.Positional[0])
+	}
+
+	for _, n := range arg.Positional[1:] {
+		if num, ok = n.(value.Number); !ok {
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   n.Type().String(),
+			}
+		} else if tmp, err = evalDivision(acc, num); err != nil {
+			return value.NIL, err
+		}
+
+		acc = tmp
+	}
+
+	return acc, nil
+} // func (inter *Interpreter) evalDivide(arg *value.Arguments) (value.LispValue, error)
+
+// func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 	}
+// 	// Montag, 11. 09. 2017, 20:12
+// 	// In Common Lisp and Scheme, passing a single argument x returns
+// 	// 1/x, as a rational number. We do not support rational numbers, yet.
+// 	if l.Length < 3 {
+// 		return nil, SyntaxError("Too few arguments for division (need at least 2)")
+// 	}
+
+// 	var val value.LispValue
+// 	var err error
+
+// 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
+// 		return value.NIL, err
+// 	} else if !value.IsNumber(val) {
+// 		return value.NIL, &value.TypeError{
+// 			Expected: "Number",
+// 			Actual:   val.Type().String(),
+// 		}
+// 	}
+
+// 	var res = val.(value.Number)
+
+// 	for c := l.Car.Cdr.(*value.ConsCell).Cdr; c != nil; c = c.(*value.ConsCell).Cdr {
+// 		v := c.(*value.ConsCell)
+// 		if val, err = inter.Eval(v.Car); err != nil {
+// 			return value.NIL, err
+// 		} else if value.IsNumber(val) {
+// 			var n = val.(value.Number)
+// 			if !n.IsZero() {
+// 				if res, err = evalDivision(res, n); err != nil {
+// 					return value.NIL, err
+// 				}
+// 			} else {
+// 				return nil, &ValueError{val: n}
+// 			}
+
+// 			if v.Cdr == nil {
+// 				v = nil
+// 			}
+// 		} else {
+// 			return nil, &value.TypeError{
+// 				Expected: "Number",
+// 				Actual:   v.Car.Type().String(),
+// 			}
+// 		}
+// 	}
+
+// 	return res, nil
+// } // func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error)
 
 /////////////////////////////////////////////////////////////////////////////
 // Fundamental Lisp stuff ///////////////////////////////////////////////////

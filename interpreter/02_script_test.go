@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-14 18:17:01 krylon>
+// Time-stamp: <2017-11-18 18:49:04 krylon>
 
 package interpreter
 
@@ -25,6 +25,8 @@ func TestRunScript001(t *testing.T) {
 		expectedError bool
 		expectedValue string
 	}
+
+	var interp = freshInterpreter()
 
 	interp.stdout = os.Stdout
 	interp.stderr = os.Stderr
@@ -99,6 +101,7 @@ func TestFactorial(t *testing.T) {
 		parseTree interface{}
 		program   value.Program
 		ok        bool
+		interp    = freshInterpreter()
 	)
 
 	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
@@ -139,6 +142,7 @@ func TestFactorialBignum(t *testing.T) {
 		parseTree interface{}
 		program   value.Program
 		ok        bool
+		interp    = freshInterpreter()
 	)
 
 	// interp.debug = true
@@ -182,6 +186,7 @@ func TestRegexp(t *testing.T) {
 		parseTree interface{}
 		program   value.Program
 		ok        bool
+		interp    = freshInterpreter()
 	)
 
 	// interp.debug = true
@@ -218,6 +223,7 @@ func TestEnvVariable(t *testing.T) {
 		parseTree           interface{}
 		program             value.Program
 		ok                  bool
+		interp              = freshInterpreter()
 	)
 
 	expectedResult = value.StringValue(os.Getenv("HOME") + "test.file")
