@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-21 18:32:46 krylon>
+// Time-stamp: <2017-11-21 19:51:19 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -91,41 +91,39 @@ const one = value.IntValue(1)
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
-	"T":              true,
-	"NIL":            true,
-	"FN":             true,
-	"DEFUN":          true,
-	"IF":             true,
-	"LET":            true,
-	"DO":             true,
-	"PRINT":          true,
-	"CONS":           true,
-	"CAR":            true,
-	"CDR":            true,
-	"SET!":           true,
-	"DEFINE":         true,
-	"GOTO":           true,
-	"QUOTE":          true,
-	"AND":            true,
-	"OR":             true,
-	"APPLY":          true,
-	"LAMBDA":         true,
-	"HASH-SET":       true,
-	"HASH-DELETE":    true,
-	"DEFMACRO":       true,
-	"REGEXP-COMPILE": true,
-	"REGEXP-MATCH":   true,
-	"LENGTH":         true,
-	"CONCAT":         true,
-	"GETENV":         true,
-	"SETENV":         true,
-	"FOPEN":          true,
-	"FCLOSE":         true,
-	"FREAD":          true,
-	"FWRITE":         true,
-	"FSYNC":          true,
-	"FSEEK":          true,
-	"FGETPOS":        true,
+	"T":        true,
+	"NIL":      true,
+	"FN":       true,
+	"DEFUN":    true,
+	"IF":       true,
+	"LET":      true,
+	"DO":       true,
+	"PRINT":    true,
+	"CONS":     true,
+	"CAR":      true,
+	"CDR":      true,
+	"SET!":     true,
+	"DEFINE":   true,
+	"GOTO":     true,
+	"QUOTE":    true,
+	"AND":      true,
+	"OR":       true,
+	"APPLY":    true,
+	"LAMBDA":   true,
+	"DEFMACRO": true,
+	//"REGEXP-COMPILE": true,
+	//"REGEXP-MATCH": true,
+	//"LENGTH":  true,
+	"CONCAT": true,
+	// "GETENV":  true,
+	// "SETENV":  true,
+	"FOPEN":   true,
+	"FCLOSE":  true,
+	"FREAD":   true,
+	"FWRITE":  true,
+	"FSYNC":   true,
+	"FSEEK":   true,
+	"FGETPOS": true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -248,6 +246,34 @@ func (inter *Interpreter) _initNativeFunctions() {
 			Fn:   inter.evalHasKey,
 			Name: "HAS-KEY",
 		},
+		"HASH-SET": &value.GoFunction{
+			Fn:   inter.evalHashSet,
+			Name: "HASH-SET",
+		},
+		"HASH-DELETE": &value.GoFunction{
+			Fn:   inter.evalHashDelete,
+			Name: "HASH-DELETE",
+		},
+		"REGEXP-COMPILE": &value.GoFunction{
+			Fn:   inter.evalRegexpCompile,
+			Name: "REGEXP-COMPILE",
+		},
+		"REGEXP-MATCH": &value.GoFunction{
+			Fn:   inter.evalRegexpMatch,
+			Name: "REGEXP-MATCH",
+		},
+		"LENGTH": &value.GoFunction{
+			Fn:   inter.evalLength,
+			Name: "LENGTH",
+		},
+		"GETENV": &value.GoFunction{
+			Fn:   inter.evalGetEnv,
+			Name: "GETENV",
+		},
+		"SETENV": &value.GoFunction{
+			Fn:   inter.evalSetEnv,
+			Name: "SETENV",
+		},
 	}
 
 	for sym, fn := range nativeFunctions {
@@ -357,24 +383,20 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalCdr(l)
 	case "FN":
 		return inter.evalFn(l)
-	case "HASH-SET":
-		return inter.evalHashSet(l)
-	case "HASH-DELETE":
-		return inter.evalHashDelete(l)
-	case "REGEXP-COMPILE":
-		return inter.evalRegexpCompile(l)
-	case "REGEXP-MATCH":
-		return inter.evalRegexpMatch(l)
+	// case "REGEXP-COMPILE":
+	// 	return inter.evalRegexpCompile(l)
+	// case "REGEXP-MATCH":
+	// 	return inter.evalRegexpMatch(l)
 	case "DO":
 		return inter.evalDoLoop(l)
-	case "LENGTH":
-		return inter.evalLength(l)
+	// case "LENGTH":
+	// 	return inter.evalLength(l)
 	case "CONCAT":
 		return inter.evalConcat(l)
-	case "GETENV":
-		return inter.evalGetenv(l)
-	case "SETENV":
-		return inter.evalSetenv(l)
+	// case "GETENV":
+	// 	return inter.evalGetenv(l)
+	// case "SETENV":
+	// 	return inter.evalSetenv(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -2021,89 +2043,103 @@ func (inter *Interpreter) evalHasKey(arg *value.Arguments) (value.LispValue, err
 	return value.T, nil
 } // func (inter *Interpreter) evalHashref(arg *value.Arguments) (value.LispValue, error)
 
-func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalHashSet(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	// (hash-set tbl key val)
-	if l == nil || l.Length != 4 {
-		return value.NIL, SyntaxError("HASH-SET takes exactly *three* arguments")
+	if len(arg.Positional) != 3 {
+		return value.NIL, SyntaxError("HASH-SET takes exactly three arguments (hash table, key, value)")
 	}
 
 	var (
-		tmp1, tmp2, key, val value.LispValue
-		tbl                  value.Hashtable
-		ok                   bool
-		err                  error
+		tbl      value.Hashtable
+		key, val value.LispValue
+		ok       bool
 	)
 
-	if tmp1, err = l.Nth(1); err != nil {
-		return value.NIL, err
-	} else if tmp2, err = inter.Eval(tmp1); err != nil {
-		return value.NIL, err
-	} else if tmp2.Type() != types.Hashtable {
+	if tbl, ok = arg.Positional[0].(value.Hashtable); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Hashtable",
-			Actual:   tmp2.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
-	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
-		// CANTHAPPEN
-		return value.NIL, &value.TypeError{
-			Expected: "Hashtable",
-			Actual:   tmp2.Type().String(),
-		}
-	} else if tmp1, err = l.Nth(2); err != nil {
-		return value.NIL, err
-	} else if key, err = inter.Eval(tmp1); err != nil {
-		return value.NIL, err
-	} else if tmp1, err = l.Nth(3); err != nil {
-		return value.NIL, err
-	} else if val, err = inter.Eval(tmp1); err != nil {
-		return value.NIL, err
 	}
+
+	key = arg.Positional[1]
+	val = arg.Positional[2]
 
 	tbl[key] = val
-	return val, nil
-} // func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error)
 
-func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e error) {
+	return val, nil
+} // func (inter *Interpreter) evalHashSet(arg *value.Arguments) (value.LispValue, error)
+
+// func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 	}
+
+// 	// (hash-set tbl key val)
+// 	if l == nil || l.Length != 4 {
+// 		return value.NIL, SyntaxError("HASH-SET takes exactly *three* arguments")
+// 	}
+
+// 	var (
+// 		tmp1, tmp2, key, val value.LispValue
+// 		tbl                  value.Hashtable
+// 		ok                   bool
+// 		err                  error
+// 	)
+
+// 	if tmp1, err = l.Nth(1); err != nil {
+// 		return value.NIL, err
+// 	} else if tmp2, err = inter.Eval(tmp1); err != nil {
+// 		return value.NIL, err
+// 	} else if tmp2.Type() != types.Hashtable {
+// 		return value.NIL, &value.TypeError{
+// 			Expected: "Hashtable",
+// 			Actual:   tmp2.Type().String(),
+// 		}
+// 	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
+// 		// CANTHAPPEN
+// 		return value.NIL, &value.TypeError{
+// 			Expected: "Hashtable",
+// 			Actual:   tmp2.Type().String(),
+// 		}
+// 	} else if tmp1, err = l.Nth(2); err != nil {
+// 		return value.NIL, err
+// 	} else if key, err = inter.Eval(tmp1); err != nil {
+// 		return value.NIL, err
+// 	} else if tmp1, err = l.Nth(3); err != nil {
+// 		return value.NIL, err
+// 	} else if val, err = inter.Eval(tmp1); err != nil {
+// 		return value.NIL, err
+// 	}
+
+// 	tbl[key] = val
+// 	return val, nil
+// } // func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalHashDelete(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	// (hash-delete tbl key)
-	if l == nil || l.Length != 3 {
-		return value.NIL, SyntaxError("HASH-DELETE takes exactly *two* arguments")
-	}
-
 	var (
-		tmp1, tmp2, key value.LispValue
-		tbl             value.Hashtable
-		ok              bool
-		err             error
+		ok  bool
+		tbl value.Hashtable
+		key value.LispValue
 	)
 
-	if tmp1, err = l.Nth(1); err != nil {
-		return value.NIL, err
-	} else if tmp2, err = inter.Eval(tmp1); err != nil {
-		return value.NIL, err
-	} else if tmp2.Type() != types.Hashtable {
+	if len(arg.Positional) != 2 {
+		return value.NIL, SyntaxError("HASH-DELETE requires exactly two arguments")
+	} else if tbl, ok = arg.Positional[0].(value.Hashtable); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Hashtable",
-			Actual:   tmp2.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
-	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
-		// CANTHAPPEN
-		return value.NIL, &value.TypeError{
-			Expected: "Hashtable",
-			Actual:   tmp2.Type().String(),
-		}
-	} else if tmp1, err = l.Nth(2); err != nil {
-		return value.NIL, err
-	} else if key, err = inter.Eval(tmp1); err != nil {
-		return value.NIL, err
 	}
+
+	key = arg.Positional[1]
 
 	_, ok = tbl[key]
 	delete(tbl, key)
@@ -2113,110 +2149,126 @@ func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e er
 	}
 
 	return value.NIL, nil
-} // func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e error)
+} // func (inter *Interpreter) evalHashDelete(arg *value.Arguments) (value.LispValue, error)
+
+// func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 	}
+
+// 	// (hash-delete tbl key)
+// 	if l == nil || l.Length != 3 {
+// 		return value.NIL, SyntaxError("HASH-DELETE takes exactly *two* arguments")
+// 	}
+
+// 	var (
+// 		tmp1, tmp2, key value.LispValue
+// 		tbl             value.Hashtable
+// 		ok              bool
+// 		err             error
+// 	)
+
+// 	if tmp1, err = l.Nth(1); err != nil {
+// 		return value.NIL, err
+// 	} else if tmp2, err = inter.Eval(tmp1); err != nil {
+// 		return value.NIL, err
+// 	} else if tmp2.Type() != types.Hashtable {
+// 		return value.NIL, &value.TypeError{
+// 			Expected: "Hashtable",
+// 			Actual:   tmp2.Type().String(),
+// 		}
+// 	} else if tbl, ok = tmp2.(value.Hashtable); !ok {
+// 		// CANTHAPPEN
+// 		return value.NIL, &value.TypeError{
+// 			Expected: "Hashtable",
+// 			Actual:   tmp2.Type().String(),
+// 		}
+// 	} else if tmp1, err = l.Nth(2); err != nil {
+// 		return value.NIL, err
+// 	} else if key, err = inter.Eval(tmp1); err != nil {
+// 		return value.NIL, err
+// 	}
+
+// 	_, ok = tbl[key]
+// 	delete(tbl, key)
+
+// 	if ok {
+// 		return value.T, nil
+// 	}
+
+// 	return value.NIL, nil
+// } // func (inter *Interpreter) evalHashDelete(l *value.List) (v value.LispValue, e error)
 
 /////////////////////////////////////////////////////////////////////////////
 // Regular expressions //////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-func (inter *Interpreter) evalRegexpCompile(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalRegexpCompile(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 2 {
+	if len(arg.Positional) != 1 {
 		return value.NIL, SyntaxError("REGEXP-COMPILE takes exactly one argument")
 	}
 
-	var err error
-	var tmp, arg value.LispValue
+	var (
+		rawPat value.StringValue
+		pat    *value.Regexp
+		err    error
+		ok     bool
+	)
 
-	tmp = l.Car.Cdr.(*value.ConsCell).Car
-
-	if arg, err = inter.Eval(tmp); err != nil {
-		return value.NIL, err
-	} else if arg.Type() != types.String {
+	if rawPat, ok = arg.Positional[0].(value.StringValue); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "String",
-			Actual:   arg.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
 
-	var re *regexp.Regexp
+	pat = new(value.Regexp)
 
-	if re, err = regexp.Compile(string(arg.(value.StringValue))); err != nil {
+	if pat.Pat, err = regexp.Compile(string(rawPat)); err != nil {
 		return value.NIL, &ValueError{
-			val: arg,
+			val: rawPat,
 			msg: err.Error(),
 		}
 	}
 
-	var lispRe = &value.Regexp{Pat: re}
+	return pat, nil
+} // func (inter *Interpreter) evalRegexpCompile(arg *value.Arguments) (value.LispValue, error)
 
-	return lispRe, nil
-} // func (inter *Interpreter) evalRegexpCompile(l *value.List) (v value.LispValue, e error)
-
-func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalRegexpMatch(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 3 {
+	if len(arg.Positional) != 2 {
 		return value.NIL, SyntaxError("REGEXP-MATCH takes exactly two arguments")
 	}
 
-	var raw1, raw2, val1, val2 value.LispValue
-	var err error
-
-	raw1 = l.Car.Cdr.(*value.ConsCell).Car
-	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
-
-	if val1, err = inter.Eval(raw1); err != nil {
-		return value.NIL, err
-	} else if val1.Type() != types.Regexp {
-		// We could make a special case here strings and compile them
-		// on the fly.
-		// But we don't have to. The interpreter is going to be slow
-		// enough as it is, and adding to that the cost of compiling
-		// regular expressions on very match does not make it better.
-		return value.NIL, &value.TypeError{
-			Expected: "Regexp",
-			Actual:   val1.Type().String(),
-		}
-	} else if val2, err = inter.Eval(raw2); err != nil {
-		return value.NIL, err
-	} else if val2.Type() != types.String {
-		return value.NIL, &value.TypeError{
-			Expected: "String",
-			Actual:   val2.Type().String(),
-		}
-	}
-
-	// This is going to be slightly more complex than compiling regexps,
-	// because Go has such a rich API for that, and I would like to keep
-	// the Lisp API as simple as possible.
-	// So what do I need?
-	// Check if the string matches at all.
-	// If it does, all the matches
-	// Plus, if there are groupings in the regexp, we want those, too.
-	//
-	// That leaves us with ... FindAllStringSubmatch
-
 	var (
-		pat     = val1.(*value.Regexp)
-		str     = val2.(value.StringValue)
+		re      *value.Regexp
+		sample  value.StringValue
+		ok      bool
 		matches [][]string
 	)
 
-	// We want all matches, so the count argument to FindAllStringSubmatch
-	// is -1.
-	if matches = pat.Pat.FindAllStringSubmatch(string(str), -1); matches == nil {
-		return value.NIL, nil
+	if re, ok = arg.Positional[0].(*value.Regexp); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "Regexp",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	} else if sample, ok = arg.Positional[1].(value.StringValue); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   arg.Positional[1].Type().String(),
+		}
 	}
 
-	// If we arrive here, the regexp did match the string, and now we have
-	// to create a Lisp data structure analogous to the return value
-	// of FindAllStringSubmatch.
+	if matches = re.Pat.FindAllStringSubmatch(string(sample), -1); matches == nil {
+		return value.NIL, nil
+	}
 
 	var result = make(value.Array, len(matches))
 
@@ -2225,11 +2277,12 @@ func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e e
 		for j, sub := range match {
 			groups[j] = value.StringValue(sub)
 		}
+
 		result[i] = groups
 	}
 
 	return result, nil
-} // func (inter *Interpreter) evalRegexpMatch(l *value.List) (v value.LispValue, e error)
+} // func (inter *Interpreter) evalRegexpMatch(arg *value.Arguments) (value.LispValue, error)
 
 type loopVariable struct {
 	sym  value.Symbol
@@ -2433,46 +2486,41 @@ func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environme
 	return env, stepForms, nil
 } // func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environment, map[value.Symbol]value.LispValue, error)
 
-func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalLength(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 2 {
+	if len(arg.Positional) != 1 {
 		return value.NIL, SyntaxError("LENGTH requires exactly one argument")
 	}
 
-	var arg = l.Car.Cdr.(*value.ConsCell).Car
+	var length int
 
-	if value.IsNil(arg) {
-		return value.IntValue(0), nil
-	}
-
-	var tmp value.LispValue
-	var err error
-
-	if tmp, err = inter.Eval(arg); err != nil {
-		return value.NIL, err
-	}
-
-	switch v := tmp.(type) {
+	switch val := arg.Positional[0].(type) {
 	case value.StringValue:
-		return value.IntValue(len(string(v))), nil
+		length = len(string(val))
 	case *value.ConsCell:
-		return value.IntValue(v.ActualLength()), nil
+		length = val.ActualLength()
 	case *value.List:
-		return value.IntValue(v.Length), nil
+		length = val.Length
 	case value.Array:
-		return value.IntValue(len(v)), nil
+		length = len(val)
 	case value.Hashtable:
-		return value.IntValue(len(v)), nil
+		length = len(val)
 	default:
 		return value.NIL, &value.TypeError{
 			Expected: "String, List, Array, or Hashtable",
-			Actual:   tmp.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
-} // func (inter *Interpreter) evalLength(l *value.List) (value.LispValue, error)
+
+	return value.IntValue(length), nil
+} // func (inter *Interpreter) evalLength(arg *value.Arguments) (value.LispValue, error)
+
+// Dienstag, 21. 11. 2017, 19:39
+// Da die ganze Batterie an Funktionen, die CONCAT implementiert, recht
+// umfangreich ist, lasse ich das erstmal so stehen.
 
 func (inter *Interpreter) evalConcat(l *value.List) (value.LispValue, error) {
 	if inter.debug {
@@ -2739,71 +2787,59 @@ func (inter *Interpreter) evalConcatHashtable(acc value.Hashtable, other value.L
 	return acc, nil
 } // func (inter *Interpreter) evalConcatHashtable(acc value.Hashtable, other value.LispValue) (value.Hashtable, error)
 
-func (inter *Interpreter) evalGetenv(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalGetEnv(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 2 {
+	if len(arg.Positional) != 1 {
 		return value.NIL, SyntaxError("GETENV takes exactly one argument")
 	}
 
-	var err error
-	var val, raw value.LispValue
+	var (
+		key value.StringValue
+		env string
+		ok  bool
+	)
 
-	raw = l.Car.Cdr.(*value.ConsCell).Car
-
-	if val, err = inter.Eval(raw); err != nil {
-		return value.NIL, err
-	} else if val.Type() != types.String {
+	if key, ok = arg.Positional[0].(value.StringValue); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "String",
-			Actual:   val.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
 
-	var rawEnv = os.Getenv(string(val.(value.StringValue)))
+	env = os.Getenv(string(key))
 
-	return value.StringValue(rawEnv), nil
-} // func (inter *Interpreter) evalGetenv(l *value.List) (value.LispValue, error)
+	return value.StringValue(env), nil
+} // func (inter *Interpreter) evalGetEnv(arg *value.Arguments) (value.LispValue, error)
 
-func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalSetEnv(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 3 {
-		return value.NIL, SyntaxError("SETENV takes exactly two arguments")
-	}
-
-	var env, newValue, rawEnv, rawVal value.LispValue
-	var err error
-
-	rawEnv, _ = l.Nth(1)
-	rawVal, _ = l.Nth(2)
-
-	if env, err = inter.Eval(rawEnv); err != nil {
-		return value.NIL, err
-	} else if newValue, err = inter.Eval(rawVal); err != nil {
-		return value.NIL, err
-	} else if env.Type() != types.String {
-		return value.NIL, &value.TypeError{
-			Expected: "String",
-			Actual:   env.Type().String(),
-		}
-	} else if newValue.Type() != types.String {
-		return value.NIL, &value.TypeError{
-			Expected: "String",
-			Actual:   newValue.Type().String(),
-		}
-	}
-
 	var (
-		key = string(env.(value.StringValue))
-		val = string(newValue.(value.StringValue))
+		key, val value.StringValue
+		ok       bool
+		err      error
 	)
 
-	if err = os.Setenv(key, val); err != nil {
+	if len(arg.Positional) != 2 {
+		return value.NIL, SyntaxError("SETENV takes exactly two arguments")
+	} else if key, ok = arg.Positional[0].(value.StringValue); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   arg.Positional[1].Type().String(),
+		}
+	} else if val, ok = arg.Positional[1].(value.StringValue); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   arg.Positional[1].Type().String(),
+		}
+	}
+
+	if err = os.Setenv(string(key), string(val)); err != nil {
 		fmt.Printf("Error setting environment variable %s to value %s: %s",
 			key,
 			val,
@@ -2811,8 +2847,8 @@ func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error) {
 		return value.NIL, err
 	}
 
-	return newValue, nil
-} // func (inter *Interpreter) evalSetenv(l *value.List) (value.LispValue, error)
+	return val, nil
+} // func (inter *Interpreter) evalSetEnv(arg *value.Arguments) (value.LispValue, error)
 
 // Montag, 13. 11. 2017, 22:25
 // How do I pass permissions and flags from Lisp?
