@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-21 15:09:42 krylon>
+// Time-stamp: <2017-11-21 18:32:46 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -91,45 +91,27 @@ const one = value.IntValue(1)
 // specialSymbols refer to values or syntactic constructs that are defined in the
 // Interpreter itself, not in Lisp.
 var specialSymbols = map[string]bool{
-	//	"+":              true,
-	"T":   true,
-	"NIL": true,
-	// "-":              true,
-	//	"*":              true,
-	//	"/":              true,
-	// "<":  true,
-	// ">":  true,
-	//"<=": true,
-	// ">=": true,
-	// "EQ":             true,
-	"FN":     true,
-	"DEFUN":  true,
-	"IF":     true,
-	"LET":    true,
-	"DO":     true,
-	"PRINT":  true,
-	"CONS":   true,
-	"CAR":    true,
-	"CDR":    true,
-	"SET!":   true,
-	"DEFINE": true,
-	"GOTO":   true,
-	"QUOTE":  true,
-	// "NOT":            true,
-	"AND":    true,
-	"OR":     true,
-	"APPLY":  true,
-	"LAMBDA": true,
-	//"NIL?":           true,
-	// "LIST":           true,
-	"AREF":           true,
-	"APUSH":          true,
-	"MAKE-ARRAY":     true,
-	"MAKE-HASH":      true,
-	"HASHREF":        true,
+	"T":              true,
+	"NIL":            true,
+	"FN":             true,
+	"DEFUN":          true,
+	"IF":             true,
+	"LET":            true,
+	"DO":             true,
+	"PRINT":          true,
+	"CONS":           true,
+	"CAR":            true,
+	"CDR":            true,
+	"SET!":           true,
+	"DEFINE":         true,
+	"GOTO":           true,
+	"QUOTE":          true,
+	"AND":            true,
+	"OR":             true,
+	"APPLY":          true,
+	"LAMBDA":         true,
 	"HASH-SET":       true,
 	"HASH-DELETE":    true,
-	"HAS-KEY":        true,
 	"DEFMACRO":       true,
 	"REGEXP-COMPILE": true,
 	"REGEXP-MATCH":   true,
@@ -242,6 +224,30 @@ func (inter *Interpreter) _initNativeFunctions() {
 			Fn:   inter.evalList,
 			Name: "LIST",
 		},
+		"AREF": &value.GoFunction{
+			Fn:   inter.evalAref,
+			Name: "AREF",
+		},
+		"APUSH": &value.GoFunction{
+			Fn:   inter.evalApush,
+			Name: "APUSH",
+		},
+		"MAKE-ARRAY": &value.GoFunction{
+			Fn:   inter.evalMakeArray,
+			Name: "MAKE-ARRAY",
+		},
+		"MAKE-HASH": &value.GoFunction{
+			Fn:   inter.evalMakeHash,
+			Name: "MAKE-HASH",
+		},
+		"HASHREF": &value.GoFunction{
+			Fn:   inter.evalHashref,
+			Name: "HASHREF",
+		},
+		"HAS-KEY": &value.GoFunction{
+			Fn:   inter.evalHasKey,
+			Name: "HAS-KEY",
+		},
 	}
 
 	for sym, fn := range nativeFunctions {
@@ -317,30 +323,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 	switch sym {
 	case "IF":
 		return inter.evalIf(l)
-	// case "+":
-	// 	return inter.evalPlus(l)
-	// case "-":
-	// 	return inter.evalMinus(l)
-	// case "*":
-	// 	return inter.evalMultiply(l)
-	// case "/":
-	// 	return inter.evalDivide(l)
-	// case "<":
-	// 	return inter.evalLessThan(l)
-	// case ">":
-	// 	return inter.evalGreaterThan(l)
-	// case "<=":
-	// 	return inter.evalLessEqual(l)
-	// case ">=":
-	// 	return inter.evalGreaterEqual(l)
 	case "DEFUN":
 		return inter.evalDefun(l)
 	case "LAMBDA":
 		return inter.evalLambda(l)
 	case "LET":
 		return inter.evalLet(l)
-	// case "EQ":
-	// 	return inter.evalEq(l)
 	case "QUOTE":
 		var retval value.LispValue
 		if l.Car.Cdr.Type() == types.ConsCell {
@@ -349,8 +337,6 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 			retval = l.Car.Cdr.(*value.List).Car
 		}
 		return retval, nil
-	// case "NOT":
-	// 	return inter.evalNot(l)
 	case "AND":
 		return inter.evalAnd(l)
 	case "OR":
@@ -371,22 +357,6 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalCdr(l)
 	case "FN":
 		return inter.evalFn(l)
-	// case "NIL?":
-	// 	return inter.evalIsNil(l)
-	// case "LIST":
-	// 	return inter.evalList(l)
-	case "AREF":
-		return inter.evalAref(l)
-	case "MAKE-ARRAY":
-		return inter.evalMakeArray(l)
-	case "APUSH":
-		return inter.evalApush(l)
-	case "HAS-KEY":
-		return inter.evalHasKey(l)
-	case "MAKE-HASH":
-		return inter.evalMakeHash(l)
-	case "HASHREF":
-		return inter.evalHashref(l)
 	case "HASH-SET":
 		return inter.evalHashSet(l)
 	case "HASH-DELETE":
@@ -794,6 +764,7 @@ func (inter *Interpreter) evalGoFunction(fn *value.GoFunction, lst *value.List) 
 			}
 
 			args.Keyword[name] = val
+			goto ENDCHECK
 		} else if val, err = inter.Eval(cell.Car); err != nil {
 			var msg = fmt.Sprintf("GoFunc: Error evaluating argument %s: %s",
 				cell.Car,
@@ -804,6 +775,7 @@ func (inter *Interpreter) evalGoFunction(fn *value.GoFunction, lst *value.List) 
 
 		args.Positional = append(args.Positional, val)
 
+	ENDCHECK:
 		if cell.Cdr == nil {
 			break
 		}
@@ -1437,27 +1409,13 @@ func (inter *Interpreter) evalNot(arg *value.Arguments) (value.LispValue, error)
 // Dienstag, 21. 11. 2017, 14:33
 // For the time being, AND remains a special form, because I want to support
 // short circuit evaluation, which requires a special form, obviously.
+// (I mean, one could hack something together with macros later on,
+// but I have a hunch that in this case the difference in performance
+// will be so large, that I probably would not want to replace the
+// current arrangement. If I did measurements on that. Which I intend
+// to, eventually, but not right now.)
 //
 // The same goes for OR and AND.
-
-// func (inter *Interpreter) evalAnd(arg *value.Argument) (value.LispValue, error) {
-// 	if inter.debug {
-// 		krylib.Trace()
-// 	}
-
-// 	if len(arg.Positional) == 0 {
-// 		return value.T, nil
-// 	}
-
-// 	for _, v := range arg.Positional {
-// 		if value.IsNil(v) {
-// 			return value.NIL, nil
-// 		}
-// 	}
-
-// 	return arg.Positional[len(arg.Positional)-1], nil
-// } // func (inter *Interpreter) evalAnd(arg *value.Argument) (value.LispValue, error)
-
 func (inter *Interpreter) evalAnd(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -1830,293 +1788,238 @@ func (inter *Interpreter) evalList(arg *value.Arguments) (value.LispValue, error
 // Arrays ///////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-func (inter *Interpreter) evalAref(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalAref(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
-		defer func() {
-			spew.Printf("AREF returns %#v\n", v)
-		}()
 	}
 
-	if l == nil || l.Length != 3 {
-		return value.NIL, SyntaxError("Usage: (aref <array> <index>)")
+	if len(arg.Positional) != 2 {
+		return value.NIL, SyntaxError("AREF requires exactly two arguments")
+	} else if arg.Positional[0].Type() != types.Array {
+		return value.NIL, &value.TypeError{
+			Expected: "Array",
+			Actual:   arg.Positional[0].Type().String(),
+		}
 	}
 
 	var (
-		arrRaw, idxRaw, tmp value.LispValue
-		index               int
-		arr                 value.Array
-		err                 error
+		arr   = arg.Positional[0].(value.Array)
+		index int
+		err   error
 	)
 
-	arrRaw, _ = l.Nth(1)
-	idxRaw, _ = l.Nth(2)
-
-	if tmp, err = inter.Eval(arrRaw); err != nil {
-		return value.NIL, err
-	} else if tmp.Type() != types.Array {
-		if inter.debug {
-			spew.Printf("First argument (the array) to AREF is not an array: %#v\n",
-				tmp)
+	switch v := arg.Positional[1].(type) {
+	case value.IntValue:
+		index = int(v)
+	case *value.BigInt:
+		var tmp value.LispValue
+		if tmp, err = v.Convert(types.Integer); err != nil {
+			return value.NIL, &ValueError{
+				val: v,
+				msg: fmt.Sprintf("Index %s is too large",
+					v.String()),
+			}
 		}
+
+		index = int(tmp.(value.IntValue))
+	default:
 		return value.NIL, &value.TypeError{
-			Expected: "Array",
-			Actual:   tmp.Type().String(),
+			Expected: "Number",
+			Actual:   v.Type().String(),
 		}
 	}
-
-	arr = tmp.(value.Array)
-
-	if tmp, err = inter.Eval(idxRaw); err != nil {
-		return value.NIL, err
-	} else if tmp.Type() != types.Integer {
-		return value.NIL, &value.TypeError{
-			Expected: "Integer",
-			Actual:   tmp.Type().String(),
-		}
-	}
-
-	index = int(tmp.(value.IntValue))
 
 	if index < 0 || index >= len(arr) {
-		return value.NIL, &ValueError{val: value.IntValue(index)}
+		return value.NIL, &ValueError{
+			val: value.IntValue(index),
+			msg: fmt.Sprintf("Index is out of range [0-%d)",
+				len(arr)),
+		}
 	}
 
 	return arr[index], nil
-} // func evalAref(l *value.List) (value.LispValue, error)
+} // func (inter *Interpreter) evalAref(arg *value.Arguments) (value.LispValue, error)
 
-func (inter *Interpreter) evalApush(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalApush(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
-		defer func() {
-			spew.Printf("APUSH returns %#v\n", v)
-		}()
 	}
 
-	if l == nil || l.Length < 3 {
+	if len(arg.Positional) < 2 {
 		return value.NIL, SyntaxError("Usage: (apush <array> <val1>... )")
 	}
 
-	var tmp value.LispValue
-	var arr value.Array
-	var err error
-	var ok bool
+	var (
+		arr value.Array
+		ok  bool
+	)
 
-	if tmp, err = l.Nth(1); err != nil {
-		return value.NIL, err
-	} else if arr, ok = tmp.(value.Array); !ok {
+	if arr, ok = arg.Positional[0].(value.Array); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Array",
-			Actual:   tmp.Type().String(),
-		}
-	} else if arr == nil {
-		return value.NIL, &value.TypeError{
-			Expected: "Array",
-			Actual:   "nil",
-		}
-	} else if arr.Type() != types.Array {
-		return value.NIL, &value.TypeError{
-			Expected: "Array",
-			Actual:   arr.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
 
-	for cell := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); cell != nil; cell = cell.Cdr.(*value.ConsCell) {
-		arr = append(arr, cell.Car)
-		if cell.Cdr == nil {
-			break
-		}
-	}
+	arr = append(arr, arg.Positional[1:]...)
 
 	return arr, nil
-} // func (inter *Interpreter) evalApush(l *value.List) (v value.LispValue, e error)
+} // func (inter *Interpreter) evalApush(arg *value.Arguments) (value.LispValue, error)
 
-// Samstag, 04. 11. 2017, 16:30
-// I really have no idea if I actually need make-array, and if so, how I want
-// to use it.
-// But I think, it should take a single list as a parameter and convert that to
-// an Array.
-// There is, of course, the special case of no parameter: "(make-array)"
-// In this case, it would make sense to return a new Array of length zero.
-// Can I do that in Go?
-func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalMakeArray(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
-		defer func() {
-			spew.Printf("APUSH returns %#v\n", v)
-		}()
 	}
 
-	if l == nil {
-		return value.NIL, SyntaxError("Usage: (make-array '(a b c d))")
-	} else if l.Length == 1 {
+	if len(arg.Positional) > 1 {
+		return value.NIL, SyntaxError("MAKE-ARRAY requires exactly one argument!")
+	} else if len(arg.Positional) == 0 {
 		return make(value.Array, 0, 10), nil
-	}
-
-	var err error
-	var tmp1 = l.Car.Cdr.(*value.ConsCell).Car
-	var tmp2 value.LispValue
-	var ok bool
-	var lst *value.List
-
-	if tmp2, err = inter.Eval(tmp1); err != nil {
-		return value.NIL, err
-	} else if lst, ok = tmp2.(*value.List); !ok {
+	} else if arg.Positional[0].Type() != types.List {
 		return value.NIL, &value.TypeError{
 			Expected: "List",
-			Actual:   tmp2.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
 
-	if inter.debug {
-		fmt.Printf("MAKE-ARRAY: Evaluate argument list: %s\n",
-			lst.String())
-	}
-
-	var arr = make(value.Array, lst.Length)
-	var idx int
+	var (
+		lst = arg.Positional[0].(*value.List)
+		arr = make(value.Array, lst.Length)
+		idx = 0
+	)
 
 	for cell := lst.Car; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
-		var val value.LispValue
-
-		if inter.debug {
-			spew.Printf("Argument #%d to MAKE-ARRAY: %#v",
-				idx,
-				cell.Car)
-		}
-
-		// if val, err = inter.Eval(cell.Car); err != nil {
-		// 	return value.NIL, err
-		// }
-		val = cell.Car
-
-		arr[idx] = val
+		arr[idx] = cell.Car
 		idx++
 		if cell.Cdr == nil {
 			break
 		}
 	}
 
+	if inter.debug && idx != lst.Length {
+		fmt.Printf("ERROR Making an array from a list of %d elements results in an array of %d elements\n",
+			lst.Length,
+			idx)
+	}
+
 	return arr, nil
-} // func (inter *Interpreter) evalMakeArray(l *value.List) (v value.LispValue, e error)
+} // func (inter *Interpreter) evalMakeArray(arg *value.Arguments) (value.LispValue, error)
 
 /////////////////////////////////////////////////////////////////////////////
 // Hash tables //////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-// Since we have literal syntax for hash tables, this function does not really need
-// any arguments, now, does it?
-func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error) {
-	if inter.debug {
-		krylib.Trace()
-	}
-	return make(value.Hashtable), nil
-} // func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error)
-
-func (inter *Interpreter) evalHashref(l *value.List) (v value.LispValue, e error) {
+// In Common Lisp, Hash tables are a bit fancier, and I may get around to copying
+// that, too. But for now, I would like to keep things simple.
+func (inter *Interpreter) evalMakeHash(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 3 {
-		return value.NIL, SyntaxError("HASHREF takes exactly *two* arguments")
-	}
+	var (
+		sizeval value.LispValue
+		size    int
+		ok      bool
+	)
 
-	var tmp, key value.LispValue
-	var err error
+	if sizeval, ok = arg.Keyword["SIZE"]; !ok {
+		size = 16
+	} else if sizeval.Type() == types.Integer {
+		size = int(sizeval.(value.IntValue))
+	} else if sizeval.Type() == types.BigInt {
+		var biggie = sizeval.(*value.BigInt)
 
-	if tmp, err = l.Nth(1); err != nil {
-		return value.NIL, err
-	} else if tmp, err = inter.Eval(tmp); err != nil {
-		return value.NIL, err
-	} else if tmp.Type() != types.Hashtable {
+		if biggie.IsInt64() {
+			var (
+				v   value.LispValue
+				err error
+			)
+
+			if v, err = biggie.Convert(types.Integer); err != nil {
+				return value.NIL, err
+			}
+
+			size = int(v.(value.IntValue))
+		}
+	} else {
 		return value.NIL, &value.TypeError{
-			Expected: "Hashtable",
-			Actual:   tmp.Type().String(),
+			Expected: "Integer or BigInt",
+			Actual:   sizeval.Type().String(),
 		}
 	}
 
-	var tbl = tmp.(value.Hashtable)
+	return make(value.Hashtable, size), nil
+} // func (inter *Interpreter) evalMakeHash(arg *value.Arguments) (value.LispValue, error)
 
-	if tmp, err = l.Nth(2); err != nil {
-		return value.NIL, err
-	} else if key, err = inter.Eval(tmp); err != nil {
-		return value.NIL, err
+// Since we have literal syntax for hash tables, this function does not really need
+// any arguments, now, does it?
+// func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 	}
+// 	return make(value.Hashtable), nil
+// } // func (inter *Interpreter) evalMakeHash(l *value.List) (v value.LispValue, e error)
+
+func (inter *Interpreter) evalHashref(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
 	}
 
-	var val value.LispValue
-	var ok bool
+	if len(arg.Positional) != 2 {
+		return value.NIL, SyntaxError("HASHREF takes exactly two arguments")
+	} else if arg.Positional[0].Type() != types.Hashtable {
+		return value.NIL, &value.TypeError{
+			Expected: "Hashtable",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	}
 
-	// Oh, wait. I had not really thought of the interface before.
-	// In Common Lisp, hashref returns *two* values, the second value
-	// is a flag indicating if the key was found in the hash table,
-	// so users can distinguish between a given key not being present
-	// in a hash table and a given key being present and having the value
-	// NIL.
-	//
-	// While I like the idea, I have a hunch that it would be really
-	// painful, exhausting and frustrating to implement. So I am
-	// going to skip on that one and act like Lua.
-	// I can add another special to explicitly check for the presence of
-	// a given key to compensate.
-	if val, ok = tbl[key]; !ok {
+	var (
+		ht       value.Hashtable
+		key, res value.LispValue
+		ok       bool
+	)
+
+	ht = arg.Positional[0].(value.Hashtable)
+	key = arg.Positional[1]
+
+	if res, ok = ht[key]; !ok {
 		return value.NIL, nil
 	}
 
-	return val, nil
-} // func (inter *Interpreter) evalHashref(l *value.List) (v value.LispValue, e error)
+	return res, nil
+} // func (inter *Interpreter) evalHashref(arg *value.Arguments) (value.LispValue, error)
 
-func (inter *Interpreter) evalHasKey(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalHasKey(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l == nil || l.Length != 3 {
-		return value.NIL, SyntaxError("HASHREF takes exactly *two* arguments")
+	if len(arg.Positional) != 2 {
+		return value.NIL, SyntaxError("HASKEY takes exactly two arguments")
 	}
 
-	var tmp, key value.LispValue
-	var err error
+	var (
+		tbl value.Hashtable
+		key value.LispValue
+		ok  bool
+	)
 
-	if tmp, err = l.Nth(1); err != nil {
-		return value.NIL, err
-	} else if tmp, err = inter.Eval(tmp); err != nil {
-		return value.NIL, err
-	} else if tmp.Type() != types.Hashtable {
+	if tbl, ok = arg.Positional[0].(value.Hashtable); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Hashtable",
-			Actual:   tmp.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
 	}
 
-	var tbl = tmp.(value.Hashtable)
+	key = arg.Positional[1]
 
-	if tmp, err = l.Nth(2); err != nil {
-		return value.NIL, err
-	} else if key, err = inter.Eval(tmp); err != nil {
-		return value.NIL, err
-	}
-
-	var ok bool
-
-	// Oh, wait. I had not really thought of the interface before.
-	// In Common Lisp, hashref returns *two* values, the second value
-	// is a flag indicating if the key was found in the hash table,
-	// so users can distinguish between a given key not being present
-	// in a hash table and a given key being present and having the value
-	// NIL.
-	//
-	// While I like the idea, I have a hunch that it would be really
-	// painful, exhausting and frustrating to implement. So I am
-	// going to skip on that one and act like Lua.
-	// I can add another special to explicitly check for the presence of
-	// a given key to compensate.
 	if _, ok = tbl[key]; !ok {
 		return value.NIL, nil
 	}
 
 	return value.T, nil
-} // func (inter *Interpreter) evalHasKey(l *value.List) (v value.LispValue, e error)
+} // func (inter *Interpreter) evalHashref(arg *value.Arguments) (value.LispValue, error)
 
 func (inter *Interpreter) evalHashSet(l *value.List) (v value.LispValue, e error) {
 	if inter.debug {

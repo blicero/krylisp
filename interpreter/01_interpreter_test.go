@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-20 19:09:10 krylon>
+// Time-stamp: <2017-11-21 18:19:31 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -1961,17 +1961,16 @@ func TestHashLookup(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
-
 	for _, test := range testCases {
 		var (
 			parsed interface{}
 			prog   value.Program
 			ok     bool
-			p      = parser.NewParser()
-			l      = lexer.NewLexer([]byte(test.input))
 			err    error
 			val    value.LispValue
+			p      = parser.NewParser()
+			l      = lexer.NewLexer([]byte(test.input))
+			interp = freshInterpreter()
 		)
 
 		if parsed, err = p.Parse(l); err != nil {
