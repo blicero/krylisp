@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-18 18:47:31 krylon>
+// Time-stamp: <2017-11-20 19:09:10 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -951,7 +951,7 @@ func TestLT(t *testing.T) {
 		} else if prog, ok = tree.([]value.LispValue); !ok {
 			t.Fatalf("Parser did not return a program, but a %T",
 				tree)
-		} else if res, err = interp.evalLessThan(prog[0].(*value.List)); err != nil {
+		} else if res, err = interp.Eval(prog[0].(*value.List)); err != nil {
 			t.Errorf("Error evaluating %s: %s",
 				test.source,
 				err.Error())
@@ -1206,7 +1206,7 @@ func TestNot(t *testing.T) {
 		} else if prog, ok = parsed.([]value.LispValue); !ok {
 			t.Errorf("Parser returned unexpected type: %T",
 				parsed)
-		} else if val, err = interp.evalNot(prog[0].(*value.List)); err != nil {
+		} else if val, err = interp.Eval(prog); err != nil {
 			t.Errorf("Error evaluating %s: %s",
 				test.input,
 				err.Error())

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-18 18:28:47 krylon>
+// Time-stamp: <2017-11-21 15:09:42 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -97,31 +97,31 @@ var specialSymbols = map[string]bool{
 	// "-":              true,
 	//	"*":              true,
 	//	"/":              true,
-	"<":              true,
-	">":              true,
-	">=":             true,
-	"<=":             true,
-	"EQ":             true,
-	"FN":             true,
-	"DEFUN":          true,
-	"IF":             true,
-	"LET":            true,
-	"DO":             true,
-	"PRINT":          true,
-	"CONS":           true,
-	"CAR":            true,
-	"CDR":            true,
-	"SET!":           true,
-	"DEFINE":         true,
-	"GOTO":           true,
-	"QUOTE":          true,
-	"NOT":            true,
-	"AND":            true,
-	"OR":             true,
-	"APPLY":          true,
-	"LAMBDA":         true,
-	"NIL?":           true,
-	"LIST":           true,
+	// "<":  true,
+	// ">":  true,
+	//"<=": true,
+	// ">=": true,
+	// "EQ":             true,
+	"FN":     true,
+	"DEFUN":  true,
+	"IF":     true,
+	"LET":    true,
+	"DO":     true,
+	"PRINT":  true,
+	"CONS":   true,
+	"CAR":    true,
+	"CDR":    true,
+	"SET!":   true,
+	"DEFINE": true,
+	"GOTO":   true,
+	"QUOTE":  true,
+	// "NOT":            true,
+	"AND":    true,
+	"OR":     true,
+	"APPLY":  true,
+	"LAMBDA": true,
+	//"NIL?":           true,
+	// "LIST":           true,
 	"AREF":           true,
 	"APUSH":          true,
 	"MAKE-ARRAY":     true,
@@ -210,6 +210,38 @@ func (inter *Interpreter) _initNativeFunctions() {
 			Fn:   inter.evalDivide,
 			Name: "/",
 		},
+		"EQ": &value.GoFunction{
+			Fn:   inter.evalEq,
+			Name: "EQ",
+		},
+		"<": &value.GoFunction{
+			Fn:   inter.evalLessThan,
+			Name: "<",
+		},
+		">": &value.GoFunction{
+			Fn:   inter.evalGreaterThan,
+			Name: ">",
+		},
+		"<=": &value.GoFunction{
+			Fn:   inter.evalLessEqual,
+			Name: "<=",
+		},
+		">=": &value.GoFunction{
+			Fn:   inter.evalGreaterEqual,
+			Name: ">=",
+		},
+		"NOT": &value.GoFunction{
+			Fn:   inter.evalNot,
+			Name: "NOT",
+		},
+		"NIL?": &value.GoFunction{
+			Fn:   inter.evalIsNil,
+			Name: "NIL?",
+		},
+		"LIST": &value.GoFunction{
+			Fn:   inter.evalList,
+			Name: "LIST",
+		},
 	}
 
 	for sym, fn := range nativeFunctions {
@@ -293,22 +325,22 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 	// 	return inter.evalMultiply(l)
 	// case "/":
 	// 	return inter.evalDivide(l)
-	case "<":
-		return inter.evalLessThan(l)
-	case ">":
-		return inter.evalGreaterThan(l)
-	case "<=":
-		return inter.evalLessEqual(l)
-	case ">=":
-		return inter.evalGreaterEqual(l)
+	// case "<":
+	// 	return inter.evalLessThan(l)
+	// case ">":
+	// 	return inter.evalGreaterThan(l)
+	// case "<=":
+	// 	return inter.evalLessEqual(l)
+	// case ">=":
+	// 	return inter.evalGreaterEqual(l)
 	case "DEFUN":
 		return inter.evalDefun(l)
 	case "LAMBDA":
 		return inter.evalLambda(l)
 	case "LET":
 		return inter.evalLet(l)
-	case "EQ":
-		return inter.evalEq(l)
+	// case "EQ":
+	// 	return inter.evalEq(l)
 	case "QUOTE":
 		var retval value.LispValue
 		if l.Car.Cdr.Type() == types.ConsCell {
@@ -317,8 +349,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 			retval = l.Car.Cdr.(*value.List).Car
 		}
 		return retval, nil
-	case "NOT":
-		return inter.evalNot(l)
+	// case "NOT":
+	// 	return inter.evalNot(l)
 	case "AND":
 		return inter.evalAnd(l)
 	case "OR":
@@ -339,10 +371,10 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalCdr(l)
 	case "FN":
 		return inter.evalFn(l)
-	case "NIL?":
-		return inter.evalIsNil(l)
-	case "LIST":
-		return inter.evalList(l)
+	// case "NIL?":
+	// 	return inter.evalIsNil(l)
+	// case "LIST":
+	// 	return inter.evalList(l)
 	case "AREF":
 		return inter.evalAref(l)
 	case "MAKE-ARRAY":
@@ -995,59 +1027,6 @@ func (inter *Interpreter) evalDivide(arg *value.Arguments) (value.LispValue, err
 	return acc, nil
 } // func (inter *Interpreter) evalDivide(arg *value.Arguments) (value.LispValue, error)
 
-// func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error) {
-// 	if inter.debug {
-// 		krylib.Trace()
-// 	}
-// 	// Montag, 11. 09. 2017, 20:12
-// 	// In Common Lisp and Scheme, passing a single argument x returns
-// 	// 1/x, as a rational number. We do not support rational numbers, yet.
-// 	if l.Length < 3 {
-// 		return nil, SyntaxError("Too few arguments for division (need at least 2)")
-// 	}
-
-// 	var val value.LispValue
-// 	var err error
-
-// 	if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
-// 		return value.NIL, err
-// 	} else if !value.IsNumber(val) {
-// 		return value.NIL, &value.TypeError{
-// 			Expected: "Number",
-// 			Actual:   val.Type().String(),
-// 		}
-// 	}
-
-// 	var res = val.(value.Number)
-
-// 	for c := l.Car.Cdr.(*value.ConsCell).Cdr; c != nil; c = c.(*value.ConsCell).Cdr {
-// 		v := c.(*value.ConsCell)
-// 		if val, err = inter.Eval(v.Car); err != nil {
-// 			return value.NIL, err
-// 		} else if value.IsNumber(val) {
-// 			var n = val.(value.Number)
-// 			if !n.IsZero() {
-// 				if res, err = evalDivision(res, n); err != nil {
-// 					return value.NIL, err
-// 				}
-// 			} else {
-// 				return nil, &ValueError{val: n}
-// 			}
-
-// 			if v.Cdr == nil {
-// 				v = nil
-// 			}
-// 		} else {
-// 			return nil, &value.TypeError{
-// 				Expected: "Number",
-// 				Actual:   v.Car.Type().String(),
-// 			}
-// 		}
-// 	}
-
-// 	return res, nil
-// } // func (inter *Interpreter) evalDivide(l *value.List) (value.LispValue, error)
-
 /////////////////////////////////////////////////////////////////////////////
 // Fundamental Lisp stuff ///////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -1108,317 +1087,208 @@ func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 	return name, nil
 } // func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error)
 
-func (inter *Interpreter) evalEq(l *value.List) (value.LispValue, error) {
-	if inter.debug {
-		krylib.Trace()
-	}
-	if l.Length != 3 {
-		return value.NIL, SyntaxError(fmt.Sprintf("Invalid number of arguments to EQ: %d (expected 2)",
-			l.Length-1))
-	}
-
-	// Samstag, 16. 09. 2017, 13:37
-	// Damn it, I need to evaluate these arguments, too.
-	var raw1, raw2, v1, v2 value.LispValue
-	var err error
-
-	raw1, _ = l.Nth(1)
-	raw2, _ = l.Nth(2)
-
-	if v1, err = inter.Eval(raw1); err != nil {
-		return value.NIL, err
-	} else if v2, err = inter.Eval(raw2); err != nil {
-		return value.NIL, err
-	} else if v1.Type() != v2.Type() {
-		if value.IsNumber(v1) && value.IsNumber(v2) {
-			var res compare.Result
-			if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
-				return value.NIL, err
-			}
-
-			if res == compare.Equal {
-				return value.T, nil
-			}
-		}
-
-		return value.NIL, nil
-	}
-
-	if v1.Eq(v2) {
-		return value.T, nil
-	}
-
-	return value.NIL, nil
-} // func (inter *Interpreter) evalEq(l *value.List) (value.LispValue, error)
-
-// nolint: gocyclo
-func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalEq(args *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l.Length < 2 {
-		return value.NIL, SyntaxError("Too few arguments for <")
-	} else if l.Length == 2 {
-		return value.T, nil
+	var argCnt int
+
+	if argCnt = len(args.Positional); argCnt < 2 {
+		return value.NIL, SyntaxError("calling < for LESS THAN two two arguments does not make sense")
 	}
 
-	var v1, v2, raw1, raw2 value.LispValue
-	var err error
+	var acc = args.Positional[0]
 
-	raw1 = l.Car.Cdr.(*value.ConsCell).Car
-	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
-
-	if v1, err = inter.Eval(raw1); err != nil {
-		return value.NIL, err
-	} else if v2, err = inter.Eval(raw2); err != nil {
-		return value.NIL, err
-	} else if !value.IsNumber(v1) {
-		return value.NIL, &value.TypeError{
-			Expected: "Number",
-			Actual:   v1.Type().String(),
-		}
-	} else if !value.IsNumber(v2) {
-		return value.NIL, &value.TypeError{
-			Expected: "Number",
-			Actual:   v2.Type().String(),
-		}
-	} else if l.Length == 2 {
-		return value.T, nil
-	}
-
-	var cmpResult compare.Result
-
-	if cmpResult, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
-		return value.NIL, err
-	} else if cmpResult != compare.LessThan {
-		return value.NIL, err
-	} else if l.Length == 3 {
-		return value.T, nil
-	}
-
-	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); !value.IsNil(c); c = c.Cdr.(*value.ConsCell) {
-		var res compare.Result
-		v1 = v2
-		raw2 = c.Car
-
-		if v2, err = inter.Eval(raw2); err != nil {
-			return value.NIL, err
-		} else if !value.IsNumber(v2) {
-			return value.NIL, &value.TypeError{
-				Expected: "Number",
-				Actual:   v2.Type().String(),
-			}
-		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
-			return value.NIL, err
-		} else if res != compare.LessThan {
-			return value.NIL, err
-		} else if value.IsNil(c.Cdr) {
-			break
+	for _, x := range args.Positional[1:] {
+		if !acc.Eq(x) {
+			return value.NIL, nil
 		}
 	}
 
 	return value.T, nil
-} // func (inter *Interpreter) evalLessThan(l *value.List) (value.LispValue, error)
+} // func (inter *Interpreter) evalEq(args *value.Arguments) (value.LispValue, error)
 
-// nolint: gocyclo
-func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalLessThan(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l.Length < 2 {
-		return value.NIL, SyntaxError("Too few arguments for <")
-	} else if l.Length == 2 {
-		return value.T, nil
+	if len(arg.Positional) < 2 {
+		return value.NIL, SyntaxError("< needs at least two arguments")
 	}
 
-	var v1, v2, raw1, raw2 value.LispValue
-	var err error
-	var res compare.Result
+	var (
+		r  value.Number
+		ok bool
+	)
 
-	raw1 = l.Car.Cdr.(*value.ConsCell).Car
-	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
-
-	if v1, err = inter.Eval(raw1); err != nil {
-		return value.NIL, err
-	} else if v2, err = inter.Eval(raw2); err != nil {
-		return value.NIL, err
-	} else if !value.IsNumber(v1) {
+	if r, ok = arg.Positional[0].(value.Number); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Number",
-			Actual:   v1.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
-	} else if !value.IsNumber(v2) {
-		return value.NIL, &value.TypeError{
-			Expected: "Number",
-			Actual:   v2.Type().String(),
-		}
-	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
-		return value.NIL, err
-	} else if l.Length == 3 {
-		if res == compare.GreaterThan {
-			return value.T, nil
-		}
-
-		return value.NIL, nil
 	}
 
-	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
-		v1 = v2
-		raw2 = c.Car
+	for _, v := range arg.Positional[1:] {
+		var res compare.Result
+		var err error
+		var n value.Number
 
-		if v2, err = inter.Eval(raw2); err != nil {
-			return value.NIL, err
-		} else if !value.IsNumber(v2) {
+		if n, ok = v.(value.Number); !ok {
 			return value.NIL, &value.TypeError{
 				Expected: "Number",
-				Actual:   v2.Type().String(),
+				Actual:   v.Type().String(),
 			}
-		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+		} else if res, err = evalPolymorphCmp(r, n); err != nil {
+			return value.NIL, err
+		} else if res != compare.LessThan {
+			return value.NIL, nil
+		}
+
+		r = n
+	}
+
+	return value.T, nil
+} // func (inter *Interpreter) evalLessThan(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalGreaterThan(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if len(arg.Positional) < 2 {
+		return value.NIL, SyntaxError("< need at least two arguments")
+	}
+
+	var (
+		r  value.Number
+		ok bool
+	)
+
+	if r, ok = arg.Positional[0].(value.Number); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "Number",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	}
+
+	for _, v := range arg.Positional[1:] {
+		var (
+			res compare.Result
+			n   value.Number
+			err error
+		)
+
+		if n, ok = v.(value.Number); !ok {
+			return value.NIL, &value.TypeError{
+				Expected: "Number",
+				Actual:   arg.Positional[0].Type().String(),
+			}
+		} else if res, err = evalPolymorphCmp(r, n); err != nil {
 			return value.NIL, err
 		} else if res != compare.GreaterThan {
 			return value.NIL, nil
-		} else if c.Cdr == nil {
-			break
 		}
+
+		r = n
 	}
 
 	return value.T, nil
-} // func (inter *Interpreter) evalGreaterThan(l *value.List) (value.LispValue, error)
+} // func (inter *Interpreter) evalGreaterThan(arg *value.Arguments) (value.LispValue, error)
 
-// nolint: gocyclo
-func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalLessEqual(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l.Length < 2 {
-		return value.NIL, SyntaxError("Too few arguments for <")
-	} else if l.Length == 2 {
-		return value.T, nil
+	if len(arg.Positional) < 2 {
+		return value.NIL, SyntaxError("<= needs at least two arguments.")
 	}
 
-	var v1, v2, raw1, raw2 value.LispValue
-	var err error
-	var res compare.Result
+	var (
+		r  value.Number
+		ok bool
+	)
 
-	raw1 = l.Car.Cdr.(*value.ConsCell).Car
-	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
-
-	if v1, err = inter.Eval(raw1); err != nil {
-		return value.NIL, err
-	} else if v2, err = inter.Eval(raw2); err != nil {
-		return value.NIL, err
-	} else if !value.IsNumber(v1) {
+	if r, ok = arg.Positional[0].(value.Number); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Number",
-			Actual:   v1.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
-	} else if value.IsNumber(v2) {
-		return value.NIL, &value.TypeError{
-			Expected: "Number",
-			Actual:   v2.Type().String(),
-		}
-	} else if res, err := evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
-		return value.NIL, err
-	} else if l.Length == 3 {
-		if res == compare.GreaterThan {
-			return value.NIL, nil
-		}
-
-		return value.T, nil
 	}
 
-	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
-		v1 = v2
-		raw2 = c.Car
+	for _, v := range arg.Positional[1:] {
+		var (
+			res compare.Result
+			n   value.Number
+			err error
+		)
 
-		if v2, err = inter.Eval(raw2); err != nil {
-			return value.NIL, err
-		} else if !value.IsNumber(v2) {
+		if n, ok = v.(value.Number); !ok {
 			return value.NIL, &value.TypeError{
 				Expected: "Number",
-				Actual:   v2.Type().String(),
+				Actual:   arg.Positional[0].Type().String(),
 			}
-		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+		} else if res, err = evalPolymorphCmp(r, n); err != nil {
 			return value.NIL, err
 		} else if res == compare.GreaterThan {
 			return value.NIL, nil
-		} else if c.Cdr == nil {
-			break
 		}
+
+		r = n
 	}
 
 	return value.T, nil
-} // func (inter *Interpreter) evalLessEqual(l *value.List) (value.LispValue, error)
+} // func (inter *Interpreter) evalLessEqual(arg *value.Arguments) (value.LispValue, error)
 
-// nolint: gocyclo
-func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalGreaterEqual(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l.Length < 2 {
-		return value.NIL, SyntaxError("Too few arguments for <")
-	} else if l.Length == 2 {
-		return value.T, nil
+	if len(arg.Positional) < 2 {
+		return value.NIL, SyntaxError("<= needs at least two arguments.")
 	}
 
-	var v1, v2, raw1, raw2 value.LispValue
-	var err error
-	var res compare.Result
+	var (
+		r  value.Number
+		ok bool
+	)
 
-	raw1 = l.Car.Cdr.(*value.ConsCell).Car
-	raw2 = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Car
-
-	if v1, err = inter.Eval(raw1); err != nil {
-		return value.NIL, err
-	} else if v2, err = inter.Eval(raw2); err != nil {
-		return value.NIL, err
-	} else if !value.IsNumber(v1) {
+	if r, ok = arg.Positional[0].(value.Number); !ok {
 		return value.NIL, &value.TypeError{
 			Expected: "Number",
-			Actual:   v1.Type().String(),
+			Actual:   arg.Positional[0].Type().String(),
 		}
-	} else if !value.IsNumber(v2) {
-		return value.NIL, &value.TypeError{
-			Expected: "Number",
-			Actual:   v2.Type().String(),
-		}
-	} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
-		return value.NIL, err
-	} else if l.Length == 3 {
-		if res == compare.LessThan {
-			return value.NIL, nil
-		}
-
-		return value.T, nil
 	}
 
-	for c := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); c != nil; c = c.Cdr.(*value.ConsCell) {
-		v1 = v2
-		raw2 = c.Car
+	for _, v := range arg.Positional[1:] {
+		var (
+			res compare.Result
+			n   value.Number
+			err error
+		)
 
-		if v2, err = inter.Eval(raw2); err != nil {
-			return value.NIL, err
-		} else if !value.IsNumber(v2) {
+		if n, ok = v.(value.Number); !ok {
 			return value.NIL, &value.TypeError{
 				Expected: "Number",
-				Actual:   v2.Type().String(),
+				Actual:   arg.Positional[0].Type().String(),
 			}
-		} else if res, err = evalPolymorphCmp(v1.(value.Number), v2.(value.Number)); err != nil {
+		} else if res, err = evalPolymorphCmp(r, n); err != nil {
 			return value.NIL, err
 		} else if res == compare.LessThan {
 			return value.NIL, nil
-		} else if c.Cdr == nil {
-			break
 		}
+
+		r = n
 	}
 
 	return value.T, nil
-} // func (inter *Interpreter) evalGreaterEqual(l *value.List) (value.LispValue, error)
+} // func (inter *Interpreter) evalGreaterEqual(arg *value.Arguments) (value.LispValue, error)
 
+// Muss CONS eine special form sein? Ich sehe erstmal keinen Grund dafür - die
+// Auswertung der Argumente functioniert ja wie bei regulären Funktionen auch.
 func (inter *Interpreter) evalCons(l *value.List) (v value.LispValue, e error) {
 	if inter.debug {
 		krylib.Trace()
@@ -1548,26 +1418,45 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 	return val, nil
 } // func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error)
 
-func (inter *Interpreter) evalNot(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalNot(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	var val value.LispValue
-	var err error
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("NOT needs exactly one argument")
+	}
 
-	if l.Length != 2 {
-		return value.NIL, SyntaxError("Wrong number of arguments for NOT")
-	} else if val, err = inter.Eval(l.Car.Cdr.(*value.ConsCell).Car); err != nil {
-		return nil, err
-	} else if value.IsNil(val) {
-		return value.T, nil
-	} else if val.Bool() {
-		return value.NIL, nil
-	} else {
+	if value.IsNil(arg.Positional[0]) {
 		return value.T, nil
 	}
-} // func (inter *Interpreter) evalNot(l *value.List) (value.LispValue, error)
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalNot(arg *value.Arguments) (value.LispValue, error)
+
+// Dienstag, 21. 11. 2017, 14:33
+// For the time being, AND remains a special form, because I want to support
+// short circuit evaluation, which requires a special form, obviously.
+//
+// The same goes for OR and AND.
+
+// func (inter *Interpreter) evalAnd(arg *value.Argument) (value.LispValue, error) {
+// 	if inter.debug {
+// 		krylib.Trace()
+// 	}
+
+// 	if len(arg.Positional) == 0 {
+// 		return value.T, nil
+// 	}
+
+// 	for _, v := range arg.Positional {
+// 		if value.IsNil(v) {
+// 			return value.NIL, nil
+// 		}
+// 	}
+
+// 	return arg.Positional[len(arg.Positional)-1], nil
+// } // func (inter *Interpreter) evalAnd(arg *value.Argument) (value.LispValue, error)
 
 func (inter *Interpreter) evalAnd(l *value.List) (value.LispValue, error) {
 	if inter.debug {
@@ -1647,6 +1536,16 @@ func (inter *Interpreter) evalDefine(l *value.List) (value.LispValue, error) {
 	return val, nil
 } // func (inter *Interpreter) evalDefine(l *value.List) (value.LispValue, error)
 
+// Dienstag, 21. 11. 2017, 14:37
+// Does SET! need to be a special form?
+// Good question, actually. It needs to be implemented in Go, that's for sure.
+// But the rules for argument evaluation are the same as for regular functions.
+// ...
+// No, actually, they are not. Not right now, at least. The destination
+// is treated specially.
+// I could follow Common Lisp and implement SET! as a native function and then
+// add SETQ! as a macro or special form. But what advantage would that have?
+// Until I can think of a good answer, SET! stays a special form.
 func (inter *Interpreter) evalSet(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -1671,6 +1570,11 @@ func (inter *Interpreter) evalSet(l *value.List) (value.LispValue, error) {
 	return val, nil
 } // func (inter *Interpreter) evalSet(l *value.List) (value.LispValue, error)
 
+// PRINT is a another interesting case - the way it is implemented right now,
+// it stops evaluating arguments as soon as it encounters an error, and I
+// can easily imagine how one might put that behavior to interesting use.
+// Okay, for now it stays a special form, until I can think of a compelling
+// reason to change that.
 func (inter *Interpreter) evalPrint(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -1883,88 +1787,44 @@ func (inter *Interpreter) evalFn(l *value.List) (value.LispValue, error) {
 	return fn, nil
 } // func (inter *Interpreter) evalFn(l *value.List) (value.LispValue, error)
 
-func (inter *Interpreter) evalIsNil(l *value.List) (value.LispValue, error) {
+func (inter *Interpreter) evalIsNil(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
 
-	if l.Length != 2 {
-		return value.NIL, SyntaxError("NIL? expects exactly one argument")
-	} else if inter.debug {
-		spew.Printf("(NIL? %#v)\n",
-			l.Car.Cdr)
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("NIL? requires exactly one argument")
 	}
 
-	// Donnerstag, 19. 10. 2017, 17:26
-	// Abobo - I need to ____ING EVALUATE the ____ING argument!!!
-
-	var val = l.Car.Cdr.(*value.ConsCell).Car
-	var res value.LispValue
-	var err error
-
-	if res, err = inter.Eval(val); err != nil {
-		return value.NIL, err
-	} else if value.IsNil(res) {
-		if inter.debug {
-			spew.Printf("evalIsNil: Value %#v is NIL indeed!\n",
-				val)
-		}
+	if value.IsNil(arg.Positional[0]) {
 		return value.T, nil
-	} else if inter.debug {
-		spew.Printf("evalIsNil: Value %#v is NOT NIL!\n",
-			val)
 	}
 
 	return value.NIL, nil
-} // func (inter *Interpreter) evalIsNil(l *value.List) (value.LispValue, error)
+} // func (inter *Interpreter) evalIsNil(arg *value.Arguments) (value.LispValue, error)
 
-func (inter *Interpreter) evalList(l *value.List) (v value.LispValue, e error) {
+func (inter *Interpreter) evalList(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
-		defer func() {
-			spew.Printf("LIST returns %#v\n", v)
-		}()
 	}
 
-	if l.Length == 1 {
+	if len(arg.Positional) == 0 {
 		return value.NIL, nil
 	}
 
-	var res = &value.List{
-		Length: l.Length - 1,
-		Car:    new(value.ConsCell),
-	}
+	var acc *value.ConsCell
 
-	var tail = res.Car
-
-	if inter.debug {
-		spew.Printf("LIST form: %#v\n", l)
-	}
-
-	for cell := l.Car.Cdr.(*value.ConsCell); !value.IsNil(cell); cell = cell.Cdr.(*value.ConsCell) {
-		var val value.LispValue
-		var err error
-
-		if val, err = inter.Eval(cell.Car); err != nil {
-			return value.NIL, err
-		} else if inter.debug {
-			spew.Printf("LIST form: %#v => %#v\n",
-				cell.Car,
-				val)
+	for i := len(arg.Positional) - 1; i >= 0; i-- {
+		var cell = &value.ConsCell{
+			Car: arg.Positional[i],
+			Cdr: acc,
 		}
 
-		tail.Car = val
-		if cell.Cdr == nil {
-			break
-		} else {
-			tail.Cdr = new(value.ConsCell)
-			tail = tail.Cdr.(*value.ConsCell)
-			tail.Car = value.NIL
-		}
+		acc = cell
 	}
 
-	return res, nil
-} // func (inter *Interpreter) evalList(l *value.List) (value.LispValue, error)
+	return &value.List{Car: acc, Length: len(arg.Positional)}, nil
+} // func (inter *Interpreter) evalList(arg *value.Arguments) (value.LispValue, error)
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrays ///////////////////////////////////////////////////////////////////
