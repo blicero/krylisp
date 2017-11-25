@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-21 19:51:19 krylon>
+// Time-stamp: <2017-11-25 14:32:04 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -78,10 +78,14 @@ import (
 	"io"
 	"krylib"
 	"krylisp/compare"
+	"krylisp/filemode"
+	"krylisp/lexer"
+	"krylisp/parser"
 	"krylisp/types"
 	"krylisp/value"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -98,6 +102,7 @@ var specialSymbols = map[string]bool{
 	"IF":       true,
 	"LET":      true,
 	"DO":       true,
+	"WHILE":    true,
 	"PRINT":    true,
 	"CONS":     true,
 	"CAR":      true,
@@ -117,13 +122,13 @@ var specialSymbols = map[string]bool{
 	"CONCAT": true,
 	// "GETENV":  true,
 	// "SETENV":  true,
-	"FOPEN":   true,
-	"FCLOSE":  true,
-	"FREAD":   true,
-	"FWRITE":  true,
-	"FSYNC":   true,
-	"FSEEK":   true,
-	"FGETPOS": true,
+	// "FOPEN":   true,
+	// "FCLOSE":  true,
+	// "FREAD":   true,
+	// "FWRITE":  true,
+	// "FSYNC":   true,
+	// "FSEEK":   true,
+	// "FGETPOS": true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -274,6 +279,34 @@ func (inter *Interpreter) _initNativeFunctions() {
 			Fn:   inter.evalSetEnv,
 			Name: "SETENV",
 		},
+		"FOPEN": &value.GoFunction{
+			Fn:   inter.evalFopen,
+			Name: "FOPEN",
+		},
+		"FCLOSE": &value.GoFunction{
+			Fn:   inter.evalFclose,
+			Name: "FCLOSE",
+		},
+		"FREAD-LINE": &value.GoFunction{
+			Fn:   inter.evalFreadLine,
+			Name: "FREADLINE",
+		},
+		"FWRITE": &value.GoFunction{
+			Fn:   inter.evalFwrite,
+			Name: "FWRITE",
+		},
+		"FEOF": &value.GoFunction{
+			Fn:   inter.evalFeof,
+			Name: "FEOF",
+		},
+		"FCLEAREOF": &value.GoFunction{
+			Fn:   inter.evalClearEOF,
+			Name: "FCLEAREOF",
+		},
+		"READ-FROM-STRING": &value.GoFunction{
+			Fn:   inter.evalReadString,
+			Name: "READ-FROM-STRING",
+		},
 	}
 
 	for sym, fn := range nativeFunctions {
@@ -383,20 +416,12 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalCdr(l)
 	case "FN":
 		return inter.evalFn(l)
-	// case "REGEXP-COMPILE":
-	// 	return inter.evalRegexpCompile(l)
-	// case "REGEXP-MATCH":
-	// 	return inter.evalRegexpMatch(l)
 	case "DO":
 		return inter.evalDoLoop(l)
-	// case "LENGTH":
-	// 	return inter.evalLength(l)
+	case "WHILE":
+		return inter.evalWhile(l)
 	case "CONCAT":
 		return inter.evalConcat(l)
-	// case "GETENV":
-	// 	return inter.evalGetenv(l)
-	// case "SETENV":
-	// 	return inter.evalSetenv(l)
 	default:
 		return value.NIL, fmt.Errorf("Special form %s is not implemented, yet",
 			sym)
@@ -1412,9 +1437,14 @@ func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error) {
 	return val, nil
 } // func (inter *Interpreter) evalLet(l *value.List) (value.LispValue, error)
 
-func (inter *Interpreter) evalNot(arg *value.Arguments) (value.LispValue, error) {
+func (inter *Interpreter) evalNot(arg *value.Arguments) (v value.LispValue, e error) {
 	if inter.debug {
 		krylib.Trace()
+		defer func() {
+			fmt.Printf("(not %s) => %s\n",
+				arg.Positional[0],
+				v)
+		}()
 	}
 
 	if len(arg.Positional) != 1 {
@@ -2422,6 +2452,49 @@ END:
 	return tmp, nil
 } // func (inter *Interpreter) evalDoLoop(l *value.List) (v value.LispValue, e error)
 
+func (inter *Interpreter) evalWhile(l *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	// Freitag, 24. 11. 2017, 22:22
+	// I am not sure how useful that is, but we allow for a while loop with an empty body.
+	// If the condition has side-effects this makes sense. If not, the condition never
+	// changes, so the loop either does not execute at all, or it runs endlessly.
+
+	if l.Length < 3 {
+		return value.NIL, SyntaxError("(WHILE <CONDITION> ...)")
+	}
+
+	var (
+		condition, check, res value.LispValue
+		body                  *value.ConsCell
+		err                   error
+	)
+
+	condition = l.Car.Cdr.(*value.ConsCell).Car
+	//body = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
+	if l.Length >= 3 {
+		body = l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell)
+	}
+
+	for check, err = inter.Eval(condition); err == nil && !value.IsNil(check); check, err = inter.Eval(condition) {
+		for cell := body; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+			if res, err = inter.Eval(cell.Car); err != nil {
+				return value.NIL, err
+			} else if cell.Cdr == nil {
+				break
+			}
+		}
+	}
+
+	if err != nil {
+		return value.NIL, err
+	}
+
+	return res, nil
+} // func (inter *Interpreter) evalWhile(l *value.List) (value.LispValue, error)
+
 func (inter *Interpreter) evalDoVariables(varList *value.List) (*value.Environment, []loopVariable, error) {
 	var (
 		env       = value.NewEnvironment(inter.env)
@@ -2855,56 +2928,318 @@ func (inter *Interpreter) evalSetEnv(arg *value.Arguments) (value.LispValue, err
 // ... How does Common Lisp do this?
 // Ah, like this: (open <path> :direction :input)
 // That sounds kind of nice, I guess...
-// func (inter *Interpreter) evalFopen(l *value.List) (value.LispValue, error) {
-// 	if inter.debug {
-// 		krylib.Trace()
-// 	}
 
-// 	if l == nil || l.Length < 2 {
-// 		return value.NIL, SyntaxError("FOPEN needs at least one argument")
-// 	}
+func (inter *Interpreter) evalFopen(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
 
-// 	var (
-// 		err   error
-// 		fh    *value.FileHandle
-// 		perm  permission.FilePermission = permission.Read
-// 		chmod int                       = 0644
-// 		path  string
-// 	)
+	// This is not the most satisfactory solution ever, but I think 0644 is
+	// the right permission set 90% of the time, and it's just the default,
+	// anyway.
+	const defaultAccessRights = 0644
 
-// 	// Dienstag, 14. 11. 2017, 17:36
-// 	// If I want to pass parameters to FOPEN as in Common Lisp, I am getting
-// 	// damn close to needing a proper state machine for parsing the arguments.
-// 	// That sucks.
-// 	// Could I add support for keyword arguments to make this less painful?
-// 	// At least that way I could have other builtins benefit from that as
-// 	// well, if were to add, say, networking.
-// 	// But it *would* make things a lot more complicated.
+	var (
+		path                        value.StringValue
+		rawmode, append, sync, perm value.LispValue
+		lmode                       value.Symbol
+		mode                        filemode.FileMode
+		accessRights                int
+		ok                          bool
+	)
 
-// 	if path, err = l.Nth(1); err != nil {
-// 		return value.NIL, err
-// 	}
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("FOPEN takes exactly one argument")
+	} else if path, ok = arg.Positional[0].(value.StringValue); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	} else if rawmode, ok = arg.Keyword["DIRECTION"]; !ok {
+		// Dienstag, 21. 11. 2017, 20:40
+		// Can I define a reasonable default value, or should I bail?
+		return value.NIL, SyntaxError("FOPEN needs the :DIRECTION keyword")
+	} else if lmode, ok = rawmode.(value.Symbol); !ok {
+		return value.NIL, &ValueError{
+			val: rawmode,
+			msg: fmt.Sprintf("Argument :DIRECTION to FOPEN must be a keyword symbol"),
+		}
+	}
 
-// 	if l.Length > 2 {
-// 		var (
-// 			expectDirection  bool
-// 			expectPermission bool
-// 		)
+	switch lmode {
+	case ":READ":
+		mode = filemode.Read
+	case ":WRITE":
+		mode = filemode.Write
+	case ":BOTH":
+		mode = filemode.Read | filemode.Write
+	default:
+		return value.NIL, &ValueError{
+			val: lmode,
+			msg: ":DIRECTTION must be :READ, :WRITE or :BOTH",
+		}
+	}
 
-// 		for cell := l.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell); cell != nil; cell = cell.Cdr.(*value.ConsCell) {
-// 			switch c := cell.Car.(type) {
-// 			case value.Symbol:
-// 				if c.IsKeyword() {
-// 					switch c {
-// 					case ":DIRECTION":
-// 						// ...
-// 						expectDirection = true
-// 					case ":PERMISSIONS":
-// 						// ...
-// 						expectPermission = true
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// } // func (inter *Interpreter) evalFopen(l *value.List) (value.LispValue, error)
+	if append, ok = arg.Keyword["APPEND"]; ok {
+		if !value.IsNil(append) {
+			mode |= filemode.Append
+		}
+	}
+
+	if sync, ok = arg.Keyword["SYNC"]; ok {
+		if !value.IsNil(sync) {
+			mode |= filemode.Sync
+		}
+	}
+
+	// Maybe I should also allow users to pass in strings like the ones
+	// one can pass to chmod.
+	// I think that is a neat idea, but I will save it for later.
+	if perm, ok = arg.Keyword["PERMISSION"]; !ok {
+		accessRights = defaultAccessRights
+	} else if value.IsNil(perm) {
+		return value.NIL, &ValueError{
+			val: perm,
+			msg: "File permissions must not be nil",
+		}
+	} else if perm.Type() != types.Integer {
+		return value.NIL, &value.TypeError{
+			Expected: "Integer",
+			Actual:   perm.Type().String(),
+		}
+	}
+
+	accessRights = int(perm.(value.IntValue))
+
+	var (
+		fh  *value.FileHandle
+		err error
+	)
+
+	if fh, err = value.OpenFile(string(path), accessRights, mode); err != nil {
+		return value.NIL, err
+	}
+
+	return fh, nil
+} // func (inter *Interpreter) evalFopen(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalFclose(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("FCLOSE needs exactly one argument")
+	} else if arg.Positional[0].Type() != types.FileHandle {
+		return value.NIL, &value.TypeError{
+			Expected: "FileHandle",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	}
+
+	if err := arg.Positional[0].(*value.FileHandle).Close(); err != nil {
+		return value.NIL, err
+	}
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalFclose(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalFreadLine(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	// Mittwoch, 22. 11. 2017, 17:37
+	// I haven't really thought about how I want to call this function from Lisp.
+	// And I haven't done much I/O in Common Lisp or Scheme, either, so I have
+	// no clue how to proceed.
+	// I think it would be better to write a small test script first, so I
+	// can figure out what kind of API I would be comfortable with.
+	// And keep in mind, of course, that it would super nice to eventually
+	// have a unified interface for file and network I/O.
+	// Mmmmh. It appears I have already started writing a small test script,
+	// and it ... mmmh.
+	// I might choose an approach not entirely unlike Perl, with one very
+	// simple API for line-by-line text data (because that is probably
+	// what we will deal with 95% of the time), and one more complex
+	// API that also allows to do stuff like binary I/O and is (hopefully)
+	// more effcicient than the line-by-line approach.
+	//
+	// Mittwoch, 22. 11. 2017, 18:36
+	// Okay, for the moment I will keep the interface relatively primitive.
+	// But if I wanted somebody else to ever use this language, I would definitely
+	// have to include a good I/O API.
+	// My hope is that by building something really primitive, I get working
+	// code faster, then I can write Lisp code that does I/O faster, and
+	// then I have some experience to shape a new, improved I/O interface.
+
+	var (
+		line string
+		err  error
+		fh   *value.FileHandle
+		ok   bool
+	)
+
+	if len(arg.Positional) < 1 {
+		return value.NIL, SyntaxError("FREADLINE must be called with at least one argument")
+	} else if fh, ok = arg.Positional[0].(*value.FileHandle); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "FileHandle",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	} else if line, err = fh.ReadLine(); err != nil {
+		if err != io.EOF {
+			return value.NIL, err
+		}
+	} else if inter.debug {
+		fmt.Printf("Read one line from %s: %s\n",
+			fh,
+			line)
+	}
+
+	return value.StringValue(strings.TrimRight(line, "\r\n")), nil
+} // func (inter *Interpreter) evalFreadLine(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalFwrite(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if len(arg.Positional) < 2 {
+		return value.NIL, SyntaxError("FWRITE requires at least two arguments (one I/O handle, one or more things to write)")
+	} else if arg.Positional[0].Type() != types.FileHandle {
+		return value.NIL, &value.TypeError{
+			Expected: "FileHandle",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	}
+
+	var fh = arg.Positional[0].(*value.FileHandle)
+
+	for idx, val := range arg.Positional[1:] {
+		var (
+			out            = val.String()
+			outbuf         []byte
+			err            error
+			written, total int
+		)
+
+		outbuf = []byte(out)
+
+	WRITE:
+		if written, err = fh.Write(outbuf[total:]); err != nil {
+			if !fh.IsEOF() {
+
+				var msg = fmt.Sprintf("Error writing argument %d to %s: %s",
+					idx+1,
+					fh.Path,
+					err.Error())
+				fmt.Println(msg)
+				return value.NIL, errors.New(msg)
+			}
+		} else if written == 0 {
+			// Does this ever happen?
+			var msg = "CANTHAPPEN - FWRITE did not return an error, but wrote 0 bytes!"
+			fmt.Println(msg)
+			if total != len(outbuf) {
+				return value.NIL, errors.New(msg)
+			}
+		} else if total += written; total < len(outbuf) {
+			goto WRITE
+		}
+	}
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalFwrite(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalFeof(arg *value.Arguments) (v value.LispValue, e error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	var (
+		fh *value.FileHandle
+		ok bool
+	)
+
+	if inter.debug {
+		defer func() {
+			fmt.Printf("FEOF %s --> %s\n",
+				fh,
+				v)
+		}()
+	}
+
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("FEOF takes exactly one argument")
+	} else if fh, ok = arg.Positional[0].(*value.FileHandle); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "FileHandle",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	} else if fh.IsEOF() {
+		return value.T, nil
+	}
+
+	return value.NIL, nil
+} // func (inter *Interpreter) evalFeof(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalClearEOF(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	var (
+		fh *value.FileHandle
+		ok bool
+	)
+
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("CLEAREOF takes exactly one argument")
+	} else if fh, ok = arg.Positional[0].(*value.FileHandle); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "FileHandle",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	}
+
+	fh.ClearEOF()
+
+	return fh, nil
+} // func (inter *Interpreter) evalClearEOF(arg *value.Arguments) (value.LispValue, error)
+
+func (inter *Interpreter) evalReadString(arg *value.Arguments) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	var (
+		line   value.StringValue
+		err    error
+		ok     bool
+		parsed interface{}
+		prog   value.Program
+		p      = parser.NewParser()
+	)
+
+	if len(arg.Positional) != 1 {
+		return value.NIL, SyntaxError("READ-FROM-STRING expects exactly one argument")
+	} else if line, ok = arg.Positional[0].(value.StringValue); !ok {
+		return value.NIL, &value.TypeError{
+			Expected: "String",
+			Actual:   arg.Positional[0].Type().String(),
+		}
+	} else if line == "" {
+		return value.NIL, nil
+	} else if parsed, err = p.Parse(lexer.NewLexer([]byte(line))); err != nil {
+		fmt.Printf("Error parsing input %s: %s\n",
+			line,
+			err.Error())
+		return value.NIL, err
+	} else if prog, ok = parsed.([]value.LispValue); !ok {
+		return value.NIL, fmt.Errorf("Parser returned unexpected data type: %T",
+			parsed)
+	}
+
+	return prog[0], nil
+} // func (inter *Interpreter) evalReadString(arg *value.Arguments) (value.LispValue, error)

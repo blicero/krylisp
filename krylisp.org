@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-15 20:21:54 krylon>
+# Time-stamp: <2017-11-21 20:38:36 krylon>
 
 
 * kryLisp
@@ -115,6 +115,17 @@
     Dann wird es wohl langsam Zeit für Makros, right?
     Das wird kein Spaß.
 ** Aufgaben
+*** TODO [#B] Fehler
+    An dem derzeitigen Fehler-Handling gefallen mir zwei Dinge nicht:
+    Erstens sind verschiedene Fehlertypen über mehrere Pakete
+    verstreut. Ich würde gern alle Fehlertypen in einem einzelnen
+    Paket zusammen führen, damit der restliche Code sauber darauf
+    zugreifen kann.
+    Zweitens muss ich mir früher oder später auch Gedanken darüber
+    machen, wie ich Fehler auf der Lisp-Seite behandeln und abbilden
+    will.
+    Wenn ich einen Geistesblitz habe, könnte ich beide Fragen in einem
+    Abwasch erledigen.
 *** TODO Trennung von Special forms und Go-Funktionen
 **** [2017-11-15 Mi 19:05]
      Es dämmert mir langsam, dass es ein Fehler war, alle "intrinsics"

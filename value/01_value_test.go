@@ -2,13 +2,13 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-16 09:38:55 krylon>
+// Time-stamp: <2017-11-21 20:22:15 krylon>
 
 package value
 
 import (
 	"fmt"
-	"krylisp/permission"
+	"krylisp/filemode"
 	"krylisp/types"
 	"math/rand"
 	"os"
@@ -326,7 +326,7 @@ func TestFileHandle(t *testing.T) {
 	filename = time.Now().Format("kryLisp_test_filehandle_20060102_150405")
 	path = filepath.Join(folder, filename)
 
-	if fh, err = OpenFile(path, 0600, permission.Read|permission.Write); err != nil {
+	if fh, err = OpenFile(path, 0600, filemode.Read|filemode.Write); err != nil {
 		t.Fatalf("Error opening test file %s: %s",
 			path,
 			err.Error())

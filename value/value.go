@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-16 09:37:02 krylon>
+// Time-stamp: <2017-11-25 14:36:14 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -35,7 +35,7 @@ import (
 	"io"
 	"krylib"
 	"krylisp/common"
-	"krylisp/permission"
+	"krylisp/filemode"
 	"krylisp/types"
 	"math"
 	"math/big"
@@ -424,32 +424,6 @@ func (b *BigInt) Eq(other LispValue) bool {
 	}
 
 	return b == other.(*BigInt)
-
-	// if other == nil {
-	// 	return false
-	// } else if !IsNumber(other) {
-	// 	return false
-	// }
-
-	// switch ot := other.(type) {
-	// case *BigInt:
-	// 	return b.Value.Cmp(ot.Value) == 0
-	// case IntValue:
-	// 	var ob = big.NewInt(int64(ot))
-	// 	return b.Value.Cmp(ob) == 0
-	// case FloatValue:
-	// 	var of = new(big.Float)
-	// 	of.SetFloat64(float64(ot))
-	// 	if of.IsInt() {
-	// 		var oi, _ = of.Int(nil)
-	// 		return b.Value.Cmp(oi) == 0
-	// 	}
-
-	// 	return false
-	// default:
-
-	// 	return false
-	// }
 } // func (b *BigInt) Eq(other LispValue) bool
 
 // Equal compares two Lisp values for equality.
@@ -1577,29 +1551,42 @@ func (ht Hashtable) Convert(id types.ID) (LispValue, error) {
 // ...
 // Aaaah, there is bufio.ReadWriter, which is a struct of a Reader and
 // a Writer...
+//
+// Dienstag, 21. 11. 2017, 20:14
+// Now that I have done all the yak shaving required to add file I/O
+// to kryLisp, I suddenly realize that my terminology regarding the file access
+// mode and the file system permissions is highly confusing, and I should
+// probably fix it now, before other parts of the code depend on it.
+// --> FIXED!
+//
+// Donnerstag, 23. 11. 2017, 16:05
+// Just a thought - I think I need to handle closing a filehandle better. At
+// all, that is. I don't want Go to panic if somebody closes a file error and
+// then tries to use it.
 
 // FileHandle represents a file on disk or on some other mass storage medium. Name one.
 type FileHandle struct {
-	path        string
-	raw         *os.File
-	r           *bufio.Reader
-	w           *bufio.Writer
-	permissions permission.FilePermission
-	bufRead     bool
-	bufWrite    bool
+	Path     string
+	raw      *os.File
+	r        *bufio.Reader
+	w        *bufio.Writer
+	mode     filemode.FileMode
+	bufRead  bool
+	bufWrite bool
+	eof      bool
 }
 
 // OpenFile opens a file at the given location with the given access rights.
-func OpenFile(path string, perm int, access permission.FilePermission) (*FileHandle, error) {
+func OpenFile(path string, perm int, access filemode.FileMode) (*FileHandle, error) {
 	// First, we map the access flags to the file flags in the OS package:
 	var flags = os.O_CREATE
-	const rw = permission.Read | permission.Write
+	const rw = filemode.Read | filemode.Write
 
 	if access&rw == rw {
 		flags |= os.O_RDWR
-	} else if access&permission.Read != 0 {
+	} else if access&filemode.Read != 0 {
 		flags |= os.O_RDONLY
-	} else if access&permission.Write != 0 {
+	} else if access&filemode.Write != 0 {
 		flags |= os.O_WRONLY
 	} else {
 		var msg = "Opening a file with neither read nor write access does not make sense"
@@ -1607,17 +1594,17 @@ func OpenFile(path string, perm int, access permission.FilePermission) (*FileHan
 		return nil, errors.New(msg)
 	}
 
-	if (access & permission.Append) != 0 {
+	if (access & filemode.Append) != 0 {
 		flags |= os.O_APPEND
 	}
 
-	if (access & permission.Sync) != 0 {
+	if (access & filemode.Sync) != 0 {
 		flags |= os.O_SYNC
 	}
 
 	var fh = &FileHandle{
-		path:        path,
-		permissions: access,
+		Path: path,
+		mode: access,
 	}
 	var err error
 
@@ -1649,7 +1636,7 @@ func OpenFile(path string, perm int, access permission.FilePermission) (*FileHan
 	}
 
 	return fh, nil
-} // func OpenFile(path string, access permission.FilePermission) (*FileHandle, error)
+} // func OpenFile(path string, access filemode.FilePermission) (*FileHandle, error)
 
 // Close closes the file. Using a filehandle after it has been closed will
 // result in an error.
@@ -1670,7 +1657,7 @@ func (fh *FileHandle) String() string {
 	}
 
 	return fmt.Sprintf("FileHandle<@path=%s, @read=%t, @write=%t>",
-		fh.path,
+		fh.Path,
 		fh.isRead(),
 		fh.isWrite(),
 	)
@@ -1722,7 +1709,7 @@ func (fh *FileHandle) Equal(other LispValue) bool {
 
 	var of = other.(*FileHandle)
 
-	if fh.path != of.path {
+	if fh.Path != of.Path {
 		return false
 	} else if fh.isRead() != of.isRead() || fh.isWrite() != of.isWrite() {
 		return false
@@ -1748,19 +1735,19 @@ func (fh *FileHandle) Convert(id types.ID) (LispValue, error) {
 } // func (fh *FileHandle) Convert(id types.ID) (LispValue, error)
 
 func (fh *FileHandle) isRead() bool {
-	return (fh.permissions & permission.Read) != 0
+	return (fh.mode & filemode.Read) != 0
 } // func (fh *FileHandle) isRead() bool
 
 func (fh *FileHandle) isWrite() bool {
-	return (fh.permissions & permission.Write) != 0
+	return (fh.mode & filemode.Write) != 0
 } // func (fh *FileHandle) isWrite() bool
 
 func (fh *FileHandle) isAppend() bool {
-	return (fh.permissions & permission.Append) != 0
+	return (fh.mode & filemode.Append) != 0
 } // func (fh *FileHandle) isAppend() bool
 
 func (fh *FileHandle) isSync() bool {
-	return (fh.permissions & permission.Sync) != 0
+	return (fh.mode & filemode.Sync) != 0
 } // func (fh *FileHandle) isSync() bool
 
 func (fh *FileHandle) Read(b []byte) (n int, e error) {
@@ -1769,19 +1756,23 @@ func (fh *FileHandle) Read(b []byte) (n int, e error) {
 	}
 
 	var (
-		buf = make([]byte, 262144)
-		err error
+		buf       = make([]byte, 262144)
+		err       error
+		bytesRead int
 		// numSize = len(buf)
 	)
 
-	if _, err = fh.raw.Read(buf); err != nil {
+	if bytesRead, err = fh.raw.Read(buf); err != nil && err != io.EOF {
 		fmt.Printf("Error reading from I/O stream @(%s) -- %s",
-			fh.path,
+			fh.Path,
 			err.Error())
 		return 0, err
+
+	} else if err == io.EOF {
+		fh.eof = true
 	}
 
-	return 0, krylib.NotImplemented
+	return bytesRead, nil
 } // func (fh *FileHandle) Read([]byte) (n int, e error)
 
 func (fh *FileHandle) readBuffered(b []byte) (n int, e error) {
@@ -1790,19 +1781,24 @@ func (fh *FileHandle) readBuffered(b []byte) (n int, e error) {
 	}
 
 	var (
-		buf = make([]byte, 262144)
-		err error
+		buf       = make([]byte, 262144)
+		err       error
+		bytesRead int
 		// numSize = len(buf)
 	)
 
-	if _, err = fh.r.Read(buf); err != nil {
-		fmt.Printf("Error reading from I/O stream @(%s) -- %s",
-			fh.path,
-			err.Error())
-		return 0, err
+	if bytesRead, err = fh.r.Read(buf); err != nil {
+		if err == io.EOF {
+			fh.eof = true
+		} else {
+			fmt.Printf("Error reading from I/O stream @(%s) -- %s",
+				fh.Path,
+				err.Error())
+			return 0, err
+		}
 	}
 
-	return 0, krylib.NotImplemented
+	return bytesRead, nil
 } // func (fh *FileHandle) readBuffered([]byte) (n int, e error)
 
 // ReadLine attempts to read a line of text from the file handle.
@@ -1811,7 +1807,25 @@ func (fh *FileHandle) ReadLine() (string, error) {
 		krylib.Trace()
 	}
 
-	return fh.r.ReadString('\n')
+	//return fh.r.ReadString('\n')
+	var (
+		line string
+		err  error
+	)
+
+	if line, err = fh.r.ReadString('\n'); err != nil {
+		if err == io.EOF {
+			fh.eof = true
+		} else {
+			return "", err
+		}
+	} else if common.Debug {
+		fmt.Printf("DBG Read one line from %s: %s\n",
+			fh,
+			line)
+	}
+
+	return line, nil
 } // func (fh *FileHandle) ReadLine() (string, error)
 
 func (fh *FileHandle) Write(b []byte) (n int, e error) {
@@ -1826,7 +1840,7 @@ func (fh *FileHandle) Write(b []byte) (n int, e error) {
 
 	if bytesWritten, err = fh.raw.Write(b); err != nil {
 		fmt.Printf("Error writing to I/O stream @(%s) -- %s",
-			fh.path,
+			fh.Path,
 			err.Error())
 		return 0, err
 	}
@@ -1875,13 +1889,23 @@ func (fh *FileHandle) Tell() (int64, error) {
 	return fh.raw.Seek(0, 1)
 } // func (fh *FileHandle) Tell() (int64, error)
 
+// IsEOF returns true if the filehandle has encountered and EOF error before.
+func (fh *FileHandle) IsEOF() bool {
+	return fh.eof
+} // func (fh *FileHandle) IsEOF() bool
+
+// ClearEOF clears the EOF flag on a FileHandle.
+func (fh *FileHandle) ClearEOF() {
+	fh.eof = false
+} // func (fh *FileHandle) ClearEOF()
+
 // Sync forces all unwritten data to be written to disk.
 func (fh *FileHandle) Sync() error {
 	var err error
 
 	if err = fh.raw.Sync(); err != nil {
 		var msg = fmt.Sprintf("Error sync()ing %s: %s",
-			fh.path,
+			fh.Path,
 			err.Error())
 		fmt.Println(msg)
 		return err

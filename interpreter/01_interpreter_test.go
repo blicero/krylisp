@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-21 18:19:31 krylon>
+// Time-stamp: <2017-11-24 21:36:27 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -2747,6 +2747,49 @@ func TestKeywordArgs(t *testing.T) {
 		}
 	}
 } // func TestKeywordArgs(t *testing.T)
+
+func TestReadFromString(t *testing.T) {
+	type readTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var testCases = []readTest{
+		readTest{
+			input:          "3",
+			expectedResult: value.IntValue(3),
+		},
+		readTest{
+			input:          "peter",
+			expectedResult: value.Symbol("PETER"),
+		},
+	}
+
+	var interp = freshInterpreter()
+
+	for _, test := range testCases {
+		var (
+			res value.LispValue
+			err error
+			arg = value.Arguments{
+				Positional: []value.LispValue{value.StringValue(test.input)},
+			}
+		)
+
+		if res, err = interp.evalReadString(&arg); err != nil {
+			if !test.expectError {
+				t.Errorf("Error reading test input \"%s\": %s",
+					test.input,
+					err.Error())
+			}
+		} else if !test.expectedResult.Equal(res) {
+			t.Errorf("Unexpected result from READ-FROM-STRING: %s (expected %s)",
+				res,
+				test.expectedResult)
+		}
+	}
+} // func TestReadFromString(t *testing.T)
 
 ///////////////////////////////////////////////////////////
 // Utility functions //////////////////////////////////////
