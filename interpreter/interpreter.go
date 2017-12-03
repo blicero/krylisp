@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 14:32:04 krylon>
+// Time-stamp: <2017-11-25 18:06:57 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -63,6 +63,10 @@
 // With my single test case, the humble "+", it worked perfectly.
 // So now I am stuck with the rather tedious task inspect all eval* methods,
 // and converting those that do not need to be treated as special form.
+//
+// Samstag, 25. 11. 2017, 16:36
+// The next big step is macros, and right now I have no clue whatsoever how to
+// implement them.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -116,19 +120,7 @@ var specialSymbols = map[string]bool{
 	"APPLY":    true,
 	"LAMBDA":   true,
 	"DEFMACRO": true,
-	//"REGEXP-COMPILE": true,
-	//"REGEXP-MATCH": true,
-	//"LENGTH":  true,
-	"CONCAT": true,
-	// "GETENV":  true,
-	// "SETENV":  true,
-	// "FOPEN":   true,
-	// "FCLOSE":  true,
-	// "FREAD":   true,
-	// "FWRITE":  true,
-	// "FSYNC":   true,
-	// "FSEEK":   true,
-	// "FGETPOS": true,
+	"CONCAT":   true,
 }
 
 // IsSpecial returns true if the given symbols has special significance
@@ -370,6 +362,7 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 	if inter.debug {
 		krylib.Trace()
 	}
+
 	var sym = l.Car.Car.(value.Symbol)
 
 	// This is going to be tedious...
@@ -559,7 +552,7 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 	}
 
 	if inter.debug {
-		spew.Printf("Evaluated LAMBDA list %s -> %#v\n",
+		_, _ = spew.Printf("Evaluated LAMBDA list %s -> %#v\n",
 			lst,
 			fn)
 	}
@@ -618,7 +611,7 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 		}
 	case *value.List:
 		if inter.debug {
-			spew.Printf("Evaluate function call: %#v\n",
+			_, _ = spew.Printf("Evaluate function call: %#v\n",
 				f)
 			// fmt.Printf("Evaluate function call: %s\n",
 			// 	//f.String())
@@ -650,7 +643,7 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	// might be nil!
 
 	if inter.debug {
-		spew.Printf("Evaluating call to this function: %#v\n",
+		_, _ = spew.Printf("Evaluating call to this function: %#v\n",
 			fn)
 	}
 
@@ -761,6 +754,7 @@ EVALUATE:
 	return res, nil
 } // func (inter *Interpreter) evalFuncall(fun value.Function) (value.LispValue, errror)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalGoFunction(fn *value.GoFunction, lst *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -1006,7 +1000,7 @@ func (inter *Interpreter) evalDivide(arg *value.Arguments) (value.LispValue, err
 	if inter.debug {
 		krylib.Trace()
 
-		spew.Printf("DIV - args: %#v\n",
+		_, _ = spew.Printf("DIV - args: %#v\n",
 			arg.Positional)
 	}
 
@@ -1606,16 +1600,17 @@ func (inter *Interpreter) evalPrint(l *value.List) (value.LispValue, error) {
 			val = value.NIL
 		}
 
-		inter.stdout.Write([]byte(val.String() + "\n"))
+		inter.stdout.Write([]byte(val.String() + "\n")) // nolint: errcheck
 	}
 
 	return value.NIL, nil
 } // func (inter *Interpreter) evalPrint(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalApply(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
-		inter.stdout.Write([]byte(l.String()))
+		inter.stdout.Write([]byte(l.String())) // nolint: errcheck
 	}
 
 	// (apply #somefn '(arg1 arg2 arg3)) <=> (somefn arg1 arg2 arg3)
@@ -1655,7 +1650,7 @@ func (inter *Interpreter) evalApply(l *value.List) (value.LispValue, error) {
 	}
 
 	if inter.debug {
-		spew.Printf("APPLY: %#v\n",
+		spew.Printf("APPLY: %#v\n", // nolint: errcheck
 			funcall)
 	}
 
@@ -1665,15 +1660,15 @@ func (inter *Interpreter) evalApply(l *value.List) (value.LispValue, error) {
 func (inter *Interpreter) evalCar(l *value.List) (v value.LispValue, e error) {
 	if inter.debug {
 		krylib.Trace()
-		inter.stdout.Write([]byte(l.String()))
+		inter.stdout.Write([]byte(l.String())) // nolint: errcheck
 	}
 
 	defer func() {
-		spew.Printf("CAR returns %#v\n", v)
+		spew.Printf("CAR returns %#v\n", v) // nolint: errcheck
 	}()
 
 	if value.IsNil(l.Car.Cdr.(*value.ConsCell).Car) {
-		inter.stdout.Write([]byte("CAR of NIL is NIL"))
+		inter.stdout.Write([]byte("CAR of NIL is NIL")) // nolint: errcheck
 		return value.NIL, nil
 	}
 
@@ -1704,6 +1699,7 @@ func (inter *Interpreter) evalCar(l *value.List) (v value.LispValue, e error) {
 	}
 } // func (inter *Interpreter) evalCar(l *value.List) (value.LispValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalCdr(l *value.List) (v value.LispValue, e error) {
 	if inter.debug {
 		krylib.Trace()
@@ -2319,6 +2315,7 @@ type loopVariable struct {
 	step value.LispValue
 }
 
+// nolint: gocyclo
 func (inter *Interpreter) evalDoLoop(l *value.List) (v value.LispValue, e error) {
 	if inter.debug {
 		krylib.Trace()
@@ -2595,6 +2592,7 @@ func (inter *Interpreter) evalLength(arg *value.Arguments) (value.LispValue, err
 // Da die ganze Batterie an Funktionen, die CONCAT implementiert, recht
 // umfangreich ist, lasse ich das erstmal so stehen.
 
+// nolint: gocyclo
 func (inter *Interpreter) evalConcat(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -2690,6 +2688,7 @@ func mkConcatList(v1, v2 value.LispValue) *value.List {
 	}
 } // func mkConcatList(v1, v2 value.LispValue) *value.List
 
+// nolint: gocyclo
 func (inter *Interpreter) evalConcatString(acc value.StringValue, other value.LispValue) (value.StringValue, error) {
 	var ok bool
 	var err error
@@ -2704,7 +2703,7 @@ func (inter *Interpreter) evalConcatString(acc value.StringValue, other value.Li
 	case types.Integer, types.Float, types.BigInt:
 		return acc + value.StringValue(other.String()), nil
 	case types.String:
-		return acc + value.StringValue(string(string(other.(value.StringValue)))), nil
+		return acc + value.StringValue(string(other.(value.StringValue))), nil
 	case types.Symbol:
 		var sym = other.(value.Symbol)
 		var retval value.StringValue
@@ -2746,6 +2745,7 @@ func (inter *Interpreter) evalConcatString(acc value.StringValue, other value.Li
 	}
 } // func (inter *Interpreter) evalConcatString(acc value.StringValue, other value.LispValue) (value.StringValue, error)
 
+// nolint: gocyclo
 func (inter *Interpreter) evalConcatList(acc *value.List, other value.LispValue) (*value.List, error) {
 	var last *value.ConsCell
 
@@ -2929,6 +2929,7 @@ func (inter *Interpreter) evalSetEnv(arg *value.Arguments) (value.LispValue, err
 // Ah, like this: (open <path> :direction :input)
 // That sounds kind of nice, I guess...
 
+// nolint: gocyclo
 func (inter *Interpreter) evalFopen(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
@@ -2996,7 +2997,7 @@ func (inter *Interpreter) evalFopen(arg *value.Arguments) (value.LispValue, erro
 	// one can pass to chmod.
 	// I think that is a neat idea, but I will save it for later.
 	if perm, ok = arg.Keyword["PERMISSION"]; !ok {
-		accessRights = defaultAccessRights
+		// accessRights = defaultAccessRights
 	} else if value.IsNil(perm) {
 		return value.NIL, &ValueError{
 			val: perm,
@@ -3091,11 +3092,11 @@ func (inter *Interpreter) evalFreadLine(arg *value.Arguments) (value.LispValue, 
 		if err != io.EOF {
 			return value.NIL, err
 		}
-	} else if inter.debug {
+	} /* else if inter.debug {
 		fmt.Printf("Read one line from %s: %s\n",
 			fh,
 			line)
-	}
+	} */
 
 	return value.StringValue(strings.TrimRight(line, "\r\n")), nil
 } // func (inter *Interpreter) evalFreadLine(arg *value.Arguments) (value.LispValue, error)

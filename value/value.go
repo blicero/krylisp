@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 14:36:14 krylon>
+// Time-stamp: <2017-11-25 16:19:02 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -1819,11 +1819,11 @@ func (fh *FileHandle) ReadLine() (string, error) {
 		} else {
 			return "", err
 		}
-	} else if common.Debug {
+	} /* else if common.Debug {
 		fmt.Printf("DBG Read one line from %s: %s\n",
 			fh,
 			line)
-	}
+	} */
 
 	return line, nil
 } // func (fh *FileHandle) ReadLine() (string, error)
@@ -2004,3 +2004,72 @@ func (gf *GoFunction) Convert(id types.ID) (LispValue, error) {
 		destination: id,
 	}
 } // func (gf *GoFunction) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// Error //////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+// Error indicates a problem in the computation, be it erroneous
+type Error struct {
+	Errno int
+	Msg   string
+}
+
+// Type returns the type ID of the value, in this case types.Error
+func (e *Error) Type() types.ID {
+	return types.Error
+} // func (e *Error) Type() types.ID
+
+// String returns a string representation of the Lisp value.
+func (e *Error) String() string {
+	return e.Msg
+} // func (e *Error) String() string
+
+// Bool returns the "truthiness" of a Lisp value.
+func (e *Error) Bool() bool {
+	return true
+} // func (e *Error) Bool() bool
+
+// Eq compares two Lisp values for equality.
+func (e *Error) Eq(other LispValue) bool {
+	if other.Type() != types.Error {
+		return false
+	} else if e == other.(*Error) {
+		return true
+	}
+
+	return false
+} // func (e *Error) Eq(other LispValue) bool
+
+// Equal compares two Lisp values for equality.
+func (e *Error) Equal(other LispValue) bool {
+	var oe *Error
+	var ok bool
+
+	if oe, ok = other.(*Error); !ok {
+		return false
+	} else if oe == nil {
+		return false
+	}
+
+	return (e.Errno == oe.Errno) && (e.Msg == oe.Msg)
+} // func (e *Error) Equal(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+func (e *Error) Convert(id types.ID) (LispValue, error) {
+	switch id {
+	case types.Integer, types.Number:
+		return IntValue(e.Errno), nil
+	case types.BigInt:
+		return &BigInt{Value: big.NewInt(int64(e.Errno))}, nil
+	case types.String:
+		return StringValue(e.Msg), nil
+	case types.Error:
+		return e, nil
+	default:
+		return NIL, &TypeConversionError{
+			source:      types.Error,
+			destination: id,
+		}
+	}
+} // func (e *Error) Convert(id types.ID) (LispValue, error)

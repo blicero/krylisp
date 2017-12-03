@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 14:54:03 krylon>
+// Time-stamp: <2017-11-25 17:37:42 krylon>
 
 package interpreter
 
@@ -258,6 +258,7 @@ func TestEnvVariable(t *testing.T) {
 	}
 } // func TestEnvVariable(t *testing.T)
 
+// nolint: gocyclo
 func TestFileIO(t *testing.T) {
 	const scriptPath = "testdata/test007.lisp"
 	// Montag, 13. 11. 2017, 18:24

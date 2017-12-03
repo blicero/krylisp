@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-16 08:31:09 krylon>
+// Time-stamp: <2017-11-25 15:44:06 krylon>
 
 package types
 
@@ -30,4 +30,5 @@ const (
 	GoFunction
 	Program
 	FileHandle
+	Error
 )

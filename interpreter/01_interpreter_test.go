@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-24 21:36:27 krylon>
+// Time-stamp: <2017-11-25 17:35:20 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -72,13 +72,11 @@ import (
 )
 
 const (
-	plus  = value.Symbol("+")
+	//plus  = value.Symbol("+")
 	minus = value.Symbol("-")
 	mult  = value.Symbol("*")
 	div   = value.Symbol("/")
 )
-
-//var interp *Interpreter
 
 func TestPlus(t *testing.T) {
 	type testPlus struct {

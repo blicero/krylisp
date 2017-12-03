@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-14 19:32:41 krylon>
+// Time-stamp: <2017-12-02 21:50:28 krylon>
 
 package ast
 
@@ -416,3 +416,74 @@ func TestAmp(t *testing.T) {
 			len(prog))
 	}
 } // func TestAmp(t *testing.T)
+
+func TestBackquote(t *testing.T) {
+	type backquoteTest struct {
+		input          string
+		expectedResult value.LispValue
+		expectError    bool
+	}
+
+	var testCases = []backquoteTest{
+		backquoteTest{
+			input: "`(+ 1 2 ,b)",
+			expectedResult: &value.List{
+				Car: &value.ConsCell{
+					Car: value.Symbol("+"),
+					Cdr: &value.ConsCell{
+						Car: value.IntValue(1),
+						Cdr: &value.ConsCell{
+							Car: value.IntValue(2),
+							Cdr: &value.ConsCell{
+								Car: &value.List{
+									Car: &value.ConsCell{
+										Car: value.Symbol("COMMA"),
+										Cdr: &value.ConsCell{
+											Car: value.Symbol("B"),
+										},
+									},
+									Length: 2,
+								},
+							},
+						},
+					},
+				},
+				Length: 4,
+			},
+		},
+	}
+
+	for idx, test := range testCases {
+		var (
+			tree interface{}
+			err  error
+			prog value.Program
+			ok   bool
+			p    = parser.NewParser()
+			l    = lexer.NewLexer([]byte(test.input))
+			ht   value.Hashtable
+		)
+
+		if tree, err = p.Parse(l); err != nil {
+			if !test.expectError {
+				t.Errorf("Backquote expression: Error parsing test #%d (%s): %s",
+					idx+1,
+					test.input,
+					err.Error())
+			}
+		} else if prog, ok = tree.([]value.LispValue); !ok {
+			t.Errorf("Parser did not return a Program, but a %T",
+				tree)
+		} else if len(prog) != 1 {
+			t.Errorf("Parsed program has unexpected length: %d (expected 1)",
+				len(prog))
+		} else if ht, ok = prog[0].(value.Hashtable); !ok {
+			t.Errorf("Parsed value shoud be a Hashtable, not a %T",
+				prog[0])
+		} else if !test.expectedResult.Equal(ht) {
+			t.Errorf("Parsed hashtable is not what we expected: %s (expected %s)",
+				ht.String(),
+				test.expectedResult.String())
+		}
+	}
+} // func TestBackquote(t *testing.T)

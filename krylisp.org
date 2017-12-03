@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-21 20:38:36 krylon>
+# Time-stamp: <2017-11-29 16:26:43 krylon>
 
 
 * kryLisp
@@ -114,6 +114,13 @@
     Tests! - zu funktionieren.
     Dann wird es wohl langsam Zeit für Makros, right?
     Das wird kein Spaß.
+*** [2017-11-25 Sa 15:33]
+    Ich bin ein beeindruckendes Stück voran gekommen, weiß jetzt aber
+    nicht genau, wo ich weitermachen soll.
+    Die wichtigsten Punkte, die jetzt anstehen, sind Makros und
+    Fehlerbehandlung auf der Lisp-Seite. Die gegen auch gut Hand ind
+    Hand, weil man mit Makros dann ja so Sachen wie with-file machen
+    kann. 
 ** Aufgaben
 *** TODO [#B] Fehler
     An dem derzeitigen Fehler-Handling gefallen mir zwei Dinge nicht:
@@ -126,7 +133,8 @@
     will.
     Wenn ich einen Geistesblitz habe, könnte ich beide Fragen in einem
     Abwasch erledigen.
-*** TODO Trennung von Special forms und Go-Funktionen
+*** DONE Trennung von Special forms und Go-Funktionen
+    CLOSED: [2017-11-25 Sa 15:14]
 **** [2017-11-15 Mi 19:05]
      Es dämmert mir langsam, dass es ein Fehler war, alle "intrinsics"
      als special form zu implementieren. Auf der einen Seite macht das
@@ -157,6 +165,11 @@
      ...
      Die ganzen Funktionen umzuschreiben wird natürlich ein gewaltiger
      Aufwand sein... ;-/
+**** [2017-11-25 Sa 15:14]
+     Ich bin so halbwegs damit fertig, und im Rückblick war das eine
+     gute Idee, weil ich so das Verabeiten der Argumente aus der
+     Lisp-Liste von den eigentlichen Funktionen trennen konnte und damit
+     eine Menge duplizierten Code entsorgen konnte.
 *** DONE Keyword-Argumente
     CLOSED: [2017-11-15 Mi 19:04]
 **** [2017-11-14 Di 19:06]
@@ -186,12 +199,24 @@
      Ich sollte vielleicht einen neuen Typen Go-Function oder so
      hinzufügen, damit ich das besser trennen kann.
 *** TODO [#A] Makros
+    Ich habe gerade angefangen, an den zugrundeliegenden Features für
+    Makros zu arbeiten, und mir geht gerade so durch den Kopf - warum
+    muss ich Makros 1:1 wie in Common Lisp umsetzen?
+    Gibt es nicht einen einfacheren Weg? Einen, der sowohl leichter zu
+    implementieren ist als auch eleganter für den Lisp-Programmierer?
+    Oder ist vielleicht gocc nicht die perfekte Lösung?
+    Wenn ich mir die pyparsing-Bibliothek anschaue, die ich damals für
+    Python verwendet habe, ist die um Welten bequemer als gocc.
+    Looky there: https://github.com/prataprc/goparsec - Parser
+    Combinator for Go.
+    Mmmh, ist mir das die Mühe wert?
 *** DONE [#A] Zahlen
     CLOSED: [2017-11-03 Fr 18:45]
     Ich will gern bignum-Support und Support für Floating Point,
     eventuell, wenn es nicht zu haarig ist, auch Support für rationale
     und vielleicht für komplexe Zahlen.
-*** IMPLEMENT [#B] I/O
+*** DONE [#B] I/O
+    CLOSED: [2017-11-25 Sa 15:16]
     Ist auf Dauer blöd, wenn das nicht geht.
 **** [2017-11-07 Di 21:15]
      Okay, allmählich habe ich die Grundlagen so weit, dass ich I/O
@@ -201,11 +226,16 @@
      einschlagen, und Reader und Writer haben, bei denen erstmal keine
      Rolle spielt, ob das Dateien, Netzwerkverbindungen, oder was auch
      immer sind.
+**** [2017-11-25 Sa 15:16]
+     Das ist noch recht rudimentär, aber grundsätzlich geht I/O. Das
+     ist auch haarig und lästig genug, dass ich erstmal froh bin, das
+     vom Hals zu haben.
 *** TODO [#C] Datenstrukturen und Collections
 **** [2017-11-07 Di 21:16]
      Arrays und Hashtables habe ich inzwischen umgesetzt, structs aber
      noch nicht.
-*** IMPLEMENT Schleifen
+*** DONE Schleifen
+    CLOSED: [2017-11-25 Sa 15:17]
     Ich will gern richtige Iteration haben, weil ich keine Lust habe
     mich zu informieren, wie ich Endrekursion weg optimiere.
     Ich hätte gern eine Art foreach-Konstrukt, will aber, dass das
@@ -236,6 +266,10 @@
      Benchmarks zu schreiben?
      Aber Moment! Mir fehlt noch etwas Wichtiges, nämlich I/O! Das
      könnte auch ein bisschen knifflig werden... 
+**** [2017-11-25 Sa 15:17]
+     Ich habe jetzt eine DO-Schleife nach dem Vorbild aus Common Lisp,
+     und eine WHILE-Schleife, ich denke, damit bin ich erstmal gut
+     ausgestattet. 
 *** TODO Testen
     Das schöne an einem Interpreter für eine Programmiersprache, ist
     dass es relativ gesehen /sehr/ einfach ist, alle möglichen Aspekte
