@@ -1,4 +1,4 @@
-/* Time-stamp: <2017-12-02 22:10:35 krylon>
+/* Time-stamp: <2017-12-07 18:18:03 krylon>
  * Lexical elements
  *
  * Mittwoch, 06. 09. 2017, 13:49
@@ -26,7 +26,11 @@
  * the second pass actually interprets the code.
  * So I could do all of the macro-syntax handling in the first pass.
  * In that case, I could make the parser a lot simpler. Which would help if I
- * were to replace my current parser with goparsec. 
+ * were to replace my current parser with goparsec.
+ *
+ * Donnerstag, 07. 12. 2017, 17:56
+ * Even with less of the macro processing itself left out of the grammar,
+ * it does not really work. My very simple first test case fails.
  */
 
 _digit : '0'-'9' ;
@@ -68,8 +72,6 @@ hash : '#';
 _letter : 'a'-'z' | 'A'-'Z' | 'ä' | 'ö' | 'ü' | 'Ä' | 'Ö' | 'Ü' | 'ß' ;
 
 _symbolchar : _letter | ':' | '_' | '-' | '+' | '-' | '*' | '%' | '!' | '?' | '/' | '$' | '=' | '~' | '<' | '>' | '&' ;
-
-/* _symchar_or_digit: _symbolchar | _digit; */
 
 symbol : _symbolchar {_symbolchar} ;
 
@@ -134,6 +136,7 @@ Expression
                                                         Length: 2,
                                                    }, nil
                                                 >>
+        | BackquoteExpression << $0.(value.LispValue), nil >>
         ;
 
 Atom
@@ -192,27 +195,7 @@ BackquoteExpression
         /* It's a little tedious, but strictly speaking, one could start an
          * expression with a backquote and then follow up with a regular expression.
          */
-         : backQuote Expression << &value.List{
-                                        Car: &value.ConsCell{
-                                             Car: value.Symbol("BACKQUOTE"),
-                                             Cdr: &value.ConsCell{
-                                                  Car: $1.(value.LispValue),
-                                                  Cdr: nil,
-                                             },
-                                        },
-                                        Length: 2,
-                                   }, nil >>
-         | backQuote Atom << &value.List{
-                                Car: &value.ConsCell{
-                                     Car: value.Symbol("BACKQUOTE"),
-                                     Cdr: &value.ConsCell{
-                                          Car: $1.(value.LispValue),
-                                          Cdr: nil,
-                                     },
-                                },
-                                Length: 2,
-                              }, nil >>
-         | backQuote MacroExpression << &value.List{
+         : backQuote BackquoteBody << &value.List{
                                                 Car: &value.ConsCell{
                                                      Car: value.Symbol("BACKQUOTE"),
                                                      Cdr: &value.ConsCell{
@@ -224,15 +207,13 @@ BackquoteExpression
                                          }, nil >>
          ;
 
-MacroExpression
-        : MacroAtom
-        | MacroList
-        | Atom
-        | List
+BackquoteBody
+        : MacroAtom << $0.(value.LispValue), nil >>
+        | MacroList << $0.(value.LispValue), nil >>
         ;
 
 MacroAtom
-        : _comma Atom << &value.List{ 
+        : comma Atom << &value.List{ 
                                       Car: &value.ConsCell{ 
                                            Car: value.Symbol("COMMA"),
                                            Cdr: &value.ConsCell{ 
@@ -242,11 +223,7 @@ MacroAtom
                                       Length: 2,
                                     
                          }, nil >>
-        | Atom << $0.(value.LispValue), nil >>
-       ;
-
-MacroList
-        : comma atSign Atom << &value.List{
+        | comma atSign Atom << &value.List{
                                 Car: &value.ConsCell{
                                      Car: value.Symbol("COMMA-AT"),
                                      Cdr: &value.ConsCell{
@@ -255,7 +232,11 @@ MacroList
                                 },
                                 Length: 2,
                            }, nil >>
-        | comma atSign lparen MacroListBody rparen << &value.List{
+        | Atom << $0.(value.LispValue), nil >>
+       ;
+
+MacroList
+        : comma atSign lparen MacroListBody rparen << &value.List{
                                                         Car: &value.ConsCell{
                                                              Car: value.Symbol("COMMA-AT"),
                                                              Cdr: &value.ConsCell{
@@ -273,11 +254,14 @@ MacroList
                                         },
                                         Length: 2,
                                     }, nil >>
+        | lparen MacroListBody rparen << $1.(*value.List), nil >>
         ;
 
 MacroListBody
-        : MacroExpression << &value.ConsCell{ Car: $1.(value.LispValue), Cdr: nil }, nil >>
-        | MacroExpression MacroListBody << &value.ConsCell{ 
+        : BackquoteBody MacroListBody << &value.ConsCell{ 
+                                                       Car: $0.(value.LispValue), 
+                                                       Cdr: $1.(*value.ConsCell), }, nil >>
+        | Expression MacroListBody << &value.ConsCell{ 
                                                        Car: $0.(value.LispValue), 
                                                        Cdr: $1.(*value.ConsCell), }, nil >>
         ;

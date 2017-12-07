@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-02 21:50:28 krylon>
+// Time-stamp: <2017-12-06 19:02:21 krylon>
 
 package ast
 
