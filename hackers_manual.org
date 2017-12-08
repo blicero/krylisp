@@ -1,0 +1,76 @@
+# Time-stamp: <2017-12-08 19:21:36 krylon>
+#+TITLE: KryLisp Hacker's Manual
+#+AUTHOR: Benjamin Walkenhorst
+#+EMAIL: walkenhorst.benjamin@gmail.com
+#+TAGS: Interpreter Parser Makros Test Types
+
+* KryLisp Hacker's Manual
+  KryLisp is a dialect of the Lisp family of programming languages.
+  It takes some inspiration from Common Lisp and from Scheme, but it
+  is neither. However, if you know either of those, you should feel
+  reasonably familiar.
+
+  This document is meant for people looking into - or trying to
+  modify - the KryLisp interpreter itself.
+  If you just want to write code in KryLisp, look that KryLisp User's
+  Manual.
+
+** General Questions
+*** What's up with the name? Ew!
+    Since time immemorial, my nickname, login, ... has been Krylon.
+    I do not remember, where it came from, or why.
+    But in light of this little detail, and the fact that I am not
+    good at naming things, I hope you can forgive me. ;-)
+
+    That being said, if you have a suggestion, drope me a line, and I
+    will take it into consideration.
+*** So, what gave you the idea that the world needed _ANOTHER_ Lisp dialect?
+    KryLisp grew out of a prolonged period of time I spent without
+    regular Internet access. I wanted some toy programming project I
+    could pursue without Internet - or any kind of network - access.
+*** So, can you give me the 30,000 ft. view?
+    Okay, so, kryLisp does not try to be overly clever.
+    Right now (December 2017), it is a simple tree-walking
+    interpreter.
+    Strictly speaking, there is one additional pass between the Parser
+    and the Interpreter that does macro expansion and /might/ do some
+    simple optimizations eventually. 
+*** What language is the interpreter written in? And why?
+    [[https://www.golang.org][Go]]. That was not the choice of some deep thought process. Go
+    merely happened to be my language of choice for toy projects at
+    the time.
+    Go does offer a few qualities, though, that make it a good choice
+    in my eyes:
+    - Garbage Collection
+      Lisp has used garbage collection from the very beginning. So did
+      Go. Using a host language with builtin GC means I do not have to
+      care about that. Also, Go's GC is tuned for low latency, so I
+      consider it a good fit.
+*** How fast is it?
+    Not very, I suspect.
+    To be honest, I have not done any kind of systematic performance
+    measurements at this time.
+**** Why did you not write a bytecode compiler / VM?
+     In order to keep it simple.
+     I am not opposed to looking into this. But I have never written
+     anything you could call a compiler before, and I just made one
+     shot at a bytecode VM, and it probably sucked. Hard.
+** The Parser
+   Currently, KryLisp's parser is generated using [[https://github.com/goccmack/gocc][GoCC]]. I am not
+   opposed to other approaches, but so far, it has worked well enough
+   for me that I have not seen a pressing need to switch.
+   Maybe, something like [[https://github.com/prataprc/goparsec][Go Parsec]] could be a worthwile alternative,
+   but like I said - so far, I have had little trouble with GoCC, so I
+   do not see a good reason to make the effort.
+** TODO Macro Expansion
+** The Interpreter
+   The interpreter is about as simple as you'd expect. It walks the
+   tree, recursively, and evaluates all the nodes.
+   While my initial goal was to create a minimal interpreter in the
+   host language ([[https://www.golang.org][Go]]), I quickly gave up on that goal. 
+   Besides the special forms required for implementing any kind of
+   Lisp, kryLisp has the concept of a native function, which is used
+   to implement functions directly in Go, either for performance
+   reasons, or because they would be impossible to implement in pure
+   Go. 
+   

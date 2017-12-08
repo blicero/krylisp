@@ -1,5 +1,5 @@
 # -*- mode: org; coding: utf-8; -*-
-# Time-stamp: <2017-11-29 16:26:43 krylon>
+# Time-stamp: <2017-12-08 18:34:59 krylon>
 
 
 * kryLisp
@@ -210,6 +210,16 @@
     Looky there: https://github.com/prataprc/goparsec - Parser
     Combinator for Go.
     Mmmh, ist mir das die Mühe wert?
+**** [2017-12-08 Fr 18:32]
+     Ich habe soeben die Änderungen an der Grammatik abgeschlossen,
+     von denen ich /GLAUBE/, dass sie für Makros a la Common Lisp
+     erforderlich sind.
+     Mein Plan ist, den Parser nicht mehr zu involvieren als nötig,
+     und dann vor dem Interpreter einen separaten Schritt einzufügen,
+     der sich um die Makro-Expansion kümmert.
+     Wenn ich das geschickt umsetze, kann ich das auch vom Interpreter
+     selbst als MACROEXPAND verfügbar machen. Aber eins nach dem
+     Anderen. 
 *** DONE [#A] Zahlen
     CLOSED: [2017-11-03 Fr 18:45]
     Ich will gern bignum-Support und Support für Floating Point,
