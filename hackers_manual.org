@@ -1,4 +1,4 @@
-# Time-stamp: <2017-12-08 19:21:36 krylon>
+# Time-stamp: <2017-12-08 19:34:40 krylon>
 #+TITLE: KryLisp Hacker's Manual
 #+AUTHOR: Benjamin Walkenhorst
 #+EMAIL: walkenhorst.benjamin@gmail.com
@@ -55,6 +55,22 @@
      I am not opposed to looking into this. But I have never written
      anything you could call a compiler before, and I just made one
      shot at a bytecode VM, and it probably sucked. Hard.
+*** What operating systems does it run on?
+    kryLisp is written in Go, and it currently does not use any
+    third-party libraries written in C.
+    So it should run on any platform supported by Go (1.9+). In
+    particular, I expect it to run on Windows, too, but I have not
+    tested that, and I do not intend to.
+    If you get kryLisp to build and run on any platform not mentioned
+    here, drop me a line, I will happily add it to the list.
+    My main development platform is Linux on amd64, in addition I
+    regular run all the tests on the following platforms. It might run
+    on other platforms, too, but I have not tested that.
+    - FreeBSD on amd64
+    - OpenBSD on amd64
+    - OpenBSD on i386
+    - Linux on arm (Raspberry Pi 3)
+    - Linux on i386
 ** The Parser
    Currently, KryLisp's parser is generated using [[https://github.com/goccmack/gocc][GoCC]]. I am not
    opposed to other approaches, but so far, it has worked well enough
@@ -63,6 +79,10 @@
    but like I said - so far, I have had little trouble with GoCC, so I
    do not see a good reason to make the effort.
 ** TODO Macro Expansion
+   At this time (December 8th, 2017), Macros are at a *very*
+   preliminary stage. I intend to build macros as similar as possible
+   to Common Lisp macros, because that is the implementation I am most
+   familiar with.
 ** The Interpreter
    The interpreter is about as simple as you'd expect. It walks the
    tree, recursively, and evaluates all the nodes.
