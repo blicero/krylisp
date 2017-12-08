@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-06 19:02:21 krylon>
+// Time-stamp: <2017-12-08 18:22:21 krylon>
 
 package ast
 
@@ -429,26 +429,34 @@ func TestBackquote(t *testing.T) {
 			input: "`(+ 1 2 ,b)",
 			expectedResult: &value.List{
 				Car: &value.ConsCell{
-					Car: value.Symbol("+"),
+					Car: value.Symbol("BACKQUOTE"),
 					Cdr: &value.ConsCell{
-						Car: value.IntValue(1),
-						Cdr: &value.ConsCell{
-							Car: value.IntValue(2),
-							Cdr: &value.ConsCell{
-								Car: &value.List{
-									Car: &value.ConsCell{
-										Car: value.Symbol("COMMA"),
+						Car: &value.List{
+							Car: &value.ConsCell{
+								Car: value.Symbol("+"),
+								Cdr: &value.ConsCell{
+									Car: value.IntValue(1),
+									Cdr: &value.ConsCell{
+										Car: value.IntValue(2),
 										Cdr: &value.ConsCell{
-											Car: value.Symbol("B"),
+											Car: &value.List{
+												Length: 2,
+												Car: &value.ConsCell{
+													Car: value.Symbol("COMMA"),
+													Cdr: &value.ConsCell{
+														Car: value.Symbol("B"),
+													},
+												},
+											},
 										},
 									},
-									Length: 2,
 								},
 							},
+							Length: 4,
 						},
 					},
 				},
-				Length: 4,
+				Length: 2,
 			},
 		},
 	}
@@ -461,7 +469,7 @@ func TestBackquote(t *testing.T) {
 			ok   bool
 			p    = parser.NewParser()
 			l    = lexer.NewLexer([]byte(test.input))
-			ht   value.Hashtable
+			val  value.LispValue
 		)
 
 		if tree, err = p.Parse(l); err != nil {
@@ -477,12 +485,13 @@ func TestBackquote(t *testing.T) {
 		} else if len(prog) != 1 {
 			t.Errorf("Parsed program has unexpected length: %d (expected 1)",
 				len(prog))
-		} else if ht, ok = prog[0].(value.Hashtable); !ok {
-			t.Errorf("Parsed value shoud be a Hashtable, not a %T",
-				prog[0])
-		} else if !test.expectedResult.Equal(ht) {
-			t.Errorf("Parsed hashtable is not what we expected: %s (expected %s)",
-				ht.String(),
+		} else if val, ok = prog[0].(*value.List); !ok {
+			t.Errorf("Parsed value shoud be a List, not a %T\n\t%s",
+				prog[0],
+				spew.Sdump(prog[0]))
+		} else if !test.expectedResult.Equal(val) {
+			t.Errorf("Parsed macro-expression is not what we expected: %s (expected %s)",
+				val.String(),
 				test.expectedResult.String())
 		}
 	}
