@@ -1,0 +1,132 @@
+# Time-stamp: <2017-12-09 18:51:16 krylon>
+#+TITLE: KryLisp User's Manual
+#+AUTHOR: Benjamin Walkenhorst
+#+EMAIL: walkenhorst.benjamin@gmail.com
+#+TAGS: Interpreter Parser Makros Test Types
+
+* KryLisp User's Manual
+  KryLisp is a dialect of the Lisp family of programming languages. It
+  takes inspiration from both Common Lisp and Scheme, but is neither,
+  and it does not really try to be.
+
+  This document is meant for people who want to write code in
+  KryLisp. If you want to look at or modify the KryLisp interpreter
+  itself, look at the KryLisp Hacker's Manual.
+
+** General Questions
+*** What's up with the name? Ew!
+    Since time immemorial, my nickname, login, ... has been Krylon.
+    I do not remember, where it came from, or why.
+    But in light of this little detail, and the fact that I am not
+    good at naming things, I hope you can forgive me. ;-)
+
+    That being said, if you have a suggestion, drope me a line, and I
+    will take it into consideration.
+*** So, what gave you the idea that the world needed _ANOTHER_ Lisp dialect?
+    KryLisp grew out of a prolonged period of time I spent without
+    regular Internet access. I wanted some toy programming project I
+    could pursue without Internet - or any kind of network - access.
+*** So, can you give me the 30,000 ft. view?
+    Okay, so, kryLisp does not try to be overly clever.
+    Right now (December 2017), it is a simple tree-walking
+    interpreter.
+    Strictly speaking, there is one additional pass between the Parser
+    and the Interpreter that does macro expansion and /might/ do some
+    simple optimizations eventually. 
+*** What language is the interpreter written in? And why?
+    [[https://www.golang.org][Go]]. That was not the choice of some deep thought process. Go
+    merely happened to be my language of choice for toy projects at
+    the time.
+    Go does offer a few qualities, though, that make it a good choice
+    in my eyes:
+    - Garbage Collection
+      Lisp has used garbage collection from the very beginning. So did
+      Go. Using a host language with builtin GC means I do not have to
+      care about that. Also, Go's GC is tuned for low latency, so I
+      consider it a good fit.
+*** How fast is it?
+    Not very, I suspect.
+    To be honest, I have not done any kind of systematic performance
+    measurements at this time.
+**** Why did you not write a bytecode compiler / VM?
+     In order to keep it simple.
+     I am not opposed to looking into this. But I have never written
+     anything you could call a compiler before, and I just made one
+     shot at a bytecode VM, and it probably sucked. Hard.
+*** What operating systems does it run on?
+    kryLisp is written in Go, and it currently does not use any
+    third-party libraries written in C.
+    So it should run on any platform supported by Go (1.9+). In
+    particular, I expect it to run on Windows, too, but I have not
+    tested that, and I do not intend to.
+    If you get kryLisp to build and run on any platform not mentioned
+    here, drop me a line, I will happily add it to the list.
+    My main development platform is Linux on amd64, in addition I
+    regular run all the tests on the following platforms. It might run
+    on other platforms, too, but I have not tested that.
+    - FreeBSD on amd64
+    - OpenBSD on amd64
+    - OpenBSD on i386
+    - Linux on arm (Raspberry Pi 3)
+    - Linux on i386
+** Features
+   So what does kryLisp bring to the table? Initially, I wanted to
+   build a minimal Lisp dialect and interpreter, but I quickly fell
+   into the trap of wanting to build a language that could - at least
+   potentially - be used to write actual real-world programs.
+   The problem with Scheme and Common Lisp is that Scheme is so
+   minimalistic that in order to do anything useful with it, you need
+   to rely on implentation-specific features.
+   The problem with Common Lisp is that it is so old and has not been
+   substantially updated in a long time that is just lacks many
+   features needed to write real-world code these days,
+   e.g. networking, or database access. Again, you need to rely on
+   implementation specific features or third-party libraries to get
+   essential features.
+
+   Keep in mind, that at this time (December 2017), KryLisp is very
+   much a work in progress. I intend to add a lot more features, but
+   so far, this has been a one-person project I work on in my free
+   time.
+
+   So without further ado, here is list of things KryLisp supports
+   right now. Keep in mind that the KryLisp interpreter is written in
+   Go, and in many cases adding a "feature" simply meant exposing a
+   language feature or library from Go to the Lisp interpreter.
+*** What's there
+**** Data types
+***** Regular expressions
+***** Bignum support
+      "small" values are represented as signed 64 bit integers, but all
+      integer operations are checked for overflow, and if so, the result
+      is computed and returned as a bignum.
+      Likewise, if the result of a bignum operation fits inside a signed
+      64 bit integer, it is returned as a native 64 bit integer.
+***** Arrays
+***** Hash tables
+      These are implemented as Go maps.
+***** Floating point numbers
+      Double precision floating point numbers, nothing exciting.
+**** Macros
+     Macros are built to resemble Common Lisp macros, mainly because I
+     am familiar with those.
+     At this time (December 2017), macro support is in its very
+     infancy and not at all usable.
+**** Keyword arguments to functions
+*** TODO Planned features
+    The following features are on my mid-term todo-list. I make no
+    promises whatsoever, but I do intend to add them eventually.
+    If you want to help, I'd be more than happy to accept patches. See
+    the KryLisp Hacker's Manual.
+**** Modules
+     A real module system would be nice. 
+**** More numeric types
+     I would like to add complex numbers and rational numbers.
+     Neither should be much work, but at this time I don't really
+     /need/ them, either, so they are not a very high priority.
+**** Data Structures
+**** OOP?
+     Maybe I would consider adding support for object-oriented
+     programming one day.
+     Again, this is not a high priority target. But it would be
+     interesting. 

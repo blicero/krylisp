@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 18:06:57 krylon>
+// Time-stamp: <2017-12-08 20:40:46 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -865,6 +865,9 @@ func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 // into the newly created GoFunctions, so they will behave more like functions
 // from the Lisp point of view. I think the arithmnetic functions are
 // predestined to be the starting point for this.
+//
+// Freitag, 08. 12. 2017, 19:51
+// Sooner or later, I probably should clean up the arithmetic part a bit.
 
 func (inter *Interpreter) evalPlus(arg *value.Arguments) (value.LispValue, error) {
 	if inter.debug {

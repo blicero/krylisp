@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 16:19:02 krylon>
+// Time-stamp: <2017-12-09 18:01:16 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -2073,3 +2073,54 @@ func (e *Error) Convert(id types.ID) (LispValue, error) {
 		}
 	}
 } // func (e *Error) Convert(id types.ID) (LispValue, error)
+
+///////////////////////////////////////////////////////////////////////
+// Macros /////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+// Macro represents a Lisp macro
+type Macro struct {
+	Name string
+	Args *List
+	Body *List
+}
+
+// String returns a string representation of the Lisp value.
+func (m *Macro) String() string {
+	return fmt.Sprintf("MACRO %s", m.Name)
+} // func (m *Macro) String() string
+
+// Type returns the type ID of the value, in this case types.Macro
+func (m *Macro) Type() types.ID {
+	return types.Macro
+} // func (m *Macro) Type() types.ID
+
+// Bool returns the "truthiness" of a Lisp value.
+func (m *Macro) Bool() bool {
+	return true
+} // func (m *Macro) Bool() bool
+
+// Eq compares two Lisp values for equality.
+func (m *Macro) Eq(other LispValue) bool {
+	if other == nil || other.Type() != types.Macro {
+		return false
+	}
+
+	return other.(*Macro).Name == m.Name
+} // func (m *Macro) Eq() bool
+
+// Equal compares two Lisp values for equality.
+func (m *Macro) Equal(other LispValue) bool {
+	return m.Eq(other)
+} // func (m *Macro) Equal(other LispValue) bool
+
+// Convert attempts to convert the receiver to a LispValue of the given type.
+func (m *Macro) Convert(id types.ID) (LispValue, error) {
+	if id == types.Macro {
+		return m, nil
+	} else if id == types.Nil {
+		return NIL, nil
+	}
+
+	return NIL, &TypeConversionError{types.Macro, id}
+} // func (m *Macro) Convert(id types.ID) (LispValue, error)
