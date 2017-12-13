@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 17:35:20 krylon>
+// Time-stamp: <2017-12-13 18:46:35 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -112,7 +112,7 @@ func TestPlus(t *testing.T) {
 		},
 	}
 
-	interp := freshInterpreter()
+	interp := freshInterpreter(false)
 
 	for _, test := range testCases {
 
@@ -247,9 +247,9 @@ func TestMinus(t *testing.T) {
 	}
 
 	var interp = &Interpreter{
-		debug:  false,
-		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
+		debug: false,
+		env:   value.NewEnvironment(nil),
+		//fnEnv:  value.NewEnvironment(nil),
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
@@ -364,7 +364,7 @@ func TestMultiply(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for idx, test := range testCases {
 		var err error
@@ -507,7 +507,7 @@ func TestDivide(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for idx, test := range testCases {
 		var err error
@@ -582,7 +582,7 @@ func TestIf(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for idx, test := range testCases {
 		var err error
@@ -660,10 +660,10 @@ func TestLambda(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
-		var fn *value.Function
+		var fn value.Function
 		var err error
 
 		if fn, err = interp.evalLambda(test.lambda); err != nil {
@@ -743,7 +743,7 @@ func TestDefun(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for idx, test := range testCases {
 		fmt.Printf("Running DEFUN-test #%d\n",
@@ -754,7 +754,7 @@ func TestDefun(t *testing.T) {
 		var ok bool
 		var pars = parser.NewParser()
 		var lex = lexer.NewLexer([]byte(test.source))
-		var fn *value.Function
+		var fn value.Function
 		var fnVal value.LispValue
 
 		if result, err = pars.Parse(lex); err != nil {
@@ -772,14 +772,14 @@ func TestDefun(t *testing.T) {
 		} else if result, err = interp.Eval(prog); err != nil {
 			t.Fatalf("Error evaluating test program: %s",
 				err.Error())
-		} else if fnVal, ok = interp.fnEnv.Get(test.name); !ok {
+		} else if fnVal = interp.env.GetFn(test.name); fnVal == nil {
 			t.Fatalf("Did not find function %s in environment",
 				test.name)
 		} else if fnVal == nil {
 			t.Fatalf("Function %s is nil",
 				test.name)
 		} else {
-			fn = fnVal.(*value.Function)
+			fn = fnVal.(value.Function)
 		}
 
 		fmt.Printf("#%s => %s\n",
@@ -846,7 +846,7 @@ func TestDefunKeyword(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -857,7 +857,7 @@ func TestDefunKeyword(t *testing.T) {
 			l      = lexer.NewLexer([]byte(test.input))
 			err    error
 			val    value.LispValue
-			fn     *value.Function
+			fn     *value.LispFunction
 		)
 
 		if parsed, err = p.Parse(l); err != nil {
@@ -871,7 +871,7 @@ func TestDefunKeyword(t *testing.T) {
 			t.Errorf("Error evaluating test input \"%s\": %s",
 				test.input,
 				err.Error())
-		} else if fn, ok = val.(*value.Function); !ok {
+		} else if fn, ok = val.(*value.LispFunction); !ok {
 			t.Errorf("Type error: Expected a function object, got a %T",
 				val)
 		} else {
@@ -931,7 +931,7 @@ func TestLT(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var tree interface{}
@@ -996,7 +996,7 @@ func TestOverflow(t *testing.T) {
 		},
 	}
 
-	// var interp = freshInterpreter()
+	// var interp = freshInterpreter(false)
 
 	x := 2 * 4
 	fmt.Printf("%d\n", x)
@@ -1066,7 +1066,7 @@ func TestCons(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var p = parser.NewParser()
@@ -1104,18 +1104,21 @@ func TestCons(t *testing.T) {
 
 func TestLet(t *testing.T) {
 	type letTest struct {
-		outerEnv      *value.Environment
+		outerEnv      map[string]value.LispValue
 		input         string
 		expectedType  types.ID
 		expectedValue string
 	}
 
+	// Mittwoch, 13. 12. 2017, 18:28
+	// Yeah, now that functions and macros are carried along as part of
+	// the environment, and now that many things that used to be special
+	// forms are GoFunctions, just creating an environment like this
+	// breaks things.
 	var testCases = []letTest{
 		letTest{
-			outerEnv: &value.Environment{
-				Data: map[string]value.LispValue{
-					"X": value.IntValue(5),
-				},
+			outerEnv: map[string]value.LispValue{
+				"X": value.IntValue(5),
 			},
 			input:         "(let ((x 1)) (+ x x))",
 			expectedType:  types.Integer,
@@ -1123,10 +1126,14 @@ func TestLet(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	var oldEnv = interp.env
 	defer func() { interp.env = oldEnv }()
+
+	var oldDebug = interp.debug
+	interp.debug = true
+	defer func() { interp.debug = oldDebug }()
 
 	for _, test := range testCases {
 		var p = parser.NewParser()
@@ -1138,7 +1145,7 @@ func TestLet(t *testing.T) {
 		var resstr string
 		var err error
 
-		interp.env = test.outerEnv
+		interp.env.Data = test.outerEnv
 
 		if parsed, err = p.Parse(l); err != nil {
 			t.Errorf("Error parsing %s: %s",
@@ -1148,6 +1155,7 @@ func TestLet(t *testing.T) {
 			t.Errorf("Parser returned unexpected type: %T (expected value.Program)",
 				parsed)
 		} else if res, err = interp.evalLet(prog[0].(*value.List)); err != nil {
+			interp.env.Dump(os.Stdout)
 			t.Errorf("Error evaluating let-form %s: %s",
 				test.input,
 				err.Error())
@@ -1186,7 +1194,7 @@ func TestNot(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1242,7 +1250,7 @@ func TestAnd(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1310,7 +1318,7 @@ func TestOr(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1370,7 +1378,7 @@ func TestDefine(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1456,7 +1464,7 @@ func TestSet(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(true)
 
 	for _, test := range testCases {
 		var parsed interface{}
@@ -1513,7 +1521,7 @@ func TestPrint(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	var oldOut = interp.stdout
 	defer func() { interp.stdout = oldOut }()
@@ -1583,7 +1591,7 @@ func TestApply(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	var oldOut = interp.stdout
 	defer func() { interp.stdout = oldOut }()
@@ -1646,7 +1654,7 @@ func TestList(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -1703,7 +1711,7 @@ func TestMakeArray(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -1765,7 +1773,7 @@ func TestAPush(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -1831,7 +1839,7 @@ func TestARef(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -1893,7 +1901,7 @@ func TestHashCreate(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -1968,7 +1976,7 @@ func TestHashLookup(t *testing.T) {
 			val    value.LispValue
 			p      = parser.NewParser()
 			l      = lexer.NewLexer([]byte(test.input))
-			interp = freshInterpreter()
+			interp = freshInterpreter(false)
 		)
 
 		if parsed, err = p.Parse(l); err != nil {
@@ -2013,7 +2021,7 @@ func TestHashSet(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2084,7 +2092,7 @@ func TestHashDelete(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2150,7 +2158,7 @@ func TestRegexpCompile(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2245,7 +2253,7 @@ func TestRegexpMatch(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2311,7 +2319,7 @@ func TestDoLoop(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	interp._initNativeFunctions()
 
@@ -2373,7 +2381,7 @@ func TestLength(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2439,7 +2447,7 @@ func TestConcatList(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2503,7 +2511,7 @@ func TestConcatArray(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2551,7 +2559,7 @@ func TestConcatString(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2603,7 +2611,7 @@ func TestGetenv(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2655,7 +2663,7 @@ func TestSetEnv(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2708,7 +2716,7 @@ func TestKeywordArgs(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	var oldDebug = interp.debug
 	interp.debug = true
@@ -2764,7 +2772,7 @@ func TestReadFromString(t *testing.T) {
 		},
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	for _, test := range testCases {
 		var (
@@ -2801,11 +2809,10 @@ func parseBigInt(s string) *value.BigInt {
 	}
 } // func parseBigInt(s string) *BigInt
 
-func freshInterpreter() *Interpreter {
+func freshInterpreter(dbg bool) *Interpreter {
 	var inter = &Interpreter{
-		debug:  false,
+		debug:  dbg,
 		env:    value.NewEnvironment(nil),
-		fnEnv:  value.NewEnvironment(nil),
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,

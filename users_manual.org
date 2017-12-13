@@ -1,4 +1,4 @@
-# Time-stamp: <2017-12-09 18:51:16 krylon>
+# Time-stamp: <2017-12-09 20:41:57 krylon>
 #+TITLE: KryLisp User's Manual
 #+AUTHOR: Benjamin Walkenhorst
 #+EMAIL: walkenhorst.benjamin@gmail.com
@@ -119,7 +119,8 @@
     If you want to help, I'd be more than happy to accept patches. See
     the KryLisp Hacker's Manual.
 **** Modules
-     A real module system would be nice. 
+     A real module system would be nice.
+     In fact, a standard library would be nice.
 **** More numeric types
      I would like to add complex numbers and rational numbers.
      Neither should be much work, but at this time I don't really

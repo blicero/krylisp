@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-09 18:01:16 krylon>
+// Time-stamp: <2017-12-13 16:43:46 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -24,6 +24,10 @@
 // the LispValue interface. Now that I have that, I think I could make
 // Eq stricter. Right now, Eq checks for structural equality on most
 // types.
+//
+// Dienstag, 12. 12. 2017, 20:11
+// TODO Now that I think of it, converting any kind of LispValue to String
+//      should invoke the String method. Duh.
 
 package value
 
@@ -1101,11 +1105,18 @@ func (l *List) Convert(id types.ID) (LispValue, error) {
 // Function ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-// Function represents a Lisp function.
+// Function is the common interface for functions, for places where we
+// do not care if a given function is a LispFunction or a GoFunction.
+type Function interface {
+	LispValue
+	IsNative() bool
+}
+
+// LispFunction represents a Lisp function.
 // Technically, one could implement functions purely in terms of lists,
 // but for efficiency reasons - and functions are used a *lot* in Lisp,
 // obviously - they get their own type.
-type Function struct {
+type LispFunction struct {
 	Env         *Environment
 	Args        []Symbol
 	Keywordargs map[Symbol]LispValue
@@ -1114,12 +1125,12 @@ type Function struct {
 }
 
 // Type returns the type ID of the value, in this case types.Function
-func (f *Function) Type() types.ID {
+func (f *LispFunction) Type() types.ID {
 	return types.Function
-} // func (f *Function) Type() types.ID
+} // func (f *LispFunction) Type() types.ID
 
 // String returns a string representation of the Lisp value.
-func (f *Function) String() string {
+func (f *LispFunction) String() string {
 	var out bytes.Buffer
 	var argCnt = len(f.Args)
 
@@ -1139,34 +1150,34 @@ func (f *Function) String() string {
 
 	out.WriteString(")")
 	return out.String()
-} // func (f *Function) String() string
+} // func (f *LispFunction) String() string
 
 // Bool returns the "truthiness" of a Lisp value.
-func (f *Function) Bool() bool {
+func (f *LispFunction) Bool() bool {
 	return true
-} // func (f *Function) Bool() bool
+} // func (f *LispFunction) Bool() bool
 
 // Eq compares the receiver with the argument for identity.
-func (f *Function) Eq(other LispValue) bool {
+func (f *LispFunction) Eq(other LispValue) bool {
 	if other == nil {
 		return false
-	} else if v, ok := other.(*Function); ok && v == f {
+	} else if v, ok := other.(Function); ok && v == f {
 		return true
 	}
 
 	return false
-} // func (f *Function) Eq(other LispValue) bool
+} // func (f *LispFunction) Eq(other LispValue) bool
 
 // Equal compares two Lisp values for equality.
-func (f *Function) Equal(other LispValue) bool {
+func (f *LispFunction) Equal(other LispValue) bool {
 	return f.Eq(other)
-} // func (f *Function) Equal(other LispValue) bool
+} // func (f *LispFunction) Equal(other LispValue) bool
 
 // Convert attempts to convert the receiver to a LispValue of the given type.
 // Converting a value to its own type always returns the receiver.
 // Converting a value to types.String may invoke the type's String method to
 // perform the conversion.
-func (f *Function) Convert(id types.ID) (LispValue, error) {
+func (f *LispFunction) Convert(id types.ID) (LispValue, error) {
 	if id == types.Function {
 		return f, nil
 	} else if id == types.String {
@@ -1174,13 +1185,13 @@ func (f *Function) Convert(id types.ID) (LispValue, error) {
 	}
 
 	return NIL, &TypeConversionError{types.Function, id}
-} // func (f *Function) Convert(id types.ID) (LispValue, error)
+} // func (f *LispFunction) Convert(id types.ID) (LispValue, error)
 
 // ArglistString returns a string representation of the complete argument list
 // of the function, including keyword arguments and optional arguments.
 // This is mainly meant for debugging, but *might* be useful for other
 // purposes, too.
-func (f *Function) ArglistString() string {
+func (f *LispFunction) ArglistString() string {
 	var (
 		argCnt  = len(f.Args) + len(f.Keywordargs)
 		arglist = make([]string, argCnt)
@@ -1200,7 +1211,13 @@ func (f *Function) ArglistString() string {
 	}
 
 	return "(" + strings.Join(arglist, " ") + ")"
-} // func (f *Function) ArglistString() string
+} // func (f *LispFunction) ArglistString() string
+
+// IsNative returns true if the receiver is a native function.
+// I.e. for LispFunctions it always returns false.
+func (f *LispFunction) IsNative() bool {
+	return false
+} // func (f *LispFunction) IsNative() bool
 
 // Program represents a sequence of lisp expressions.
 type Program []LispValue
@@ -2004,6 +2021,12 @@ func (gf *GoFunction) Convert(id types.ID) (LispValue, error) {
 		destination: id,
 	}
 } // func (gf *GoFunction) Convert(id types.ID) (LispValue, error)
+
+// IsNative returns true if the receiver is a native function.
+// I.e. for GoFunctions it always returns true.
+func (gf *GoFunction) IsNative() bool {
+	return true
+} // func (gf *GoFunction) IsNative() bool
 
 ///////////////////////////////////////////////////////////////////////
 // Error //////////////////////////////////////////////////////////////

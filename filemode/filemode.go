@@ -2,8 +2,9 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 11. 11. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-21 20:18:38 krylon>
+// Time-stamp: <2017-12-11 18:52:42 krylon>
 
+// Package filemode implements symbolic constants for file access modes.
 package filemode
 
 //go:generate stringer -type=FileMode

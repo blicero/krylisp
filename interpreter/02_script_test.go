@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-25 17:37:42 krylon>
+// Time-stamp: <2017-12-13 17:31:26 krylon>
 
 package interpreter
 
@@ -30,7 +30,7 @@ func TestRunScript001(t *testing.T) {
 		expectedValue string
 	}
 
-	var interp = freshInterpreter()
+	var interp = freshInterpreter(false)
 
 	interp.stdout = os.Stdout
 	interp.stderr = os.Stderr
@@ -105,7 +105,7 @@ func TestFactorial(t *testing.T) {
 		parseTree interface{}
 		program   value.Program
 		ok        bool
-		interp    = freshInterpreter()
+		interp    = freshInterpreter(false)
 	)
 
 	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
@@ -146,7 +146,7 @@ func TestFactorialBignum(t *testing.T) {
 		parseTree interface{}
 		program   value.Program
 		ok        bool
-		interp    = freshInterpreter()
+		interp    = freshInterpreter(false)
 	)
 
 	// interp.debug = true
@@ -190,7 +190,7 @@ func TestRegexp(t *testing.T) {
 		parseTree interface{}
 		program   value.Program
 		ok        bool
-		interp    = freshInterpreter()
+		interp    = freshInterpreter(false)
 	)
 
 	// interp.debug = true
@@ -227,7 +227,7 @@ func TestEnvVariable(t *testing.T) {
 		parseTree           interface{}
 		program             value.Program
 		ok                  bool
-		interp              = freshInterpreter()
+		interp              = freshInterpreter(false)
 	)
 
 	expectedResult = value.StringValue(os.Getenv("HOME") + "test.file")
@@ -285,7 +285,7 @@ func TestFileIO(t *testing.T) {
 		ok        bool
 		val       value.LispValue
 		check     value.IntValue
-		interp    = freshInterpreter()
+		interp    = freshInterpreter(false)
 	)
 
 	if fh, err = ioutil.TempFile(tmpDir, prefix); err != nil {

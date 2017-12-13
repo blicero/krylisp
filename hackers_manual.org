@@ -1,8 +1,9 @@
-# Time-stamp: <2017-12-09 18:52:14 krylon>
+# Time-stamp: <2017-12-13 17:21:33 krylon>
 #+TITLE: KryLisp Hacker's Manual
 #+AUTHOR: Benjamin Walkenhorst
 #+EMAIL: walkenhorst.benjamin@gmail.com
 #+TAGS: Interpreter Parser Makros Test Types
+#+DRAWERS: DETAILS
 
 * KryLisp Hacker's Manual
   KryLisp is a dialect of the Lisp family of programming languages.
@@ -71,6 +72,20 @@
     - OpenBSD on i386
     - Linux on arm (Raspberry Pi 3)
     - Linux on i386
+*** What dependencies does it have?
+    Few. I use GoCC to generate the parser. And I use some stuff from
+    krylib, a library of small utility functions I have built over time.
+    Beyond that, I try to stick to Go's standard library.
+    :DETAILS: 
+    Currently, the follow additional libraries are used:
+    | Name                             | Purpose                                            |
+    |----------------------------------+----------------------------------------------------|
+    | github.com/hashicorp/logutils    | Logging. It's not used, actually. Might remove it. |
+    | golang.org/x/sys/unix            | ??? Probably comes in via readline                 |
+    | golang.org/x/crypto/ssh/terminal | ??? Probably comes in via readline                 |
+    | github.com/davecgh/go-spew/spew  | Pretty-printing data for debugging                 |
+    | github.com/chzyer/readline       | REPL                                               |
+    :END:      
 ** The Parser
    Currently, KryLisp's parser is generated using [[https://github.com/goccmack/gocc][GoCC]]. I am not
    opposed to other approaches, but so far, it has worked well enough

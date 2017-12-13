@@ -2,8 +2,10 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 11. 11. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-11 02:52:34 krylon>
+// Time-stamp: <2017-12-11 18:52:05 krylon>
 
+// Package common implements common constants and functionality used throughout
+// the entire code base.
 package common
 
 import (

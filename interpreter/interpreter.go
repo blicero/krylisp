@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-08 20:40:46 krylon>
+// Time-stamp: <2017-12-13 19:38:07 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -67,6 +67,10 @@
 // Samstag, 25. 11. 2017, 16:36
 // The next big step is macros, and right now I have no clue whatsoever how to
 // implement them.
+//
+// Montag, 11. 12. 2017, 18:42
+// I have decided to have Environments store data, functions, and macros.
+// So the Interpreter no longer needs two separate environments.
 
 // Package interpreter implements the actual interpreter.
 // The first time 'round, the interpreter is simply going to walk the parse tree
@@ -142,10 +146,10 @@ type Interpreter struct {
 	debug         bool
 	gensymCounter int
 	env           *value.Environment
-	fnEnv         *value.Environment
-	stdout        io.Writer
-	stderr        io.Writer
-	stdin         io.Reader
+	// fnEnv         *value.Environment
+	stdout io.Writer
+	stderr io.Writer
+	stdin  io.Reader
 }
 
 // New returns a fresh, initialized Interpreter instance with an
@@ -155,10 +159,10 @@ func New(debug bool) *Interpreter {
 		debug:         debug,
 		gensymCounter: 1,
 		env:           value.NewEnvironment(nil),
-		fnEnv:         value.NewEnvironment(nil),
-		stdin:         os.Stdin,
-		stdout:        os.Stdout,
-		stderr:        os.Stderr,
+		// fnEnv:         value.NewEnvironment(nil),
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
 
 	inter._initNativeFunctions()
@@ -170,6 +174,10 @@ func New(debug bool) *Interpreter {
 // It would probably be rather difficult and tedious, but in the long run,
 // it could make dealing with native functions A LOT easier.
 func (inter *Interpreter) _initNativeFunctions() {
+	if inter.debug {
+		krylib.Trace()
+	}
+
 	var nativeFunctions = map[string]*value.GoFunction{
 		"+": &value.GoFunction{
 			Fn:   inter.evalPlus,
@@ -302,7 +310,11 @@ func (inter *Interpreter) _initNativeFunctions() {
 	}
 
 	for sym, fn := range nativeFunctions {
-		inter.fnEnv.Ins(sym, fn)
+		inter.env.InsFn(sym, fn)
+	}
+
+	if inter.debug {
+		inter.env.Dump(inter.stdout)
 	}
 } // func (inter *Interpreter) _initNativeFunctions()
 
@@ -448,7 +460,7 @@ func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error) {
 } // func (inter *Interpreter) evalSymbol(s value.Symbol) (value.LispValue, error)
 
 // nolint: gocyclo
-func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
+func (inter *Interpreter) evalLambda(lst *value.List) (*value.LispFunction, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
@@ -475,7 +487,7 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 		keywords bool
 		args     = lst.Car.Cdr.(*value.ConsCell).Car.(*value.List)
 		idx      = 0
-		fn       = &value.Function{
+		fn       = &value.LispFunction{
 			Env:         inter.env,
 			Args:        make([]value.Symbol, args.Length),
 			Keywordargs: make(map[value.Symbol]value.LispValue),
@@ -558,7 +570,7 @@ func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error) {
 	}
 
 	return fn, nil
-} // func (inter *Interpreter) evalLambda(lst *value.List) (*value.Function, error)
+} // func (inter *Interpreter) evalLambda(lst *value.List) (*value.LispFunction, error)
 
 // nolint: gocyclo
 func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) {
@@ -566,14 +578,14 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 		krylib.Trace()
 	}
 
-	var fn *value.Function
+	var fn *value.LispFunction
 	var err error
 
 	if inv == nil || inv.Car == nil {
 		return nil, nil
 	} else if inter.debug {
-		// fmt.Printf("DBG FUNCALL %s\n",
-		// 	spew.Sdump(inv))
+		fmt.Printf("DBG FUNCALL %s\n",
+			spew.Sdump(inv))
 	}
 
 	// Sonntag, 10. 09. 2017, 18:55
@@ -581,12 +593,17 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 	// position. I would like to support that, too.
 	// One day...
 	switch f := inv.Car.Car.(type) {
-	case *value.Function:
+	case *value.LispFunction:
 		fn = f
 	case value.Symbol:
+		if inter.debug {
+			fmt.Printf("DBG FUNCALL => Resolving symbol %s\n",
+				f)
+		}
+
 		if IsSpecial(f) {
 			return inter.evalSpecialForm(inv)
-		} else if v, ok := inter.fnEnv.Get(string(f)); ok {
+		} else if v := inter.env.GetFn(string(f)); v != nil {
 			// Hier muss ich den Code anpassen, dass GoFunction auch
 			// berücksichtigt wird.
 			// Oder ich mache "Function" zu einem Interface, dass
@@ -598,14 +615,14 @@ func (inter *Interpreter) evalFuncall(inv *value.List) (value.LispValue, error) 
 			if gfn, ok := v.(*value.GoFunction); ok {
 				return inter.evalGoFunction(gfn, inv)
 				// return value.NIL, krylib.NotImplemented
-			} else if fn, ok = v.(*value.Function); !ok {
+			} else if fn, ok = v.(*value.LispFunction); !ok {
 				return value.NIL, fmt.Errorf("Function lookup returned a %s",
 					v.Type().String())
 			}
 		} else {
 			if inter.debug {
 				fmt.Printf("No such function: %s\n",
-					spew.Sdump(f))
+					f)
 			}
 			return nil, MissingFunctionError(f)
 		}
@@ -1051,11 +1068,18 @@ func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 	if inter.debug {
 		krylib.Trace()
 	}
+
+	// Mittwoch, 13. 12. 2017, 19:36
+	// Now that I have nested function environments, I realize that may not
+	// be all that smart.
+	// In Common Lisp, DEFUN installs the function into the current package,
+	// regardless of scope.
+
 	// (defun square (x) (* x x))
 	// Nah, that is not sufficient - in Common Lisp, a function can also
 	// have a documentation string.
 	// So I need to check if the third element of the list is a string.
-	var fn *value.Function
+	var fn *value.LispFunction
 	var err error
 	var ok bool
 	var name value.Symbol
@@ -1098,7 +1122,14 @@ func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error) {
 
 	fn.DocString = docstring
 
-	inter.fnEnv.Set(name.String(), fn)
+	//inter.env.SetFn(name.String(), fn)
+	var env = inter.env
+
+	for env.Parent != nil {
+		env = env.Parent
+	}
+
+	env.SetFn(name.String(), fn)
 
 	return name, nil
 } // func (inter *Interpreter) evalDefun(l *value.List) (value.LispValue, error)
@@ -1779,12 +1810,11 @@ func (inter *Interpreter) evalFn(l *value.List) (value.LispValue, error) {
 	switch cadr.Type() {
 	case types.Symbol:
 		sym = cadr.(value.Symbol)
-		var found bool
-		if fn, found = inter.fnEnv.Get(string(sym)); !found {
+		if fn = inter.env.GetFn(string(sym)); fn == nil {
 			return value.NIL, MissingFunctionError(sym)
 		}
 	case types.Function:
-		fn = cadr.(*value.Function)
+		fn = cadr.(value.Function)
 	default:
 		fmt.Printf("FN: Invalid argument %s\n", spew.Sdump(cadr))
 		return value.NIL, &value.TypeError{
