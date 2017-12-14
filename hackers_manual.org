@@ -1,4 +1,4 @@
-# Time-stamp: <2017-12-13 17:21:33 krylon>
+# Time-stamp: <2017-12-14 20:15:44 krylon>
 #+TITLE: KryLisp Hacker's Manual
 #+AUTHOR: Benjamin Walkenhorst
 #+EMAIL: walkenhorst.benjamin@gmail.com
@@ -15,7 +15,24 @@
   modify - the KryLisp interpreter itself.
   If you just want to write code in KryLisp, look at the KryLisp User's
   Manual.
-
+** Preliminary remarks
+   The beauty of Lisp is its simplicity.
+   Somebody once wrote a (minimal) Lisp interpreter in about 200 lines
+   of C code.
+   I your intent is to boil down Lisp to the absolute minimum, it is
+   remarkable how far you can go with that.
+   But there is a downside to that, too. Such a minimal, pure Lisp
+   implementation is practically useless if your goal is to to
+   actually use this language to write real-world programs in it to
+   solve real-world problems.
+   It is a fun and exciting intellectual exercise.
+   But somewhere along the way, I wanted to implement a programming
+   environment one could actually use to solve real-world problems.
+   And that requires two things: Features, lots of them, and
+   acceptable performance.
+   Both goals tend to make things more complicated. So yeah, kryLisp
+   is, at this time (December 2017) already far more complicated than
+   that 200-line interpreter.
 ** General Questions
 *** What's up with the name? Ew!
     Since time immemorial, my nickname, login, ... has been Krylon.
@@ -40,13 +57,31 @@
     [[https://www.golang.org][Go]]. That was not the choice of some deep thought process. Go
     merely happened to be my language of choice for toy projects at
     the time.
-    Go does offer a few qualities, though, that make it a good choice
-    in my eyes:
+    But Go does offer a few qualities that make it a good choice in my
+    eyes:
     - Garbage Collection
       Lisp has used garbage collection from the very beginning. So did
       Go. Using a host language with builtin GC means I do not have to
-      care about that. Also, Go's GC is tuned for low latency, so I
-      consider it a good fit.
+      care about that. 
+    - Memory safety
+      I tried to write a Lisp interpreter twice before. The first one
+      I wrote in Python, and it worked surprisingly well, but - not
+      surprisingly - it was very slow.
+      My next attempt was in C, which would have been significantly
+      faster, had it not crashed so often.
+      So a memory-safe language that is compiled to machine code seems
+      to hit a sweet spot.
+    - Type system
+      Go is a statically and strongly typed language, but it also
+      offers a degree of dynamic typing using interfaces.
+      This has made implementing Lisp types fairly straightforward, as
+      opposed to C, where Lisp data were structs of a type enum and a
+      union to hold the actual value. The C approach is probably more
+      efficient, but it was not pretty.
+    - Performance
+      Code written in Go tends to run slower than code written in C,
+      but it is not /that/ far behind. And compared to languages like
+      Python or Ruby, Go code tends to be pretty fast.
 *** How fast is it?
     Not very, I suspect.
     To be honest, I have not done any kind of systematic performance
@@ -108,4 +143,31 @@
    to implement functions directly in Go, either for performance
    reasons, or because they would be impossible to implement in pure
    Go. 
-   
+** Feature Future
+   Once I started adding features to the language, ideas started
+   popping up in my head like bubbles in carbonated mineral water.
+   There are many things I would like to add to kryLisp in time,
+   although I am not making any promises.
+*** Concurrency
+    Go is all about concurrency. In my youthful naivety, I imagine it
+    should not be too hard to expose that to Lisp.
+*** Optional function parameters
+*** More stuff from Common Lisp
+    PROGN, PROG1, COND, CASE-TYPE(?), and lots more. I really like
+    Common Lisp, but I've got the impression the language has
+    stagnated badly since the AI winter hit.
+*** Excentric or overly-ambitious goals
+**** Database access (with Prolog?)
+     Peter Norvig's classic Paradigms of Artificial Intelligence
+     Programming shows how to embed a rudimentary Prolog into Lisp.
+     Since Prolog and SQL are not that different in some ways, it
+     might be fun to create a database access layer on top an embedded
+     Prolog.
+     I know it's crazy, but wouldn't that be cool?!
+     Anyway, a database access layer is needed, with or without
+     Prolog. 
+**** Object system
+     Maybe one day. I just put this here to show that I have thought
+     of it, but at this time (December 2017), I do not consider it
+     important. 
+     

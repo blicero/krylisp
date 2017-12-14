@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-13 16:43:46 krylon>
+// Time-stamp: <2017-12-14 18:20:53 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -26,8 +26,13 @@
 // types.
 //
 // Dienstag, 12. 12. 2017, 20:11
-// TODO Now that I think of it, converting any kind of LispValue to String
+// DONE Now that I think of it, converting any kind of LispValue to String
 //      should invoke the String method. Duh.
+//
+// Donnerstag, 14. 12. 2017, 16:48
+// TODO Also, I am beginning to wonder if I should break this file up. value.go
+//      should only contain the definition of LispValue, and maybe the other
+//      interfaces. And then one file per type.
 
 package value
 
@@ -248,7 +253,6 @@ func (i IntValue) Convert(id types.ID) (LispValue, error) {
 	case types.BigInt:
 		return &BigInt{Value: big.NewInt(int64(i))}, nil
 	case types.String:
-		//return StringValue(strconv.Itoa(int(i))), nil
 		return StringValue(i.String()), nil
 	default:
 		return nil, &TypeConversionError{types.Integer, id}
@@ -1545,6 +1549,8 @@ func (ht Hashtable) Convert(id types.ID) (LispValue, error) {
 	switch id {
 	case types.Hashtable:
 		return ht, nil
+	case types.String:
+		return StringValue(ht.String()), nil
 	default:
 		return NIL, &TypeConversionError{
 			types.Hashtable,
@@ -1743,6 +1749,8 @@ func (fh *FileHandle) Convert(id types.ID) (LispValue, error) {
 
 	if id == types.FileHandle {
 		return fh, nil
+	} else if id == types.String {
+		return StringValue(fh.String()), nil
 	}
 
 	return NIL, &TypeConversionError{
@@ -2014,6 +2022,8 @@ func (gf *GoFunction) Convert(id types.ID) (LispValue, error) {
 	// Serves you right!
 	if id == types.GoFunction || id == types.Function {
 		return gf, nil
+	} else if id == types.String {
+		return StringValue(gf.String()), nil
 	}
 
 	return NIL, &TypeConversionError{
@@ -2101,11 +2111,18 @@ func (e *Error) Convert(id types.ID) (LispValue, error) {
 // Macros /////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
+// Donnerstag, 14. 12. 2017, 18:09
+// Do I really want to store arguments as lists?
+// With functions, I store them as arrays, and it seems
+// to work well enough.
+// Same goes for the body, of course. Going from an array to a list
+// is always easier than the other way around.
+
 // Macro represents a Lisp macro
 type Macro struct {
 	Name string
-	Args *List
-	Body *List
+	Args []LispValue
+	Body []LispValue
 }
 
 // String returns a string representation of the Lisp value.
@@ -2143,6 +2160,8 @@ func (m *Macro) Convert(id types.ID) (LispValue, error) {
 		return m, nil
 	} else if id == types.Nil {
 		return NIL, nil
+	} else if id == types.String {
+		return StringValue(m.String()), nil
 	}
 
 	return NIL, &TypeConversionError{types.Macro, id}

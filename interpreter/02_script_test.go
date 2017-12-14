@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-13 17:31:26 krylon>
+// Time-stamp: <2017-12-14 21:18:56 krylon>
 
 package interpreter
 
@@ -342,3 +342,44 @@ func TestFileIO(t *testing.T) {
 			counter)
 	}
 } // func TestFileIO(t *testing.T)
+
+func TestDefmacro(t *testing.T) {
+	const (
+		scriptPath     = "testdata/test008.lisp"
+		expectedResult = value.IntValue(43)
+	)
+	var (
+		interp    = freshInterpreter(true)
+		l         *lexer.Lexer
+		p         = parser.NewParser()
+		parseTree interface{}
+		program   value.Program
+		ok        bool
+		val       value.LispValue
+		err       error
+	)
+
+	if l, err = lexer.NewLexerFile(scriptPath); err != nil {
+		t.Fatalf("Error creating lexer for %s: %s",
+			scriptPath,
+			err.Error())
+	} else if parseTree, err = p.Parse(l); err != nil {
+		t.Fatalf("Error parsing test script %s: %s",
+			scriptPath,
+			err.Error())
+	} else if program, ok = parseTree.([]value.LispValue); !ok {
+		t.Fatalf("Unexpected type returned from Parser: %T\n\t%s",
+			parseTree,
+			parseTree)
+	} else if val, err = interp.Eval(program); err != nil {
+		t.Fatalf("Error evaluating %s: %s",
+			scriptPath,
+			err.Error())
+	} else if val == nil {
+		t.Fatal("RETURN VALUE IS NIL!")
+	} else if !val.Eq(expectedResult) {
+		t.Fatalf("I did not expect /that/: %s (I expected %s)",
+			val,
+			expectedResult)
+	}
+} // func TestDefmacro(t *testing.T)

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-13 19:38:07 krylon>
+// Time-stamp: <2017-12-14 19:52:17 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -107,6 +107,7 @@ var specialSymbols = map[string]bool{
 	"NIL":      true,
 	"FN":       true,
 	"DEFUN":    true,
+	"DEFMACRO": true,
 	"IF":       true,
 	"LET":      true,
 	"DO":       true,
@@ -123,7 +124,6 @@ var specialSymbols = map[string]bool{
 	"OR":       true,
 	"APPLY":    true,
 	"LAMBDA":   true,
-	"DEFMACRO": true,
 	"CONCAT":   true,
 }
 
@@ -389,6 +389,8 @@ func (inter *Interpreter) evalSpecialForm(l *value.List) (value.LispValue, error
 		return inter.evalIf(l)
 	case "DEFUN":
 		return inter.evalDefun(l)
+	case "DEFMACRO":
+		return inter.evalDefmacro(l)
 	case "LAMBDA":
 		return inter.evalLambda(l)
 	case "LET":
@@ -843,6 +845,105 @@ FUNCALL:
 
 	return fn.Fn(args)
 } // func (inter *Interpreter) evalGoFunction(fn *value.GoFunction, lst *value.List) (LispValue, error)
+
+/////////////////////////////////////////////////////////////////////////////
+// Macros ///////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Mittwoch, 13. 12. 2017, 20:12
+// I feel strangely insecure when thinking about how to implement macros.
+// After thinking about it for a bit, I decided that it is probably best
+// to start by implementing macro creation.
+// And I just realize it has been *years* since I have done anything in
+// Lisp, so my memory is rather rusty.
+// So I guess, I'll have to read up on macros before I start implementing them.
+//
+// Another thing I will have to keep in mind is that I am effectively designing
+// a programming language. So I can have macros work any way I want.
+// In particular, I might want to look at Racket before blindly copying
+// Common Lisp.
+//
+// Mittwoch, 13. 12. 2017, 21:33
+// Okay, I just took a quick look at Racket's documentation.
+// Consider me confused.
+// So, for the moment I am going to try and replicate Common Lisp's macro
+// system. But I solemnly promise to look into Racket's approach to macros,
+// and if I feel I learn something significant from it, I will make an attempt
+// to bring that to kryLisp.
+// Perhaps, as they say, another day.
+
+func (inter *Interpreter) evalDefmacro(lst *value.List) (value.LispValue, error) {
+	if inter.debug {
+		krylib.Trace()
+	}
+
+	if lst == nil || lst.Car == nil || lst.Car.Car == nil {
+		return nil, errors.New("Argument is not a lambda list")
+	} else if !lst.Car.Car.Equal(value.Symbol("DEFMACRO")) {
+		return nil, SyntaxErrorf("The first element of a macro definition must be the Symbol DEFMACRO, not %s",
+			lst.Car.Car)
+	} else if lst.Car.Cdr.(*value.ConsCell).Car.Type() != types.Symbol {
+		return nil, SyntaxErrorf("The first argument to DEFMACRO must be a symbol, not a %s",
+			lst.Car.Cdr.(*value.ConsCell).Car.Type())
+	}
+
+	var (
+		args, body *value.List
+		err        error
+		val        value.LispValue
+		m          *value.Macro
+	)
+
+	if val, err = lst.Nth(2); err != nil {
+		if inter.debug {
+			fmt.Fprintf(inter.stderr, "Error getting third element (argument list) from macro definition: %s\n",
+				err.Error())
+		}
+		return nil, err
+	} else if val.Type() != types.List {
+		return nil, &value.TypeError{
+			Expected: "(Argument) List",
+			Actual:   val.Type().String(),
+		}
+	}
+
+	args = val.(*value.List)
+	body = &value.List{
+		Car:    lst.Car.Cdr.(*value.ConsCell).Cdr.(*value.ConsCell),
+		Length: lst.Length - 2,
+	}
+
+	m = &value.Macro{
+		Name: lst.Car.Cdr.(*value.ConsCell).Car.String(),
+		Args: make([]value.LispValue, args.Length),
+		Body: make([]value.LispValue, body.Length),
+	}
+
+	var idx int
+
+	// Process arguments
+	for cell := args.Car; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		m.Args[idx] = cell.Car
+		idx++
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+	idx = 0
+	// Process body
+	for cell := body.Car; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
+		m.Body[idx] = cell.Car
+		idx++
+		if cell.Cdr == nil {
+			break
+		}
+	}
+
+	return m, krylib.NotImplemented
+} // func (inter *Interpreter) evalDefmacro(l *value.List) (value.LispValue, error)
+
+// If
 
 func (inter *Interpreter) evalIf(l *value.List) (value.LispValue, error) {
 	if inter.debug {
