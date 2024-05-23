@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 01. 02. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2024-05-23 00:42:44 krylon>
+// Time-stamp: <2024-05-23 09:44:18 krylon>
 
 //go:build ignore
 // +build ignore
@@ -60,27 +60,34 @@ var orderedSteps = []string{
 
 var tasks = map[string][]string{
 	"generate": {
-		"common",
-		"logdomain",
+		"compare",
+		"filemode",
+		"types",
 	},
 	"test": {
-		"walker",
-		"meta",
-		"convert",
+		"ast",
+		"interpreter",
+		"value",
 	},
 	"vet": {
+		"ast",
 		"common",
-		"logdomain",
-		"walker",
-		"meta",
-		"convert",
+		"compare",
+		"filemode",
+		"interpreter",
+		"repl",
+		"types",
+		"value",
 	},
 	"lint": {
+		"ast",
 		"common",
-		"logdomain",
-		"walker",
-		"meta",
-		"convert",
+		"compare",
+		"filemode",
+		"interpreter",
+		"repl",
+		"types",
+		"value",
 	},
 }
 
