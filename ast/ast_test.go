@@ -2,17 +2,18 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-08 18:22:21 krylon>
+// Time-stamp: <2024-05-23 09:47:36 krylon>
 
 package ast
 
 import (
 	"fmt"
-	"krylisp/lexer"
-	"krylisp/parser"
-	"krylisp/types"
-	"krylisp/value"
 	"testing"
+
+	"github.com/blicero/krylisp/lexer"
+	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/types"
+	"github.com/blicero/krylisp/value"
 
 	"github.com/davecgh/go-spew/spew"
 )

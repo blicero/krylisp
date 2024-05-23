@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-11 18:53:17 krylon>
+// Time-stamp: <2024-05-23 09:46:17 krylon>
 
 // Package repl implements the REPL. Consider it a work in progress.
 package repl
@@ -10,10 +10,11 @@ package repl
 import (
 	"bytes"
 	"fmt"
-	"krylisp/interpreter"
-	"krylisp/lexer"
-	"krylisp/parser"
-	"krylisp/value"
+
+	"github.com/blicero/krylisp/interpreter"
+	"github.com/blicero/krylisp/lexer"
+	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/value"
 
 	"github.com/chzyer/readline"
 )

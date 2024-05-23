@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-14 19:48:04 krylon>
+// Time-stamp: <2024-05-23 09:52:32 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:51
 // I am going to need some way of handling errors properly.
@@ -13,10 +13,11 @@
 package parserutil
 
 import (
-	"krylisp/value"
 	"math/big"
 	"regexp"
 	"strconv"
+
+	"github.com/blicero/krylisp/value"
 )
 
 var erangePat = regexp.MustCompile("value out of range")

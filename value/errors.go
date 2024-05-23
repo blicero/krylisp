@@ -2,13 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-16 09:39:26 krylon>
+// Time-stamp: <2024-05-23 09:55:05 krylon>
 
 package value
 
 import (
 	"fmt"
-	"krylisp/types"
+
+	"github.com/blicero/krylisp/types"
 )
 
 // TypeConversionError indicates a failed attempt to convert a LispValue to a

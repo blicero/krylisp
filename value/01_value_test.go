@@ -2,14 +2,12 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 07. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-21 20:22:15 krylon>
+// Time-stamp: <2024-05-23 09:55:46 krylon>
 
 package value
 
 import (
 	"fmt"
-	"krylisp/filemode"
-	"krylisp/types"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -17,6 +15,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/blicero/krylisp/filemode"
+	"github.com/blicero/krylisp/types"
 )
 
 func TestTypeID(t *testing.T) {

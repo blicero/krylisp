@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 06. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-14 18:20:53 krylon>
+// Time-stamp: <2024-05-23 14:46:35 krylon>
 //
 // Donnerstag, 07. 09. 2017, 17:33
 // Aus ... Gründen, werden im Paket types nur die symbolischen Konstanten
@@ -42,10 +42,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"krylib"
-	"krylisp/common"
-	"krylisp/filemode"
-	"krylisp/types"
 	"math"
 	"math/big"
 	"os"
@@ -54,6 +50,11 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/blicero/krylib"
+	"github.com/blicero/krylisp/common"
+	"github.com/blicero/krylisp/filemode"
+	"github.com/blicero/krylisp/types"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -1800,31 +1801,31 @@ func (fh *FileHandle) Read(b []byte) (n int, e error) {
 	return bytesRead, nil
 } // func (fh *FileHandle) Read([]byte) (n int, e error)
 
-func (fh *FileHandle) readBuffered(b []byte) (n int, e error) {
-	if common.Debug {
-		krylib.Trace()
-	}
+// func (fh *FileHandle) readBuffered(b []byte) (n int, e error) {
+// 	if common.Debug {
+// 		krylib.Trace()
+// 	}
 
-	var (
-		buf       = make([]byte, 262144)
-		err       error
-		bytesRead int
-		// numSize = len(buf)
-	)
+// 	var (
+// 		buf       = make([]byte, 262144)
+// 		err       error
+// 		bytesRead int
+// 		// numSize = len(buf)
+// 	)
 
-	if bytesRead, err = fh.r.Read(buf); err != nil {
-		if err == io.EOF {
-			fh.eof = true
-		} else {
-			fmt.Printf("Error reading from I/O stream @(%s) -- %s",
-				fh.Path,
-				err.Error())
-			return 0, err
-		}
-	}
+// 	if bytesRead, err = fh.r.Read(buf); err != nil {
+// 		if err == io.EOF {
+// 			fh.eof = true
+// 		} else {
+// 			fmt.Printf("Error reading from I/O stream @(%s) -- %s",
+// 				fh.Path,
+// 				err.Error())
+// 			return 0, err
+// 		}
+// 	}
 
-	return bytesRead, nil
-} // func (fh *FileHandle) readBuffered([]byte) (n int, e error)
+// 	return bytesRead, nil
+// } // func (fh *FileHandle) readBuffered([]byte) (n int, e error)
 
 // ReadLine attempts to read a line of text from the file handle.
 func (fh *FileHandle) ReadLine() (string, error) {

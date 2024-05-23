@@ -2,14 +2,15 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 09. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-16 09:38:07 krylon>
+// Time-stamp: <2024-05-23 09:55:24 krylon>
 
 package interpreter
 
 import (
 	"fmt"
-	"krylisp/types"
-	"krylisp/value"
+
+	"github.com/blicero/krylisp/types"
+	"github.com/blicero/krylisp/value"
 )
 
 // NoBindingError indicates that no binding was found for a symbol.

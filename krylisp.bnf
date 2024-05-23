@@ -1,4 +1,4 @@
-/* Time-stamp: <2017-12-08 19:37:18 krylon>
+/* Time-stamp: <2024-05-23 09:52:10 krylon>
  * Lexical elements
  *
  * Mittwoch, 06. 09. 2017, 13:49
@@ -85,9 +85,9 @@ string :  _doubleQuote {.} _doubleQuote ;
 
 <<
         import (
-               "krylisp/token"
-               "krylisp/value"
-               pu "krylisp/parserutil"
+               "github.com/blicero/krylisp/token"
+               "github.com/blicero/krylisp/value"
+               pu "github.com/blicero/krylisp/parserutil"
                "strings"
         )
 >>

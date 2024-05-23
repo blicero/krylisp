@@ -2,13 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-09 22:28:57 krylon>
+// Time-stamp: <2024-05-23 09:55:12 krylon>
 
 package value
 
 import (
-	"krylisp/types"
 	"math"
+
+	"github.com/blicero/krylisp/types"
 )
 
 // IsNil returns true if the given argument is considered a nil value.

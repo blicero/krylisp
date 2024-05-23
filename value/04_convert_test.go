@@ -2,17 +2,18 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-04 00:40:00 krylon>
+// Time-stamp: <2024-05-23 09:56:15 krylon>
 //
 // This file contains the tests for type conversion
 
 package value
 
 import (
-	"krylisp/types"
 	"math"
 	"math/big"
 	"testing"
+
+	"github.com/blicero/krylisp/types"
 )
 
 type convertTest struct {

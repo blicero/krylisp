@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 20. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-11-06 18:14:21 krylon>
+// Time-stamp: <2024-05-23 09:47:16 krylon>
 //
 // Donnerstag, 26. 10. 2017, 17:00
 // I would like to have seamless transitions between Fixnum and Bignum,
@@ -27,10 +27,11 @@ package interpreter
 
 import (
 	"fmt"
-	"krylisp/compare"
-	"krylisp/types"
-	"krylisp/value"
 	"math/big"
+
+	"github.com/blicero/krylisp/compare"
+	"github.com/blicero/krylisp/types"
+	"github.com/blicero/krylisp/value"
 )
 
 // Zero is the number 0, as you probably have guessed.

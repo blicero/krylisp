@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 12. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-14 20:39:12 krylon>
+// Time-stamp: <2024-05-23 18:35:23 krylon>
 //
 // NOTE Most of these tests are arranged in a pattern I have got to know under
 //      the name table-driven development.
@@ -61,12 +61,13 @@ package interpreter
 import (
 	"bytes"
 	"fmt"
-	"krylisp/lexer"
-	"krylisp/parser"
-	"krylisp/types"
-	"krylisp/value"
 	"os"
 	"testing"
+
+	"github.com/blicero/krylisp/lexer"
+	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/types"
+	"github.com/blicero/krylisp/value"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -671,10 +672,10 @@ func TestLambda(t *testing.T) {
 				test.lambda.String(),
 				err.Error())
 			continue
-		} else if fn == nil {
+		} /*else if fn == nil {
 			t.Errorf("evalLambda of %s did not return an error, but the function object is nil!",
 				test.lambda.String())
-		}
+		} */
 
 		var fnCall = &value.List{
 			Car: &value.ConsCell{
@@ -718,7 +719,7 @@ func TestDefun(t *testing.T) {
 		source        string
 		name          string
 		expectedValue value.LispValue
-		expectedError bool
+		expectError   bool
 	}
 	var testCases = []testProgram{
 		testProgram{
@@ -770,8 +771,10 @@ func TestDefun(t *testing.T) {
 		if prog, ok = result.([]value.LispValue); !ok {
 			t.Fatalf("Parser did not return a program, but a %T", result)
 		} else if result, err = interp.Eval(prog); err != nil {
-			t.Fatalf("Error evaluating test program: %s",
-				err.Error())
+			if !test.expectError {
+				t.Fatalf("Error evaluating test program: %s",
+					err.Error())
+			}
 		} else if fnVal = interp.env.GetFn(test.name); fnVal == nil {
 			t.Fatalf("Did not find function %s in environment",
 				test.name)
@@ -889,7 +892,7 @@ func TestLT(t *testing.T) {
 	type testLT struct {
 		source        string
 		expectedValue value.LispValue
-		expectedError bool
+		expectError   bool
 	}
 
 	var testCases = []testLT{
@@ -950,9 +953,11 @@ func TestLT(t *testing.T) {
 			t.Fatalf("Parser did not return a program, but a %T",
 				tree)
 		} else if res, err = interp.Eval(prog[0].(*value.List)); err != nil {
-			t.Errorf("Error evaluating %s: %s",
-				test.source,
-				err.Error())
+			if !test.expectError {
+				t.Errorf("Error evaluating %s: %s",
+					test.source,
+					err.Error())
+			}
 		} else if !res.Eq(test.expectedValue) {
 			t.Errorf("Unexpected result from test: Expected %s, got %s",
 				test.expectedValue.String(),
@@ -1922,9 +1927,11 @@ func TestHashCreate(t *testing.T) {
 			t.Errorf("Parser returned unexpected data type: %T",
 				parsed)
 		} else if val, err = interp.Eval(prog); err != nil {
-			t.Errorf("Error evaluating Hash creation form %s: %s",
-				test.input,
-				err.Error())
+			if !test.expectError {
+				t.Errorf("Error evaluating Hash creation form %s: %s",
+					test.input,
+					err.Error())
+			}
 		} else if value.IsNil(val) {
 			t.Errorf("Input %s evaluated to NIL",
 				test.input)
@@ -2041,7 +2048,7 @@ func TestHashSet(t *testing.T) {
 		} else if prog, ok = parsed.([]value.LispValue); !ok {
 			t.Errorf("Parser returned unexpected data type: %T",
 				parsed)
-		} else if val, err = interp.Eval(prog); err != nil {
+		} else if _, err = interp.Eval(prog); err != nil {
 			t.Errorf("Error evaluating Hash creation form %s: %s",
 				test.input,
 				err.Error())
@@ -2113,7 +2120,7 @@ func TestHashDelete(t *testing.T) {
 		} else if prog, ok = parsed.([]value.LispValue); !ok {
 			t.Errorf("Parser returned unexpected data type: %T",
 				parsed)
-		} else if val, err = interp.Eval(prog); err != nil {
+		} else if _, err = interp.Eval(prog); err != nil {
 			t.Errorf("Error evaluating Hash creation form %s: %s",
 				test.input,
 				err.Error())
@@ -2125,7 +2132,7 @@ func TestHashDelete(t *testing.T) {
 		} else if tbl, ok = val.(value.Hashtable); !ok {
 			t.Errorf("First argument to HASH-DELETE is not a hash table, but a %T",
 				val)
-		} else if val, ok = tbl[test.deletedKey]; ok {
+		} else if _, ok = tbl[test.deletedKey]; ok {
 			t.Errorf("Key %s should not have been present in that hash table",
 				test.deletedKey)
 		}

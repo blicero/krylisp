@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 08. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-14 19:52:17 krylon>
+// Time-stamp: <2024-05-23 18:31:02 krylon>
 //
 // Donnerstag, 19. 10. 2017, 19:17
 // Mmmh, adding floating point numbers makes all the arithmetic code a lot more
@@ -84,16 +84,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"krylib"
-	"krylisp/compare"
-	"krylisp/filemode"
-	"krylisp/lexer"
-	"krylisp/parser"
-	"krylisp/types"
-	"krylisp/value"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/blicero/krylib"
+	"github.com/blicero/krylisp/compare"
+	"github.com/blicero/krylisp/filemode"
+	"github.com/blicero/krylisp/lexer"
+	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/types"
+	"github.com/blicero/krylisp/value"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -940,7 +941,7 @@ func (inter *Interpreter) evalDefmacro(lst *value.List) (value.LispValue, error)
 		}
 	}
 
-	return m, krylib.NotImplemented
+	return m, krylib.ErrNotImplemented
 } // func (inter *Interpreter) evalDefmacro(l *value.List) (value.LispValue, error)
 
 // If
@@ -1097,9 +1098,11 @@ func (inter *Interpreter) evalMultiply(arg *value.Arguments) (value.LispValue, e
 	}
 
 	var (
-		acc, tmp value.Number = one, one
+		acc, tmp value.Number
 		err      error
 	)
+
+	acc = one
 
 	for _, n := range arg.Positional {
 		if !value.IsNumber(n) {
@@ -2532,7 +2535,7 @@ LOOP:
 
 	// Run the loop body
 	for cell := body; cell != nil; cell = cell.Cdr.(*value.ConsCell) {
-		if tmp, err = inter.Eval(cell.Car); err != nil {
+		if _, err = inter.Eval(cell.Car); err != nil {
 			var msg = fmt.Sprintf("Error evaluating loop body %s: %s",
 				cell.Car.String(),
 				err.Error())
@@ -3072,7 +3075,7 @@ func (inter *Interpreter) evalFopen(arg *value.Arguments) (value.LispValue, erro
 	// This is not the most satisfactory solution ever, but I think 0644 is
 	// the right permission set 90% of the time, and it's just the default,
 	// anyway.
-	const defaultAccessRights = 0644
+	// const defaultAccessRights = 0644
 
 	var (
 		path                        value.StringValue
@@ -3097,7 +3100,7 @@ func (inter *Interpreter) evalFopen(arg *value.Arguments) (value.LispValue, erro
 	} else if lmode, ok = rawmode.(value.Symbol); !ok {
 		return value.NIL, &ValueError{
 			val: rawmode,
-			msg: fmt.Sprintf("Argument :DIRECTION to FOPEN must be a keyword symbol"),
+			msg: "Argument :DIRECTION to FOPEN must be a keyword symbol",
 		}
 	}
 

@@ -2,21 +2,21 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 04. 10. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-12-14 21:18:56 krylon>
+// Time-stamp: <2024-05-23 18:34:45 krylon>
 
 package interpreter
 
 import (
 	"fmt"
-	"io/ioutil"
-	"krylisp/lexer"
-	"krylisp/parser"
-	"krylisp/types"
-	"krylisp/value"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/blicero/krylisp/lexer"
+	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/types"
+	"github.com/blicero/krylisp/value"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -288,7 +288,7 @@ func TestFileIO(t *testing.T) {
 		interp    = freshInterpreter(false)
 	)
 
-	if fh, err = ioutil.TempFile(tmpDir, prefix); err != nil {
+	if fh, err = os.CreateTemp(tmpDir, prefix); err != nil {
 		t.Fatalf("Error creating temp file: %s",
 			err.Error())
 	} else {
