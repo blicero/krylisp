@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2024-05-23 09:46:17 krylon>
+// Time-stamp: <2024-05-24 22:19:04 krylon>
 
 // Package repl implements the REPL. Consider it a work in progress.
 package repl
@@ -90,6 +90,8 @@ INPUT:
 			fmt.Printf("Error reading input: %s\n",
 				err.Error())
 			continue INPUT
+		} else if string(input) == ":q" {
+			break INPUT
 		}
 
 		r.rbuf.Write(input)
@@ -112,7 +114,7 @@ INPUT:
 						exp.String(),
 						err.Error())
 					break EXPRESSION
-				} else {
+				} else if result != nil {
 					fmt.Println(result.String())
 				}
 			}

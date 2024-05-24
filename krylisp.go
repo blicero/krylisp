@@ -2,19 +2,20 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 09. 2017 by Benjamin Walkenhorst
 // (c) 2017 Benjamin Walkenhorst
-// Time-stamp: <2017-10-26 16:26:49 krylon>
+// Time-stamp: <2024-05-23 23:14:25 krylon>
 
 package main
 
 import (
 	"flag"
 	"fmt"
-	"krylisp/interpreter"
-	"krylisp/lexer"
-	"krylisp/parser"
-	"krylisp/repl"
-	"krylisp/value"
 	"os"
+
+	"github.com/blicero/krylisp/interpreter"
+	"github.com/blicero/krylisp/lexer"
+	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/repl"
+	"github.com/blicero/krylisp/value"
 )
 
 func main() {
