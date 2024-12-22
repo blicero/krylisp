@@ -7,4 +7,4 @@ require (
 	github.com/hashicorp/logutils v1.0.0
 )
 
-require github.com/alecthomas/participle/v2 v2.1.1 // indirect
+require github.com/blicero/krylib v0.2.1 // indirect
