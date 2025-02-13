@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-13 15:51:10 krylon>
+// Time-stamp: <2025-02-13 18:39:02 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -14,17 +14,29 @@ import (
 
 	"github.com/blicero/krylisp/types"
 
+	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
 var lex = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: `Symbol`, Pattern: `[a-zA-Z][-a-zA-Z\d]*`},
+	{Name: `Symbol`, Pattern: `[-+a-zA-Z][\w\d]*`},
 	{Name: `Integer`, Pattern: `\d+`},
 	{Name: `String`, Pattern: `"(?:[^\"]*)"`},
 	{Name: `OpenParen`, Pattern: `\(`},
 	{Name: `CloseParen`, Pattern: `\)`},
 	{Name: `Blank`, Pattern: `\s+`},
 })
+
+func New() *participle.Parser[LispValue] {
+	par := participle.MustBuild[LispValue](
+		participle.Lexer(lex),
+		participle.Unquote("String"),
+		participle.Elide("Blank"),
+		participle.Union[LispValue](Symbol{}, Integer{}, String{}, List{}),
+	)
+
+	return par
+} // func New() *participle.Parser[LispValue]
 
 type LispValue interface {
 	fmt.Stringer

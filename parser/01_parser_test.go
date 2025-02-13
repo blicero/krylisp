@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 11. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-13 15:49:43 krylon>
+// Time-stamp: <2025-02-13 18:34:07 krylon>
 
 package parser
 
@@ -47,6 +47,8 @@ func TestParse(t *testing.T) {
 		{filename: "integer", expr: "42"},
 		{filename: "string", expr: `"Wer das liest, ist doof."`},
 		{filename: "list", expr: `(zebu alpha 23 69 "Hulululu")`},
+		{filename: "nested_list", expr: `(kappa gamma (lambda phi) 93 181 "Sapperlot!")`},
+		{filename: "arithmetic101", expr: `(+ 23 42)`},
 	}
 
 	for _, s := range samples {
