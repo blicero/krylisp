@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 11. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-13 18:34:07 krylon>
+// Time-stamp: <2025-02-15 15:53:16 krylon>
 
 package parser
 
@@ -21,6 +21,7 @@ func TestCreateParser(t *testing.T) {
 		participle.Lexer(lex),
 		participle.Unquote("String"),
 		participle.Elide("Blank"),
+		participle.Upper("Symbol"),
 		participle.Union[LispValue](Symbol{}, Integer{}, String{}, List{}),
 	); err != nil {
 		par = nil

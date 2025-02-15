@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-13 18:39:02 krylon>
+// Time-stamp: <2025-02-15 15:53:42 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -19,7 +19,7 @@ import (
 )
 
 var lex = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: `Symbol`, Pattern: `[-+a-zA-Z][\w\d]*`},
+	{Name: `Symbol`, Pattern: `[-+*/%a-zA-Z][\w\d]*`},
 	{Name: `Integer`, Pattern: `\d+`},
 	{Name: `String`, Pattern: `"(?:[^\"]*)"`},
 	{Name: `OpenParen`, Pattern: `\(`},
@@ -32,6 +32,7 @@ func New() *participle.Parser[LispValue] {
 		participle.Lexer(lex),
 		participle.Unquote("String"),
 		participle.Elide("Blank"),
+		participle.Upper("Symbol"),
 		participle.Union[LispValue](Symbol{}, Integer{}, String{}, List{}),
 	)
 
@@ -41,6 +42,7 @@ func New() *participle.Parser[LispValue] {
 type LispValue interface {
 	fmt.Stringer
 	Type() types.Type
+	Equal(other LispValue) bool
 }
 
 type Symbol struct {
@@ -50,8 +52,17 @@ type Symbol struct {
 func (s Symbol) Type() types.Type { return types.Symbol }
 
 func (s Symbol) String() string {
-	return strings.ToUpper(s.Sym)
+	return s.Sym
 }
+
+func (s Symbol) Equal(other LispValue) bool {
+	switch s := other.(type) {
+	case Symbol:
+		return s.Sym == s.Sym
+	default:
+		return false
+	}
+} // func (s Symbol) Equal(other LispValue) bool
 
 type Integer struct {
 	Int int64 `parser:"@Integer"`
@@ -63,6 +74,15 @@ func (i Integer) String() string {
 	return strconv.FormatInt(i.Int, 10)
 }
 
+func (i Integer) Equal(other LispValue) bool {
+	switch o := other.(type) {
+	case Integer:
+		return i.Int == o.Int
+	default:
+		return false
+	}
+} // func (i Integer) Equal(other LispValue) bool
+
 type String struct {
 	Str string `parser:"@String"`
 }
@@ -72,6 +92,17 @@ func (s String) Type() types.Type { return types.String }
 func (s String) String() string {
 	return `"` + s.Str + `"`
 }
+
+func (s String) Equal(other LispValue) bool {
+	switch o := other.(type) {
+	case String:
+		return s.Str == o.Str
+	default:
+		return false
+	}
+} // func (s String) Equal(other LispValue) bool
+
+// FIXME Lists shall be made of ConsCells (which I still need to implement), not slices!!!
 
 type List struct {
 	Items []LispValue `parser:"OpenParen @@* CloseParen"`
@@ -95,3 +126,24 @@ func (l List) String() string {
 
 	return sb.String()
 }
+
+func (l List) Equal(other LispValue) bool {
+	switch o := other.(type) {
+	case Symbol:
+		return len(l.Items) == 0 && o.Sym == "NIL"
+	case List:
+		if len(l.Items) != len(o.Items) {
+			return false
+		}
+
+		for idx, val := range l.Items {
+			if !val.Equal(o.Items[idx]) {
+				return false
+			}
+		}
+
+		return true
+	default:
+		return false
+	}
+} // func (l List) Equal(other LispValue) bool
