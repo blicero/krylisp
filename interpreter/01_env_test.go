@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-15 15:37:20 krylon>
+// Time-stamp: <2025-02-15 15:56:51 krylon>
 
 package interpreter
 
@@ -26,7 +26,7 @@ func TestLookupSimple(t *testing.T) {
 
 	var env = Environment{
 		Bindings: map[parser.Symbol]parser.LispValue{
-			sym("ZERO"): parser.Integer{Int: 0},
+			sym("zero"): parser.Integer{Int: 0},
 		},
 	}
 
@@ -46,6 +46,10 @@ func TestLookupSimple(t *testing.T) {
 					c.key)
 				continue
 			}
+		} else if !val.Equal(c.expectedValue) {
+			t.Errorf("Lookup returned unexpected value %s (expected %s)",
+				val,
+				c.expectedValue)
 		}
 	}
 
