@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-02-15 18:10:39 krylon>
+# Time-stamp: <2025-02-17 18:02:44 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -17,15 +17,15 @@
   kryLisp is a simple Lisp interpreter written in Go.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 202 :emphasize t
-   #+CAPTION: Clock summary at [2025-02-15 Sa 18:10]
+   #+CAPTION: Clock summary at [2025-02-17 Mo 18:02]
    | Headline                | Time   |        |      |
    |-------------------------+--------+--------+------|
-   | *Total time*            | *4:01* |        |      |
+   | *Total time*            | *6:45* |        |      |
    |-------------------------+--------+--------+------|
-   | *kryLisp [0/0]*         | *4:01* |        |      |
-   | \_  /Components [0/0]/  |        | /4:01/ |      |
+   | *kryLisp [0/0]*         | *6:45* |        |      |
+   | \_  /Components [0/0]/  |        | /6:45/ |      |
    | \_    Parser [0/0]      |        |        | 2:11 |
-   | \_    Interpreter [0/0] |        |        | 1:50 |
+   | \_    Interpreter [0/0] |        |        | 4:34 |
    #+END:
 ** Features [0/0]
    :PROPERTIES:
@@ -50,6 +50,7 @@
     at least so far.
 *** Interpreter [0/0]
     :LOGBOOK:
+    CLOCK: [2025-02-17 Mo 15:18]--[2025-02-17 Mo 18:02] =>  2:44
     CLOCK: [2025-02-15 Sa 17:34]--[2025-02-15 Sa 18:09] =>  0:35
     CLOCK: [2025-02-15 Sa 15:21]--[2025-02-15 Sa 16:36] =>  1:15
     :END:
