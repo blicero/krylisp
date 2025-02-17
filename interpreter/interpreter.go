@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-16 00:07:49 krylon>
+// Time-stamp: <2025-02-17 18:02:32 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -54,6 +54,14 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 			return real, nil
 		case "NIL":
 			return real, nil
+		default:
+			if real.IsKeyword() {
+				return real, nil
+			}
+
+			if val, ok := in.Env.Lookup(real); ok {
+				return val, nil
+			}
 		}
 	case parser.Integer:
 		return real, nil
