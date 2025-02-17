@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-15 15:53:42 krylon>
+// Time-stamp: <2025-02-17 10:56:38 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -19,12 +19,13 @@ import (
 )
 
 var lex = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: `Symbol`, Pattern: `[-+*/%a-zA-Z][\w\d]*`},
+	{Name: `Symbol`, Pattern: `[-+*/%:a-zA-Z][-+*/%:a-zA-Z\d]*`},
 	{Name: `Integer`, Pattern: `\d+`},
 	{Name: `String`, Pattern: `"(?:[^\"]*)"`},
 	{Name: `OpenParen`, Pattern: `\(`},
 	{Name: `CloseParen`, Pattern: `\)`},
 	{Name: `Blank`, Pattern: `\s+`},
+	{Name: `Quote`, Pattern: `'`},
 })
 
 func New() *participle.Parser[LispValue] {
@@ -53,6 +54,10 @@ func (s Symbol) Type() types.Type { return types.Symbol }
 
 func (s Symbol) String() string {
 	return s.Sym
+}
+
+func (s Symbol) IsKeyword() bool {
+	return s.Sym[0] == ':'
 }
 
 func (s Symbol) Equal(other LispValue) bool {
