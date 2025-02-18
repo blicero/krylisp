@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-17 18:02:32 krylon>
+// Time-stamp: <2025-02-18 14:41:23 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -18,6 +18,10 @@ type Environment struct {
 	Bindings map[parser.Symbol]parser.LispValue
 }
 
+// Lookup attempts to look up the binding to a Symbol. If the Symbol is
+// not found in the current Environment, it recursively tries the parent
+// Environments until a binding is found or the chain of environments
+// is exhausted.
 func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, bool) {
 	var (
 		ok  bool
@@ -35,6 +39,7 @@ func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, bool) {
 	return nil, false
 } // func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, error)
 
+// Interpreter implements the evaluation of Lisp expressions.
 type Interpreter struct {
 	Env           *Environment
 	Debug         bool

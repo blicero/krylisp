@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-17 10:56:38 krylon>
+// Time-stamp: <2025-02-18 14:54:16 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -28,6 +28,7 @@ var lex = lexer.MustSimple([]lexer.SimpleRule{
 	{Name: `Quote`, Pattern: `'`},
 })
 
+// New creates a new Parser.
 func New() *participle.Parser[LispValue] {
 	par := participle.MustBuild[LispValue](
 		participle.Lexer(lex),
@@ -40,45 +41,46 @@ func New() *participle.Parser[LispValue] {
 	return par
 } // func New() *participle.Parser[LispValue]
 
+// LispValue is the common interface for types in the Lisp Interpreter
 type LispValue interface {
 	fmt.Stringer
 	Type() types.Type
 	Equal(other LispValue) bool
 }
 
+// Symbol is a symbol.
 type Symbol struct {
 	Sym string `parser:"@Symbol"`
 }
 
+// Type returns the type of the Symbol.
 func (s Symbol) Type() types.Type { return types.Symbol }
+func (s Symbol) String() string   { return s.Sym }
 
-func (s Symbol) String() string {
-	return s.Sym
-}
+// IsKeyword returns true if the receiver is a keyword symbol.
+func (s Symbol) IsKeyword() bool { return s.Sym[0] == ':' }
 
-func (s Symbol) IsKeyword() bool {
-	return s.Sym[0] == ':'
-}
-
+// Equal compares the receiver to another LispValue for equality.
 func (s Symbol) Equal(other LispValue) bool {
-	switch s := other.(type) {
+	// TODO Make sure NIL equals ()
+	switch val := other.(type) {
 	case Symbol:
-		return s.Sym == s.Sym
+		return s.Sym == val.Sym
 	default:
 		return false
 	}
 } // func (s Symbol) Equal(other LispValue) bool
 
+// Integer is a signed 64-bit integer
 type Integer struct {
 	Int int64 `parser:"@Integer"`
 }
 
+// Type returns the type of the receiver
 func (i Integer) Type() types.Type { return types.Integer }
+func (i Integer) String() string   { return strconv.FormatInt(i.Int, 10) }
 
-func (i Integer) String() string {
-	return strconv.FormatInt(i.Int, 10)
-}
-
+// Equal compares the receiver to the given LispValue for equality.
 func (i Integer) Equal(other LispValue) bool {
 	switch o := other.(type) {
 	case Integer:
@@ -88,16 +90,16 @@ func (i Integer) Equal(other LispValue) bool {
 	}
 } // func (i Integer) Equal(other LispValue) bool
 
+// String is a ... string.
 type String struct {
 	Str string `parser:"@String"`
 }
 
+// Type returns the type of the receiver.
 func (s String) Type() types.Type { return types.String }
+func (s String) String() string   { return `"` + s.Str + `"` }
 
-func (s String) String() string {
-	return `"` + s.Str + `"`
-}
-
+// Equal compares the receiver to the given LispValue for equality.
 func (s String) Equal(other LispValue) bool {
 	switch o := other.(type) {
 	case String:
@@ -109,10 +111,12 @@ func (s String) Equal(other LispValue) bool {
 
 // FIXME Lists shall be made of ConsCells (which I still need to implement), not slices!!!
 
+// List is a Lisp list.
 type List struct {
 	Items []LispValue `parser:"OpenParen @@* CloseParen"`
 }
 
+// Type returns the type of the receiver.
 func (l List) Type() types.Type { return types.List }
 
 func (l List) String() string {
@@ -132,6 +136,7 @@ func (l List) String() string {
 	return sb.String()
 }
 
+// Equal compares the receiver to the given LispValue for equality.
 func (l List) Equal(other LispValue) bool {
 	switch o := other.(type) {
 	case Symbol:
