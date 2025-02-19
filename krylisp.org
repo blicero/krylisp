@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-02-18 15:55:20 krylon>
+# Time-stamp: <2025-02-19 19:59:49 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -17,15 +17,15 @@
   kryLisp is a simple Lisp interpreter written in Go.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 202 :emphasize t
-   #+CAPTION: Clock summary at [2025-02-18 Di 15:55]
+   #+CAPTION: Clock summary at [2025-02-19 Mi 19:59]
    | Headline                             | Time   |        |      |      |
    |--------------------------------------+--------+--------+------+------|
-   | *Total time*                         | *7:54* |        |      |      |
+   | *Total time*                         | *9:16* |        |      |      |
    |--------------------------------------+--------+--------+------+------|
-   | *kryLisp [0/0]*                      | *7:54* |        |      |      |
-   | \_  /Components [0/1]/               |        | /7:54/ |      |      |
-   | \_    Parser [0/1]                   |        |        | 3:15 |      |
-   | \_      Implement lists to proper... |        |        |      | 0:42 |
+   | *kryLisp [0/0]*                      | *9:16* |        |      |      |
+   | \_  /Components [0/1]/               |        | /9:16/ |      |      |
+   | \_    Parser [0/1]                   |        |        | 4:37 |      |
+   | \_      Implement lists to proper... |        |        |      | 2:04 |
    | \_    Interpreter [0/0]              |        |        | 4:39 |      |
    #+END:
 ** Features [0/0]
@@ -52,6 +52,7 @@
     at least so far.
 **** TODO Implement lists to proper single-linked lists
      :LOGBOOK:
+     CLOCK: [2025-02-19 Mi 18:37]--[2025-02-19 Mi 19:59] =>  1:22
      CLOCK: [2025-02-18 Di 15:13]--[2025-02-18 Di 15:55] =>  0:42
      :END:
 *** Interpreter [0/0]
