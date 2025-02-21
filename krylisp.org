@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-02-21 18:24:11 krylon>
+# Time-stamp: <2025-02-21 20:14:18 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -17,16 +17,16 @@
   kryLisp is a simple Lisp interpreter written in Go.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 202 :emphasize t
-   #+CAPTION: Clock summary at [2025-02-21 Fr 18:24]
-   | Headline                             | Time   |        |      |      |
-   |--------------------------------------+--------+--------+------+------|
-   | *Total time*                         | *9:54* |        |      |      |
-   |--------------------------------------+--------+--------+------+------|
-   | *kryLisp [0/0]*                      | *9:54* |        |      |      |
-   | \_  /Components [1/1]/               |        | /9:54/ |      |      |
-   | \_    Parser [1/1]                   |        |        | 5:15 |      |
-   | \_      Implement lists as proper... |        |        |      | 2:42 |
-   | \_    Interpreter [0/0]              |        |        | 4:39 |      |
+   #+CAPTION: Clock summary at [2025-02-21 Fr 20:14]
+   | Headline                             | Time    |         |      |      |
+   |--------------------------------------+---------+---------+------+------|
+   | *Total time*                         | *10:11* |         |      |      |
+   |--------------------------------------+---------+---------+------+------|
+   | *kryLisp [0/0]*                      | *10:11* |         |      |      |
+   | \_  /Components [1/1]/               |         | /10:11/ |      |      |
+   | \_    Parser [1/1]                   |         |         | 5:15 |      |
+   | \_      Implement lists as proper... |         |         |      | 2:42 |
+   | \_    Interpreter [0/0]              |         |         | 4:56 |      |
    #+END:
 ** Features [0/0]
    :PROPERTIES:
@@ -60,6 +60,7 @@
      :END:
 *** Interpreter [0/0]
     :LOGBOOK:
+    CLOCK: [2025-02-21 Fr 19:57]--[2025-02-21 Fr 20:14] =>  0:17
     CLOCK: [2025-02-18 Di 14:36]--[2025-02-18 Di 14:41] =>  0:05
     CLOCK: [2025-02-17 Mo 15:18]--[2025-02-17 Mo 18:02] =>  2:44
     CLOCK: [2025-02-15 Sa 17:34]--[2025-02-15 Sa 18:09] =>  0:35
