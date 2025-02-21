@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 11. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-18 15:01:41 krylon>
+// Time-stamp: <2025-02-21 19:44:09 krylon>
 
 package parser
 
@@ -70,7 +70,7 @@ func TestParse(t *testing.T) {
 		} else if val == nil {
 			t.Errorf("Parsed value of %s is nil", s.filename)
 		} else {
-			t.Logf("Parsing %s yielded a %s: %s",
+			t.Logf("Parsing %s yielded a %s: %s\n",
 				s.filename,
 				(*val).Type(),
 				*val)

@@ -2,12 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-18 14:41:23 krylon>
+// Time-stamp: <2025-02-21 19:59:20 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
 
 import (
+	"fmt"
+
 	"github.com/blicero/krylib"
 	"github.com/blicero/krylisp/parser"
 )
@@ -46,6 +48,7 @@ type Interpreter struct {
 	GensymCounter int
 }
 
+// Eval is the heart of the interpreter.
 func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 	// var (
 	// 	err    error
@@ -72,6 +75,8 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 		return real, nil
 	case parser.String:
 		return real, nil
+	default:
+		return nil, fmt.Errorf("Unsupported type %t", real)
 	}
 
 	return nil, krylib.ErrNotImplemented
