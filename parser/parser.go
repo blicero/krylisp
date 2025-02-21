@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-19 19:37:53 krylon>
+// Time-stamp: <2025-02-21 18:22:34 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -113,9 +113,15 @@ func (s String) Equal(other LispValue) bool {
 
 // ConsCell is the basic building block of Lisp Lists.
 type ConsCell struct {
-	Car LispValue `parser:"@"`
+	Car LispValue `parser:"@@"`
 	Cdr *ConsCell `parser:"@@*"`
 }
+
+// // ConsCell is the basic building block of Lisp Lists.
+// type ConsCell struct {
+// 	Car LispValue `parser:"@"`
+// 	Cdr *ConsCell `parser:"@@*"`
+// }
 
 func (c ConsCell) String() string {
 	if c.Cdr != nil {
@@ -151,8 +157,10 @@ func (c ConsCell) Equal(other LispValue) bool {
 
 // List is a Lisp list.
 type List struct {
-	//Items []LispValue `parser:"OpenParen @@* CloseParen"`
-	Items ConsCell `parser:"( @@LispValue @@ConsCell* )"`
+	Car LispValue `parser:"OpenParen @@?"`
+	Cdr *ConsCell `parser:"(@@*)? CloseParen"`
+	// Items []LispValue `parser:"OpenParen @@* CloseParen"`
+	// Items ConsCell `parser:"( @@LispValue @@ConsCell* )"`
 }
 
 // Type returns the type of the receiver.
@@ -161,11 +169,14 @@ func (l List) Type() types.Type { return types.List }
 func (l List) String() string {
 	var (
 		sb   strings.Builder
-		cons *ConsCell = l.Items.Cdr
+		cons = l.Cdr
 	)
 
 	sb.WriteString("(")
-	sb.WriteString(l.Items.String())
+	//sb.WriteString(l.Items.String())
+	if l.Car != nil {
+		sb.WriteString(l.Car.String())
+	}
 
 	for cons != nil {
 		sb.WriteString(" ")
@@ -189,9 +200,15 @@ func (l List) String() string {
 // Length returns the length of the receiver.
 func (l List) Length() int {
 	var (
-		cnt  = 1
-		cons = l.Items.Cdr
+		cnt  = 0
+		cons = l.Cdr
 	)
+
+	if l.Car == nil {
+		return 0
+	}
+
+	cnt++
 
 	for cons != nil {
 		cnt++
@@ -204,16 +221,16 @@ func (l List) Length() int {
 // Equal compares the receiver to the given LispValue for equality.
 func (l List) Equal(other LispValue) bool {
 	switch o := other.(type) {
-	// case Symbol:
-	// 	return len(l.Items) == 0 && o.Sym == "NIL"
+	case Symbol:
+		return o.Sym == "NIL" && l.Length() == 0
 	case List:
 		if l.Length() != o.Length() {
 			return false
-		} else if !l.Items.Car.Equal(o.Items.Car) {
+		} else if !l.Car.Equal(o.Car) {
 			return false
 		}
 
-		var c1, c2 = l.Items.Cdr, o.Items.Cdr
+		var c1, c2 = l.Cdr, o.Cdr
 
 		for c1 != nil {
 			if !c1.Car.Equal(c2.Car) {
@@ -223,7 +240,7 @@ func (l List) Equal(other LispValue) bool {
 			c2 = c2.Cdr
 		}
 
-		return c1 == nil && c2 == nil
+		return c2 == nil
 
 		// for idx, val := range l.Items {
 		// 	if !val.Equal(o.Items[idx]) {
