@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-02-19 19:59:49 krylon>
+# Time-stamp: <2025-02-21 18:24:11 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -17,15 +17,15 @@
   kryLisp is a simple Lisp interpreter written in Go.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 202 :emphasize t
-   #+CAPTION: Clock summary at [2025-02-19 Mi 19:59]
+   #+CAPTION: Clock summary at [2025-02-21 Fr 18:24]
    | Headline                             | Time   |        |      |      |
    |--------------------------------------+--------+--------+------+------|
-   | *Total time*                         | *9:16* |        |      |      |
+   | *Total time*                         | *9:54* |        |      |      |
    |--------------------------------------+--------+--------+------+------|
-   | *kryLisp [0/0]*                      | *9:16* |        |      |      |
-   | \_  /Components [0/1]/               |        | /9:16/ |      |      |
-   | \_    Parser [0/1]                   |        |        | 4:37 |      |
-   | \_      Implement lists to proper... |        |        |      | 2:04 |
+   | *kryLisp [0/0]*                      | *9:54* |        |      |      |
+   | \_  /Components [1/1]/               |        | /9:54/ |      |      |
+   | \_    Parser [1/1]                   |        |        | 5:15 |      |
+   | \_      Implement lists as proper... |        |        |      | 2:42 |
    | \_    Interpreter [0/0]              |        |        | 4:39 |      |
    #+END:
 ** Features [0/0]
@@ -33,12 +33,12 @@
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
    :END:
-** Components [0/1]
+** Components [1/1]
    :PROPERTIES:
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
    :END:
-*** Parser [0/1]
+*** Parser [1/1]
     :LOGBOOK:
     CLOCK: [2025-02-18 Di 14:41]--[2025-02-18 Di 15:03] =>  0:22
     CLOCK: [2025-02-13 Do 14:44]--[2025-02-13 Do 16:55] =>  2:11
@@ -50,8 +50,11 @@
     desk I have finally started to understand how participle works and how to
     use it, and now that I am over that hump, I have to say it's pretty nice,
     at least so far.
-**** TODO Implement lists to proper single-linked lists
+**** DONE Implement lists as proper single-linked lists
+     CLOSED: [2025-02-21 Fr 18:24]
      :LOGBOOK:
+     CLOCK: [2025-02-21 Fr 17:50]--[2025-02-21 Fr 18:23] =>  0:33
+     CLOCK: [2025-02-21 Fr 16:16]--[2025-02-21 Fr 16:21] =>  0:05
      CLOCK: [2025-02-19 Mi 18:37]--[2025-02-19 Mi 19:59] =>  1:22
      CLOCK: [2025-02-18 Di 15:13]--[2025-02-18 Di 15:55] =>  0:42
      :END:
