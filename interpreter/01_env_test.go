@@ -2,20 +2,15 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-15 17:49:36 krylon>
+// Time-stamp: <2025-02-22 19:27:00 krylon>
 
 package interpreter
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/blicero/krylisp/parser"
 )
-
-func sym(s string) parser.Symbol {
-	return parser.Symbol{Sym: strings.ToUpper(s)}
-}
 
 func TestLookupSimple(t *testing.T) {
 	type testCase struct {

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-22 15:09:13 krylon>
+// Time-stamp: <2025-02-22 19:27:07 krylon>
 
 package interpreter
 
@@ -113,34 +113,6 @@ func TestEvalSymbol(t *testing.T) {
 		}
 	}
 } // func TestEvalSymbol(t *testing.T)
-
-func list(args ...parser.LispValue) parser.LispValue {
-	if len(args) == 0 {
-		return sym("nil")
-	}
-
-	var (
-		lst = parser.List{
-			Car: args[0],
-		}
-		cons *parser.ConsCell
-	)
-
-	if len(args) > 1 {
-		return lst
-	}
-
-	lst.Cdr = new(parser.ConsCell)
-	cons = lst.Cdr
-
-	for _, val := range args[1:] {
-		cons.Car = val
-		cons.Cdr = new(parser.ConsCell)
-		cons = cons.Cdr
-	}
-
-	return lst
-} // func list(args ...parser.LispValue) parser.List
 
 func TestEvalList(t *testing.T) {
 	type testCase struct {
