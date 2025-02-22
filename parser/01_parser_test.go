@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 11. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-21 19:44:09 krylon>
+// Time-stamp: <2025-02-22 15:10:37 krylon>
 
 package parser
 
@@ -52,6 +52,7 @@ func TestParse(t *testing.T) {
 		{filename: "arithmetic101", expr: `(+ 23 42)`},
 		{filename: "keyword", expr: `:value`},
 		{filename: "dash", expr: `that-symbol`},
+		{filename: "empty_list", expr: `()`},
 		// {filename: "quote", expr: `'(1 2 3)`},
 	}
 

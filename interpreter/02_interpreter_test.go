@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-17 15:52:52 krylon>
+// Time-stamp: <2025-02-22 15:09:13 krylon>
 
 package interpreter
 
@@ -113,3 +113,72 @@ func TestEvalSymbol(t *testing.T) {
 		}
 	}
 } // func TestEvalSymbol(t *testing.T)
+
+func list(args ...parser.LispValue) parser.LispValue {
+	if len(args) == 0 {
+		return sym("nil")
+	}
+
+	var (
+		lst = parser.List{
+			Car: args[0],
+		}
+		cons *parser.ConsCell
+	)
+
+	if len(args) > 1 {
+		return lst
+	}
+
+	lst.Cdr = new(parser.ConsCell)
+	cons = lst.Cdr
+
+	for _, val := range args[1:] {
+		cons.Car = val
+		cons.Cdr = new(parser.ConsCell)
+		cons = cons.Cdr
+	}
+
+	return lst
+} // func list(args ...parser.LispValue) parser.List
+
+func TestEvalList(t *testing.T) {
+	type testCase struct {
+		input       parser.LispValue
+		result      parser.LispValue
+		expectError bool
+	}
+
+	var cases = []testCase{
+		{
+			input:  parser.List{},
+			result: sym("nil"),
+		},
+		{
+			input:  list(sym("+"), parser.Integer{Int: 1}, parser.Integer{Int: 2}, parser.Integer{Int: 3}),
+			result: parser.Integer{Int: 6},
+		},
+	}
+
+	for _, c := range cases {
+		var (
+			err error
+			res parser.LispValue
+		)
+
+		if res, err = in.Eval(c.input); err != nil {
+			if !c.expectError {
+				t.Errorf("Failed to evaluate input %q: %s",
+					c.input,
+					err.Error())
+			}
+		} else if !res.Equal(c.result) {
+			t.Errorf(`Evaluating input %q produced unexpected result:
+Expected: %s
+Got:      %s`,
+				c.input,
+				c.result,
+				res)
+		}
+	}
+} // func TestEvalList(t *testing.T)

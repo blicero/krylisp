@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-21 19:59:20 krylon>
+// Time-stamp: <2025-02-22 15:52:15 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
