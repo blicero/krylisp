@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-22 15:52:15 krylon>
+// Time-stamp: <2025-02-22 19:30:31 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -12,6 +12,7 @@ import (
 
 	"github.com/blicero/krylib"
 	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/types"
 )
 
 // Environment is a set of bindings of symbols to values.
@@ -75,6 +76,11 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 		return real, nil
 	case parser.String:
 		return real, nil
+	case parser.List:
+		if real.Car == nil && real.Cdr == nil {
+			return sym("nil"), nil
+		} else if real.Car.Type() == types.Symbol {
+		}
 	default:
 		return nil, fmt.Errorf("Unsupported type %t", real)
 	}
