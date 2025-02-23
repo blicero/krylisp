@@ -22,21 +22,34 @@ func list(args ...parser.LispValue) parser.LispValue {
 		lst = parser.List{
 			Car: args[0],
 		}
-		cons *parser.ConsCell
+		head, cons *parser.ConsCell
 	)
 
-	if len(args) > 1 {
+	if len(args) == 1 {
 		return lst
 	}
 
-	lst.Cdr = new(parser.ConsCell)
-	cons = lst.Cdr
+	head = new(parser.ConsCell)
+	cons = head
 
-	for _, val := range args[1:] {
-		cons.Car = val
+	// for idx, val := range args[1:] {
+	// 	cons.Car = val
+	// 	if idx < len(args)-1 {
+	// 		cons.Cdr = new(parser.ConsCell)
+	// 	}
+
+	// 	cons = cons.Cdr
+	// }
+
+	for i := 1; i < len(args)-1; i++ {
+		cons.Car = args[i]
 		cons.Cdr = new(parser.ConsCell)
 		cons = cons.Cdr
 	}
+
+	cons.Car = args[len(args)-1]
+
+	lst.Cdr = head
 
 	return lst
 } // func list(args ...parser.LispValue) parser.List
