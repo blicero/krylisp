@@ -2,13 +2,16 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-22 19:27:07 krylon>
+// Time-stamp: <2025-02-23 20:56:11 krylon>
 
 package interpreter
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/blicero/krylisp/common"
+	"github.com/blicero/krylisp/logdomain"
 	"github.com/blicero/krylisp/parser"
 )
 
@@ -20,6 +23,15 @@ var in = Interpreter{
 		},
 	},
 	Debug: true,
+}
+
+func init() {
+	var err error
+
+	if in.log, err = common.GetLogger(logdomain.Interpreter); err != nil {
+		panic(fmt.Errorf("Failed to create Logger for Interpreter: %s",
+			err.Error()))
+	}
 }
 
 func TestEvalSimple(t *testing.T) {
@@ -140,7 +152,8 @@ func TestEvalList(t *testing.T) {
 
 		if res, err = in.Eval(c.input); err != nil {
 			if !c.expectError {
-				t.Errorf("Failed to evaluate input %q: %s",
+				t.Errorf("Failed to evaluate input %T %q: %s",
+					c.input,
 					c.input,
 					err.Error())
 			}

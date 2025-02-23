@@ -2,24 +2,45 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-23 15:53:00 krylon>
+// Time-stamp: <2025-02-23 21:27:58 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
 
 import (
+	"errors"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/blicero/krylib"
+	"github.com/blicero/krylisp/common"
+	"github.com/blicero/krylisp/logdomain"
 	"github.com/blicero/krylisp/parser"
 	"github.com/blicero/krylisp/types"
 )
+
+// ErrEval indicates some non-specified problem during evaluation
+var ErrEval = errors.New("Error evaluating expression")
+
+// ErrType indicates an invalid/unexpected type was encountered in an expression.
+var ErrType = errors.New("Invalid type in expression")
 
 // Environment is a set of bindings of symbols to values.
 type Environment struct {
 	Parent   *Environment
 	Bindings map[parser.Symbol]parser.LispValue
 }
+
+// MakeEnvironment creates a fresh Environment with the given parent.
+func MakeEnvironment(par *Environment) *Environment {
+	var env = &Environment{
+		Parent:   par,
+		Bindings: make(map[parser.Symbol]parser.LispValue),
+	}
+
+	return env
+} // func MakeEnvironment(par *Environment) *Environment
 
 // Lookup attempts to look up the binding to a Symbol. If the Symbol is
 // not found in the current Environment, it recursively tries the parent
@@ -47,14 +68,37 @@ type Interpreter struct {
 	Env           *Environment
 	Debug         bool
 	GensymCounter int
+	log           *log.Logger
 }
+
+// MakeInterpreter creates a fresh Interpreter. If the given Environment is nil,
+// a fresh one is created as well.
+func MakeInterpreter(env *Environment, dbg bool) (*Interpreter, error) {
+	var (
+		err error
+		in  = &Interpreter{
+			Debug: dbg,
+		}
+	)
+
+	if env != nil {
+		in.Env = env
+	} else {
+		in.Env = MakeEnvironment(nil)
+	}
+
+	if in.log, err = common.GetLogger(logdomain.Interpreter); err != nil {
+		return nil, err
+	}
+
+	return in, nil
+} // func MakeInterpreter(env *Environment, dbg bool) (*Interpreter, error)
 
 // Eval is the heart of the interpreter.
 func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
-	// var (
-	// 	err    error
-	// 	result parser.LispValue
-	// )
+	in.log.Printf("[DEBUG] Eval %T %s\n",
+		v,
+		v)
 
 	switch real := v.(type) {
 	case parser.Symbol:
@@ -77,13 +121,24 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 	case parser.String:
 		return real, nil
 	case parser.List:
+		in.log.Printf("[DEBUG] Head of list to be evaluated is %T %s, length of List is %d\n",
+			real.Car,
+			real.Car,
+			real.Length())
 		if real.Car == nil && real.Cdr == nil {
 			return sym("nil"), nil
 		} else if real.Car.Type() == types.Symbol {
 			if isSpecial(real.Car) {
 				return in.evalSpecial(real)
 			}
+
+			in.log.Printf("[DEBUG] %s is not special.\n",
+				real.Car)
+
+			return in.evalList(real)
 		}
+		return nil, fmt.Errorf("Unexpected type for head of list (expected symbol): %s",
+			real.Car.Type())
 	default:
 		return nil, fmt.Errorf("Unsupported type %t", real)
 	}
@@ -94,10 +149,63 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 	var (
 		err error
-		res parser.LispValue
 	)
 
-	switch l.Car.String() {
+	in.log.Printf("[DEBUG] Evaluate List %s\n",
+		l)
+
+	switch form := strings.ToUpper(l.Car.String()); form {
 	case "if":
+		if x := l.Length(); x != 4 {
+			return nil, fmt.Errorf("if-clause needs 4 elements, not %d",
+				x)
+		}
+
+		var (
+			cond, ifBranch, elseBranch parser.LispValue
+			val, branch                parser.LispValue
+		)
+
+		cond, _ = l.At(1)
+		ifBranch, _ = l.At(2)
+		elseBranch, _ = l.At(3)
+
+		if val, err = in.Eval(cond); err != nil {
+			return nil, err
+		} else if asBool(val) {
+			branch = ifBranch
+		} else {
+			branch = elseBranch
+		}
+
+		return in.Eval(branch)
+	case "+":
+		var (
+			cons       = l.Cdr
+			acc  int64 = 0
+		)
+
+		for cons != nil {
+			if cons.Car == nil {
+				in.log.Println("[ERROR] cons.Car is nil")
+				return nil, ErrEval
+			} else if cons.Car.Type() != types.Integer {
+				return nil, ErrType
+			}
+
+			acc += cons.Car.(parser.Integer).Int
+			cons = cons.Cdr
+		}
+
+		return parser.Integer{Int: acc}, nil
+	default:
+		var msg = fmt.Sprintf("Special form %s is not implemented, yet",
+			form)
+		in.log.Printf("[ERROR] %s\n", msg)
+		return nil, errors.New(msg)
 	}
 } // func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error)
+
+func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
+	return nil, krylib.ErrNotImplemented
+} // func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error)

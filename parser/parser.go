@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-21 18:22:34 krylon>
+// Time-stamp: <2025-02-23 21:29:51 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -180,7 +180,11 @@ func (l List) String() string {
 
 	for cons != nil {
 		sb.WriteString(" ")
-		sb.WriteString(cons.Car.String())
+		if cons.Car != nil {
+			sb.WriteString(cons.Car.String())
+		} else {
+			sb.WriteString("<nil>")
+		}
 		cons = cons.Cdr
 	}
 
@@ -253,3 +257,27 @@ func (l List) Equal(other LispValue) bool {
 		return false
 	}
 } // func (l List) Equal(other LispValue) bool
+
+func (l List) At(idx int) (LispValue, bool) {
+	if idx < 0 {
+		panic("Index must be >= 0")
+	} else if idx == 0 {
+		return l.Car, true
+	}
+
+	var (
+		cur  = 1
+		cons = l.Cdr
+	)
+
+	for cons != nil {
+		if cur == idx {
+			return cons.Car, true
+		}
+
+		cons = cons.Cdr
+		cur++
+	}
+
+	return nil, false
+} // func (l List) At(idx int) (LispValue, bool)
