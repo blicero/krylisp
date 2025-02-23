@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-22 19:30:31 krylon>
+// Time-stamp: <2025-02-23 15:53:00 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -80,6 +80,9 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 		if real.Car == nil && real.Cdr == nil {
 			return sym("nil"), nil
 		} else if real.Car.Type() == types.Symbol {
+			if isSpecial(real.Car) {
+				return in.evalSpecial(real)
+			}
 		}
 	default:
 		return nil, fmt.Errorf("Unsupported type %t", real)
@@ -87,3 +90,14 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 
 	return nil, krylib.ErrNotImplemented
 } // func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error)
+
+func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
+	var (
+		err error
+		res parser.LispValue
+	)
+
+	switch l.Car.String() {
+	case "if":
+	}
+} // func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error)
