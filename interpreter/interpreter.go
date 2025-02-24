@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-23 21:27:58 krylon>
+// Time-stamp: <2025-02-24 14:42:16 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -155,7 +155,8 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		l)
 
 	switch form := strings.ToUpper(l.Car.String()); form {
-	case "if":
+	case "IF":
+		in.log.Println("[TRACE] Eval IF clause")
 		if x := l.Length(); x != 4 {
 			return nil, fmt.Errorf("if-clause needs 4 elements, not %d",
 				x)
@@ -198,6 +199,19 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		}
 
 		return parser.Integer{Int: acc}, nil
+	case "NULL":
+		if cnt := l.Length(); cnt != 2 {
+			return nil, fmt.Errorf("Wrong number of arguments for NULL: %d (expect 0)",
+				cnt)
+		}
+
+		var arg = l.Cdr.Car
+
+		if asBool(arg) {
+			return sym("nil"), nil
+		}
+
+		return sym("t"), nil
 	default:
 		var msg = fmt.Sprintf("Special form %s is not implemented, yet",
 			form)

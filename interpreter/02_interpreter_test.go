@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-23 20:56:11 krylon>
+// Time-stamp: <2025-02-24 14:43:08 krylon>
 
 package interpreter
 
@@ -141,6 +141,18 @@ func TestEvalList(t *testing.T) {
 		{
 			input:  list(sym("+"), parser.Integer{Int: 1}, parser.Integer{Int: 2}, parser.Integer{Int: 3}),
 			result: parser.Integer{Int: 6},
+		},
+		{
+			input:  list(sym("+")),
+			result: parser.Integer{Int: 0},
+		},
+		{
+			input: list(
+				sym("if"),
+				list(sym("null"), sym("the-answer")),
+				sym(":falsch"),
+				sym(":richtig")),
+			result: sym(":richtig"),
 		},
 	}
 

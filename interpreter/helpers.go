@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-23 21:34:13 krylon>
+// Time-stamp: <2025-02-24 14:34:40 krylon>
 
 package interpreter
 
@@ -85,6 +85,7 @@ defmacro
 set!
 quote
 var
+null
 `
 
 var specialForms map[string]bool
