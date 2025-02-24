@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 18. 09. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-23 21:08:33 krylon>
+// Time-stamp: <2025-02-24 19:45:34 krylon>
 
 package common
 
@@ -45,7 +45,7 @@ const (
 )
 
 // WhiteSpace is a regular expression that matches one or more whitespace characters.
-var WhiteSpace = regexp.MustCompile("\\s+")
+var WhiteSpace = regexp.MustCompile(`\s+`)
 
 // LogLevels are the names of the log levels supported by the logger.
 var LogLevels = []logutils.LogLevel{
