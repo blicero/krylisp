@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-24 14:43:08 krylon>
+// Time-stamp: <2025-02-24 21:40:45 krylon>
 
 package interpreter
 
@@ -153,6 +153,16 @@ func TestEvalList(t *testing.T) {
 				sym(":falsch"),
 				sym(":richtig")),
 			result: sym(":richtig"),
+		},
+		{
+			input: list(
+				sym("defun"),
+				sym("zerop"),
+				list(sym("x")),
+				list(sym("="),
+					sym("x"),
+					parser.Integer{Int: 0})),
+			result: sym("zerop"),
 		},
 	}
 

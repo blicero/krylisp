@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-24 14:42:16 krylon>
+// Time-stamp: <2025-02-24 21:41:36 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -62,6 +62,20 @@ func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, bool) {
 
 	return nil, false
 } // func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, error)
+
+// Set sets the binding for the given Symbol to the given value. If a binding
+// for that symbol already exists, it is replaced.
+func (e *Environment) Set(key parser.Symbol, val parser.LispValue) {
+	e.Bindings[key] = val
+} // func (e *Environment) Set(key parser.Symbol, val parser.LispValue)
+
+// Delete removes the binding for the given symbol from the current scope.
+// If no binding for the symbol exists, it is a no-op.
+// If a binding for the symbol exists in the Environment's Parent(s), those are
+// not affected.
+func (e *Environment) Delete(key parser.Symbol) {
+	delete(e.Bindings, key)
+}
 
 // Interpreter implements the evaluation of Lisp expressions.
 type Interpreter struct {
@@ -149,6 +163,7 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 	var (
 		err error
+		ok  bool
 	)
 
 	in.log.Printf("[DEBUG] Evaluate List %s\n",
@@ -212,6 +227,50 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		}
 
 		return sym("t"), nil
+	case "DEFUN":
+		if cnt := l.Length(); cnt < 3 {
+			return nil, fmt.Errorf("Wrong number of arguments to DEFUN: %d (expect >= 3)",
+				cnt)
+		}
+
+		var (
+			v, name   parser.LispValue
+			argList   parser.List
+			docString string
+			body      *parser.ConsCell
+		)
+
+		if argList, ok = l.Cdr.Cdr.Car.(parser.List); !ok {
+			return nil, fmt.Errorf("Second argument to defun must be a List of arguments, not a %T",
+				l.Cdr.Cdr.Car)
+		}
+
+		v, _ = l.At(2)
+
+		if v.Type() == types.String {
+			docString = v.(parser.String).Str
+			body = l.Cdr.Cdr.Cdr
+		} else {
+			body = l.Cdr.Cdr
+		}
+
+		name = l.Cdr.Car
+
+		if t := name.Type(); t != types.Symbol {
+			return nil, fmt.Errorf("First argument to DEFUN must be a symbol, not a %s",
+				t)
+		}
+
+		var fn = &Function{
+			name:      name.(parser.Symbol).Sym,
+			docString: docString,
+			argList:   argList,
+			body:      body,
+		}
+
+		in.Env.Set(name.(parser.Symbol), fn)
+
+		return name, nil
 	default:
 		var msg = fmt.Sprintf("Special form %s is not implemented, yet",
 			form)

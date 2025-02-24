@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-24 14:34:40 krylon>
+// Time-stamp: <2025-02-24 21:30:57 krylon>
 
 package interpreter
 
@@ -12,6 +12,7 @@ import (
 
 	"github.com/blicero/krylisp/common"
 	"github.com/blicero/krylisp/parser"
+	"github.com/blicero/krylisp/types"
 )
 
 func list(args ...parser.LispValue) parser.LispValue {
@@ -119,3 +120,55 @@ func asBool(val parser.LispValue) bool {
 		return true
 	}
 } // func asBool(val parser.LispValue) bool
+
+// Function represents a function. I'm using a special type for these,
+// because I'll be handling those a lot, and I want to make that a bit less
+// painful.
+type Function struct {
+	name      string
+	docString string
+	argList   parser.List
+	body      *parser.ConsCell
+}
+
+func (f *Function) String() string {
+	var sb strings.Builder
+
+	sb.WriteString("(LAMBDA ")
+	sb.WriteString(f.argList.String())
+
+	var c = f.body
+
+	for c != nil {
+		sb.WriteString(" ")
+		sb.WriteString(c.Car.String())
+		c = c.Cdr
+	}
+
+	sb.WriteString(")")
+
+	return sb.String()
+} // func (f *Function) String() string
+
+// Type returns the type of the receiver, i.e. types.Function
+func (f *Function) Type() types.Type { return types.Function }
+
+// Equal compares the receiver to another LispValue for equality.
+func (f *Function) Equal(other parser.LispValue) bool {
+	var (
+		fn *Function
+		ok bool
+	)
+
+	if other == nil {
+		return f == nil
+	} else if fn, ok = other.(*Function); !ok {
+		return false
+	} else if fn == f {
+		return true
+	}
+
+	return f.name == fn.name &&
+		f.argList.Equal(fn.argList) &&
+		f.body.Equal(fn.body)
+} // func (f *Function) Equal(other parser.LispValue) bool
