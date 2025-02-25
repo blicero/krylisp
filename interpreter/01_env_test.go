@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-22 19:27:00 krylon>
+// Time-stamp: <2025-02-25 15:27:31 krylon>
 
 package interpreter
 
@@ -19,11 +19,13 @@ func TestLookupSimple(t *testing.T) {
 		expectedValue parser.LispValue
 	}
 
-	var env = Environment{
-		Bindings: map[parser.Symbol]parser.LispValue{
-			sym("zero"): parser.Integer{Int: 0},
-			sym("name"): parser.String{Str: "Odysseus"},
-			sym("age"):  parser.Integer{Int: 42},
+	var env = environment{
+		scope: &scope{
+			bindings: map[parser.Symbol]parser.LispValue{
+				sym("zero"): parser.Integer{Int: 0},
+				sym("name"): parser.String{Str: "Odysseus"},
+				sym("age"):  parser.Integer{Int: 42},
+			},
 		},
 	}
 
@@ -55,17 +57,19 @@ func TestLookupSimple(t *testing.T) {
 } // func TestLookupSimple(t *testing.T)
 
 func TestLookupScoped(t *testing.T) {
-	var env = Environment{
-		Parent: &Environment{
-			Bindings: map[parser.Symbol]parser.LispValue{
-				sym("x"):      parser.Integer{Int: 10},
-				sym("temp"):   parser.Integer{Int: 42},
-				sym("lambda"): parser.Integer{Int: 83},
+	var env = environment{
+		scope: &scope{
+			bindings: map[parser.Symbol]parser.LispValue{
+				sym("y"):    parser.Integer{Int: 23},
+				sym("temp"): parser.Integer{Int: 109},
 			},
-		},
-		Bindings: map[parser.Symbol]parser.LispValue{
-			sym("y"):    parser.Integer{Int: 23},
-			sym("temp"): parser.Integer{Int: 109},
+			parent: &scope{
+				bindings: map[parser.Symbol]parser.LispValue{
+					sym("x"):      parser.Integer{Int: 10},
+					sym("temp"):   parser.Integer{Int: 42},
+					sym("lambda"): parser.Integer{Int: 83},
+				},
+			},
 		},
 	}
 

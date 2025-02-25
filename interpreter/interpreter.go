@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-25 14:37:02 krylon>
+// Time-stamp: <2025-02-25 15:24:57 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -28,7 +28,7 @@ var ErrType = errors.New("Invalid type in expression")
 
 // Interpreter implements the evaluation of Lisp expressions.
 type Interpreter struct {
-	Env           *Environment
+	Env           *environment
 	Debug         bool
 	GensymCounter int
 	log           *log.Logger
@@ -36,7 +36,7 @@ type Interpreter struct {
 
 // MakeInterpreter creates a fresh Interpreter. If the given Environment is nil,
 // a fresh one is created as well.
-func MakeInterpreter(env *Environment, dbg bool) (*Interpreter, error) {
+func MakeInterpreter(env *environment, dbg bool) (*Interpreter, error) {
 	var (
 		err error
 		in  = &Interpreter{
@@ -47,7 +47,7 @@ func MakeInterpreter(env *Environment, dbg bool) (*Interpreter, error) {
 	if env != nil {
 		in.Env = env
 	} else {
-		in.Env = MakeEnvironment(nil)
+		in.Env = makeEnv()
 	}
 
 	if in.log, err = common.GetLogger(logdomain.Interpreter); err != nil {
@@ -235,10 +235,9 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 
 func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
 	var (
-		err  error
-		ok   bool
-		head parser.LispValue
-		fn   *Function
+		ok        bool
+		head, val parser.LispValue
+		fn        *Function
 	)
 
 	if cnt := l.Length(); cnt < 1 {
@@ -249,6 +248,19 @@ func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
 
 	switch v := head.(type) {
 	case parser.Symbol:
+		if val, ok = in.Env.Lookup(v); !ok {
+			return nil, fmt.Errorf("No binding was found for %s",
+				v)
+		} else if fn, ok = val.(*Function); !ok {
+			return nil, fmt.Errorf("Type error: Binding for %s is not a function, but a %s (%s)",
+				v,
+				val.Type(),
+				val)
+		}
 
+		in.log.Printf("[TRACE] Evaluating call to %s\n",
+			fn.name)
 	}
+
+	return nil, ErrEval
 } // func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error)

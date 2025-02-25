@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-24 21:40:45 krylon>
+// Time-stamp: <2025-02-25 15:08:38 krylon>
 
 package interpreter
 
@@ -16,10 +16,12 @@ import (
 )
 
 var in = Interpreter{
-	Env: &Environment{
-		Bindings: map[parser.Symbol]parser.LispValue{
-			sym("karl"):       parser.String{Str: "Otto"},
-			sym("the-answer"): parser.Integer{Int: 42},
+	Env: &environment{
+		scope: &scope{
+			bindings: map[parser.Symbol]parser.LispValue{
+				sym("karl"):       parser.String{Str: "Otto"},
+				sym("the-answer"): parser.Integer{Int: 42},
+			},
 		},
 	},
 	Debug: true,
