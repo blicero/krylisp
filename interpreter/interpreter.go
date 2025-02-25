@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-25 01:38:03 krylon>
+// Time-stamp: <2025-02-25 14:37:02 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -25,57 +25,6 @@ var ErrEval = errors.New("Error evaluating expression")
 
 // ErrType indicates an invalid/unexpected type was encountered in an expression.
 var ErrType = errors.New("Invalid type in expression")
-
-// Environment is a set of bindings of symbols to values.
-type Environment struct {
-	Parent   *Environment
-	Bindings map[parser.Symbol]parser.LispValue
-}
-
-// MakeEnvironment creates a fresh Environment with the given parent.
-func MakeEnvironment(par *Environment) *Environment {
-	var env = &Environment{
-		Parent:   par,
-		Bindings: make(map[parser.Symbol]parser.LispValue),
-	}
-
-	return env
-} // func MakeEnvironment(par *Environment) *Environment
-
-// Lookup attempts to look up the binding to a Symbol. If the Symbol is
-// not found in the current Environment, it recursively tries the parent
-// Environments until a binding is found or the chain of environments
-// is exhausted.
-func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, bool) {
-	var (
-		ok  bool
-		val parser.LispValue
-	)
-
-	if val, ok = e.Bindings[key]; ok {
-		return val, true
-	}
-
-	if e.Parent != nil {
-		return e.Parent.Lookup(key)
-	}
-
-	return nil, false
-} // func (e *Environment) Lookup(key parser.Symbol) (parser.LispValue, error)
-
-// Set sets the binding for the given Symbol to the given value. If a binding
-// for that symbol already exists, it is replaced.
-func (e *Environment) Set(key parser.Symbol, val parser.LispValue) {
-	e.Bindings[key] = val
-} // func (e *Environment) Set(key parser.Symbol, val parser.LispValue)
-
-// Delete removes the binding for the given symbol from the current scope.
-// If no binding for the symbol exists, it is a no-op.
-// If a binding for the symbol exists in the Environment's Parent(s), those are
-// not affected.
-func (e *Environment) Delete(key parser.Symbol) {
-	delete(e.Bindings, key)
-}
 
 // Interpreter implements the evaluation of Lisp expressions.
 type Interpreter struct {
@@ -107,6 +56,11 @@ func MakeInterpreter(env *Environment, dbg bool) (*Interpreter, error) {
 
 	return in, nil
 } // func MakeInterpreter(env *Environment, dbg bool) (*Interpreter, error)
+
+// TODO I think I need to pass in the environment as an argument to Eval, lest
+//      handling function calls and so forth becomes very tedious.
+//      Unless I make the Environment itself handle that - instead of a Pointer
+//      to a parent Environment it could have a stack of Binding maps.
 
 // Eval is the heart of the interpreter.
 func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
