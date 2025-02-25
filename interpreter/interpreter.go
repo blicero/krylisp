@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-24 21:41:36 krylon>
+// Time-stamp: <2025-02-25 01:38:03 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -280,5 +280,21 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 } // func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error)
 
 func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
-	return nil, krylib.ErrNotImplemented
+	var (
+		err  error
+		ok   bool
+		head parser.LispValue
+		fn   *Function
+	)
+
+	if cnt := l.Length(); cnt < 1 {
+		return sym("nil"), nil
+	}
+
+	head = l.Car
+
+	switch v := head.(type) {
+	case parser.Symbol:
+
+	}
 } // func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error)
