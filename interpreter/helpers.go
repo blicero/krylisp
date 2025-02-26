@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-24 21:30:57 krylon>
+// Time-stamp: <2025-02-25 18:42:52 krylon>
 
 package interpreter
 
@@ -127,20 +127,28 @@ func asBool(val parser.LispValue) bool {
 type Function struct {
 	name      string
 	docString string
-	argList   parser.List
+	argList   []parser.LispValue
 	body      *parser.ConsCell
 }
 
 func (f *Function) String() string {
-	var sb strings.Builder
+	var (
+		sb   strings.Builder
+		args = make([]string, len(f.argList))
+	)
 
-	sb.WriteString("(LAMBDA ")
-	sb.WriteString(f.argList.String())
+	for i, v := range f.argList {
+		args[i] = v.String()
+	}
+
+	sb.WriteString("(LAMBDA (")
+	sb.WriteString(strings.Join(args, " "))
+	sb.WriteString(")")
 
 	var c = f.body
 
 	for c != nil {
-		sb.WriteString(" ")
+		sb.WriteString("\n\t")
 		sb.WriteString(c.Car.String())
 		c = c.Cdr
 	}
@@ -166,9 +174,16 @@ func (f *Function) Equal(other parser.LispValue) bool {
 		return false
 	} else if fn == f {
 		return true
+	} else if len(f.argList) != len(fn.argList) {
+		return false
+	}
+
+	for i, s := range f.argList {
+		if !fn.argList[i].Equal(s) {
+			return false
+		}
 	}
 
 	return f.name == fn.name &&
-		f.argList.Equal(fn.argList) &&
 		f.body.Equal(fn.body)
 } // func (f *Function) Equal(other parser.LispValue) bool

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-25 15:24:57 krylon>
+// Time-stamp: <2025-02-25 21:32:20 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -190,6 +190,7 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		var (
 			v, name   parser.LispValue
 			argList   parser.List
+			args      []parser.LispValue
 			docString string
 			body      *parser.ConsCell
 		)
@@ -215,10 +216,22 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 				t)
 		}
 
+		args = make([]parser.LispValue, 0, 4)
+
+		if argList.Car != nil {
+			args = append(args, argList.Car)
+			var a = argList.Cdr
+
+			for a != nil {
+				args = append(args, a.Car)
+				a = a.Cdr
+			}
+		}
+
 		var fn = &Function{
 			name:      name.(parser.Symbol).Sym,
 			docString: docString,
-			argList:   argList,
+			argList:   args,
 			body:      body,
 		}
 
@@ -238,9 +251,10 @@ func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
 		ok        bool
 		head, val parser.LispValue
 		fn        *Function
+		cnt       int
 	)
 
-	if cnt := l.Length(); cnt < 1 {
+	if cnt = l.Length(); cnt < 1 {
 		return sym("nil"), nil
 	}
 
@@ -260,6 +274,41 @@ func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
 
 		in.log.Printf("[TRACE] Evaluating call to %s\n",
 			fn.name)
+	case *Function:
+		fn = v
+	default:
+		return nil, fmt.Errorf("Head of list must be a Symbol that resolves to a function or a Function object, not a %T", v)
+	}
+
+	// Next, we need to evaluate the arguments to the function call, bind
+	// them to the argument list of the function, push those to the
+	// Environment stack, and evaluate the function body.
+
+	if cnt != len(fn.argList)+1 {
+		return nil, fmt.Errorf("Incorrect number of arguments in function call: want %d, got %d",
+			cnt-1,
+			len(fn.argList))
+	}
+
+	var (
+		cell = l.Cdr
+		args = make([]parser.LispValue, 0, len(fn.argList))
+	)
+
+	for cell != nil {
+		var (
+			err error
+			res parser.LispValue
+		)
+
+		if res, err = in.Eval(cell.Car); err != nil {
+			in.log.Printf("[ERROR] Error evaluating %q: %s\n",
+				cell.Car,
+				err.Error())
+			return nil, err
+		}
+
+		args = append(args, res)
 	}
 
 	return nil, ErrEval
