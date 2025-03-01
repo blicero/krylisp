@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-25 21:32:20 krylon>
+// Time-stamp: <2025-03-01 15:17:38 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -18,6 +18,7 @@ import (
 	"github.com/blicero/krylisp/logdomain"
 	"github.com/blicero/krylisp/parser"
 	"github.com/blicero/krylisp/types"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // ErrEval indicates some non-specified problem during evaluation
@@ -64,9 +65,9 @@ func MakeInterpreter(env *environment, dbg bool) (*Interpreter, error) {
 
 // Eval is the heart of the interpreter.
 func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
-	in.log.Printf("[DEBUG] Eval %T %s\n",
+	in.log.Printf("[DEBUG] Eval %T\n%s\n",
 		v,
-		v)
+		spew.Sdump(v))
 
 	switch real := v.(type) {
 	case parser.Symbol:
@@ -120,8 +121,9 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		ok  bool
 	)
 
-	in.log.Printf("[DEBUG] Evaluate List %s\n",
-		l)
+	in.log.Printf("[DEBUG] Evaluate special form %s\n%s\n",
+		l,
+		spew.Sdump(l))
 
 	switch form := strings.ToUpper(l.Car.String()); form {
 	case "IF":
@@ -168,6 +170,78 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		}
 
 		return parser.Integer{Int: acc}, nil
+	case "*":
+		var (
+			cons       = l.Cdr
+			cnt        = 1
+			acc  int64 = 1
+		)
+
+		for cons != nil {
+			var res parser.LispValue
+
+			if cons.Car == nil {
+				in.log.Println("[ERROR] cons.Car is nil")
+				return nil, ErrEval
+			} else if res, err = in.Eval(cons.Car); err != nil {
+				return nil, fmt.Errorf("Error evaluating argument #%d (%s): %s",
+					cnt,
+					cons.Car,
+					err.Error())
+			} else if res.Type() != types.Integer {
+				return nil, fmt.Errorf("Unexpected type: %s (expect Integer)",
+					res.Type())
+			}
+
+			acc *= res.(parser.Integer).Int
+			cons = cons.Cdr
+		}
+
+		return parser.Integer{Int: acc}, nil
+	case "<":
+		var (
+			res  parser.LispValue
+			n    parser.Integer
+			cons = l.Cdr
+		)
+
+		in.log.Printf("[TRACE] Evaluate less-than (<): %s\n",
+			spew.Sdump(l.Cdr))
+
+		if res, err = in.Eval(cons.Cdr.Car); err != nil {
+			var msg = fmt.Sprintf("Error evaluating %q: %s",
+				cons.Cdr.Car,
+				err.Error())
+			in.log.Printf("[ERROR] %s\n", msg)
+			return nil, errors.New(msg)
+		} else if n, ok = res.(parser.Integer); !ok {
+			return nil, fmt.Errorf("Invalid type for <: %s (expected Integer)",
+				cons.Car.Type())
+		}
+
+		cons = cons.Cdr
+
+		for cons != nil {
+			var num parser.Integer
+			if res, err = in.Eval(cons.Car); err != nil {
+				var msg = fmt.Sprintf("Error evaluating %q: %s",
+					cons.Cdr.Car,
+					err.Error())
+				in.log.Printf("[ERROR] %s\n", msg)
+				return nil, errors.New(msg)
+			} else if num, ok = res.(parser.Integer); !ok {
+				return nil, fmt.Errorf("Unexpected type for <: %s (expected Integer)",
+					cons.Car.Type())
+			}
+
+			if num.Int < n.Int {
+				return sym("nil"), nil
+			}
+
+			cons = cons.Cdr
+		}
+
+		return sym("t"), nil
 	case "NULL":
 		if cnt := l.Length(); cnt != 2 {
 			return nil, fmt.Errorf("Wrong number of arguments for NULL: %d (expect 0)",
@@ -301,6 +375,9 @@ func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
 			res parser.LispValue
 		)
 
+		in.log.Printf("[TRACE] Evaluate argument: %s\n",
+			cell.Car)
+
 		if res, err = in.Eval(cell.Car); err != nil {
 			in.log.Printf("[ERROR] Error evaluating %q: %s\n",
 				cell.Car,
@@ -309,7 +386,36 @@ func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error) {
 		}
 
 		args = append(args, res)
+		cell = cell.Cdr
 	}
 
-	return nil, ErrEval
+	in.Env.Push()
+
+	for i, s := range fn.argList {
+		in.Env.Set(s.(parser.Symbol), args[i])
+	}
+
+	defer in.Env.Pop()
+
+	in.log.Printf("[TRACE] Evaluate function body:\n%s\n",
+		spew.Sdump(fn.body))
+
+	var (
+		err  error
+		res  parser.LispValue
+		body = fn.body
+	)
+
+	for body != nil {
+		if res, err = in.Eval(body.Car); err != nil {
+			in.log.Printf("[ERROR] Error evaluating expression %s: %s\n",
+				body.Car,
+				err.Error())
+			return nil, err
+		}
+
+		body = body.Cdr
+	}
+
+	return res, nil
 } // func (in *Interpreter) evalList(l parser.List) (parser.LispValue, error)

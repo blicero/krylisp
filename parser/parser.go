@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-23 21:29:51 krylon>
+// Time-stamp: <2025-02-28 16:40:41 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -19,7 +19,7 @@ import (
 )
 
 var lex = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: `Symbol`, Pattern: `[-+*/%:a-zA-Z][-+*/%:a-zA-Z\d]*`},
+	{Name: `Symbol`, Pattern: `[-+*/%:a-zA-Z<>][-+*/%:a-zA-Z\d<>]*`},
 	{Name: `Integer`, Pattern: `\d+`},
 	{Name: `String`, Pattern: `"(?:[^\"]*)"`},
 	{Name: `OpenParen`, Pattern: `\(`},

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-25 18:42:52 krylon>
+// Time-stamp: <2025-02-28 16:56:10 krylon>
 
 package interpreter
 
@@ -69,6 +69,10 @@ lambda
 <
 =
 +
+-
+*
+/
+%
 eq
 eql
 cond

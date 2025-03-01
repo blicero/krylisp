@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-25 15:08:38 krylon>
+// Time-stamp: <2025-03-01 15:07:47 krylon>
 
 package interpreter
 
@@ -166,6 +166,10 @@ func TestEvalList(t *testing.T) {
 					parser.Integer{Int: 0})),
 			result: sym("zerop"),
 		},
+		{
+			input:  list(sym("<"), parser.Integer{Int: 5}, parser.Integer{Int: 10}),
+			result: sym("t"),
+		},
 	}
 
 	for _, c := range cases {
@@ -191,3 +195,77 @@ Got:      %s`,
 		}
 	}
 } // func TestEvalList(t *testing.T)
+
+func TestEvalFuncall(t *testing.T) {
+	installFunctions()
+
+	type testCase struct {
+		input  parser.List
+		output parser.LispValue
+		err    bool
+	}
+
+	var testCases = []testCase{
+		{
+			input:  list(sym("squared"), parser.Integer{Int: 5}).(parser.List),
+			output: parser.Integer{Int: 25},
+		},
+		{
+			input:  list(sym("squared"), parser.Integer{Int: -9}).(parser.List),
+			output: parser.Integer{Int: 81},
+		},
+		{
+			input:  list(sym("min"), parser.Integer{Int: 10}, parser.Integer{Int: 2}).(parser.List),
+			output: parser.Integer{Int: 10},
+		},
+	}
+
+	for _, c := range testCases {
+		var (
+			err error
+			res parser.LispValue
+		)
+
+		if res, err = in.Eval(c.input); err != nil {
+			if !c.err {
+				t.Errorf("Failed to evaluate function call %q: %s",
+					c.input,
+					err.Error())
+			}
+		} else if !res.Equal(c.output) {
+			t.Errorf("Unexpected return value from function call %q: %s (expected %s)",
+				c.input,
+				res,
+				c.output)
+		}
+	}
+} // func TestEvalFuncall(t *testing.T)
+
+func installFunctions() {
+	var functions = []*Function{
+		&Function{
+			name:      "squared",
+			docString: "Return the square of x.",
+			argList:   []parser.LispValue{sym("x")},
+			body: &parser.ConsCell{
+				Car: list(sym("*"), sym("x"), sym("x")),
+			},
+		},
+		&Function{
+			name:      "min",
+			docString: "Return the smaller of two numbers.",
+			argList:   []parser.LispValue{sym("x"), sym("y")},
+			body: &parser.ConsCell{
+				Car: list(
+					sym("if"),
+					list(sym("<"), sym("x"), sym("y")),
+					sym("x"),
+					sym("y")),
+			},
+		},
+	}
+
+	for _, fn := range functions {
+		in.Env.Set(sym(fn.name), fn)
+	}
+} // func installFunctions()
