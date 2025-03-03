@@ -9,4 +9,4 @@ require (
 	github.com/hashicorp/logutils v1.0.0
 )
 
-require github.com/davecgh/go-spew v1.1.1 // indirect
+require github.com/davecgh/go-spew v1.1.1
