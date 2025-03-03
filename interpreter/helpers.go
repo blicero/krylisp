@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 22. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-02-28 16:56:10 krylon>
+// Time-stamp: <2025-03-02 16:50:51 krylon>
 
 package interpreter
 
@@ -63,34 +63,35 @@ func sym(s string) parser.Symbol {
 } // func sym(s string) parser.Symbol
 
 const specialFormList = `
-if
-lambda
->
-<
-=
+%
+*
 +
 -
-*
 /
-%
-eq
-eql
-cond
+<
+=
+>
 and
-or
-not
+apply
 car
 cdr
+cond
 cons
-apply
-let
-while
-defun
 defmacro
-set!
-quote
-var
+defun
+eq
+eql
+if
+lambda
+let
+list
+not
 null
+or
+quote
+set!
+var
+while
 `
 
 var specialForms map[string]bool

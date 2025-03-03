@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 17. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-03-01 15:07:47 krylon>
+// Time-stamp: <2025-03-02 20:06:55 krylon>
 
 package interpreter
 
@@ -218,6 +218,17 @@ func TestEvalFuncall(t *testing.T) {
 			input:  list(sym("min"), parser.Integer{Int: 10}, parser.Integer{Int: 2}).(parser.List),
 			output: parser.Integer{Int: 10},
 		},
+		{
+			input: list(
+				sym("map"),
+				sym("squared"),
+				list(
+					sym("list"),
+					parser.Integer{Int: 3},
+					parser.Integer{Int: 5},
+					parser.Integer{Int: -8},
+					parser.Integer{Int: 16})).(parser.List),
+		},
 	}
 
 	for _, c := range testCases {
@@ -243,7 +254,7 @@ func TestEvalFuncall(t *testing.T) {
 
 func installFunctions() {
 	var functions = []*Function{
-		&Function{
+		{
 			name:      "squared",
 			docString: "Return the square of x.",
 			argList:   []parser.LispValue{sym("x")},
@@ -251,7 +262,7 @@ func installFunctions() {
 				Car: list(sym("*"), sym("x"), sym("x")),
 			},
 		},
-		&Function{
+		{
 			name:      "min",
 			docString: "Return the smaller of two numbers.",
 			argList:   []parser.LispValue{sym("x"), sym("y")},
@@ -261,6 +272,29 @@ func installFunctions() {
 					list(sym("<"), sym("x"), sym("y")),
 					sym("x"),
 					sym("y")),
+			},
+		},
+		{
+			name:      "map",
+			docString: "Apply a function to all members of a list, return a list of the results.",
+			argList:   []parser.LispValue{sym("fn"), sym("lst")},
+			body: &parser.ConsCell{
+				Car: list(
+					sym("if"),
+					list(sym("null"), sym("lst")),
+					sym("nil"),
+					list(
+						sym("cons"),
+						list(
+							sym("apply"),
+							sym("fn"),
+							list(sym("car"), sym("lst"))),
+						list(
+							sym("map"),
+							sym("fn"),
+							list(sym("cdr"), sym("lst"))),
+					),
+				),
 			},
 		},
 	}

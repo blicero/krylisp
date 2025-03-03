@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 15. 02. 2025 by Benjamin Walkenhorst
 // (c) 2025 Benjamin Walkenhorst
-// Time-stamp: <2025-03-01 15:17:38 krylon>
+// Time-stamp: <2025-03-03 17:44:03 krylon>
 
 // Package interpreter implements the traversal and evaluation of ASTs.
 package interpreter
@@ -105,6 +105,8 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 				real.Car)
 
 			return in.evalList(real)
+		} else if real.Car.Type() == types.Function {
+			return in.evalList(real)
 		}
 		return nil, fmt.Errorf("Unexpected type for head of list (expected symbol): %s",
 			real.Car.Type())
@@ -117,6 +119,7 @@ func (in *Interpreter) Eval(v parser.LispValue) (parser.LispValue, error) {
 
 func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 	var (
+		res parser.LispValue
 		err error
 		ok  bool
 	)
@@ -153,6 +156,7 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		return in.Eval(branch)
 	case "+":
 		var (
+			num  parser.Integer
 			cons       = l.Cdr
 			acc  int64 = 0
 		)
@@ -161,11 +165,17 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 			if cons.Car == nil {
 				in.log.Println("[ERROR] cons.Car is nil")
 				return nil, ErrEval
-			} else if cons.Car.Type() != types.Integer {
-				return nil, ErrType
+			} else if res, err = in.Eval(cons.Car); err != nil {
+				return nil, fmt.Errorf("Error evaluating %q: %s",
+					cons.Car,
+					err.Error())
+			} else if num, ok = res.(parser.Integer); !ok {
+				return nil, fmt.Errorf("Invalid type for %q: %T (should be parser.Integer)",
+					res,
+					res)
 			}
 
-			acc += cons.Car.(parser.Integer).Int
+			acc += num.Int
 			cons = cons.Cdr
 		}
 
@@ -312,6 +322,108 @@ func (in *Interpreter) evalSpecial(l parser.List) (parser.LispValue, error) {
 		in.Env.Set(name.(parser.Symbol), fn)
 
 		return name, nil
+	case "CONS":
+		if cnt := l.Length(); cnt != 3 {
+			return nil, fmt.Errorf("Wrong number of arguments to CONS: %d (expected 2)",
+				cnt-1)
+		}
+
+		var (
+			v1, v2 parser.LispValue
+			cell   *parser.ConsCell
+		)
+
+		if v1, err = in.Eval(l.Cdr.Car); err != nil {
+			return nil, fmt.Errorf("Error evaluating %q: %s",
+				l.Cdr.Car,
+				err.Error())
+		} else if v2, err = in.Eval(l.Cdr.Cdr.Car); err != nil {
+			return nil, fmt.Errorf("Error evaluating %q: %s",
+				l.Cdr.Cdr.Car,
+				err.Error())
+		}
+
+		if cell, ok = v2.(*parser.ConsCell); ok {
+			return &parser.ConsCell{Car: v1, Cdr: cell}, nil
+		}
+
+		return &parser.ConsCell{Car: v1, Cdr: &parser.ConsCell{Car: v2}}, nil
+	case "LIST":
+		var (
+			cons = l.Cdr.Cdr.Cdr
+			lst  parser.List
+			tail *parser.ConsCell
+		)
+
+		if lst.Car, err = in.Eval(l.Cdr.Car); err != nil {
+			return nil, fmt.Errorf("Error evaluating list element %s: %s",
+				l.Cdr.Car,
+				err.Error())
+		}
+
+		lst.Cdr = new(parser.ConsCell)
+		tail = lst.Cdr
+
+		for cons != nil {
+			if tail.Car, err = in.Eval(cons.Car); err != nil {
+				return nil, fmt.Errorf("Error evaluating list element %s: %s",
+					cons.Car,
+					err.Error())
+			}
+
+			tail.Cdr = new(parser.ConsCell)
+			cons = cons.Cdr
+		}
+
+		return lst, nil
+	case "APPLY":
+		var (
+			fn  *Function
+			val parser.LispValue
+		)
+
+		switch v := l.Cdr.Car.(type) {
+		case *Function:
+			fn = v
+		case parser.Symbol:
+			if val, ok = in.Env.Lookup(v); !ok {
+				return nil, fmt.Errorf("Cannot apply unbound symbol %s",
+					v)
+			} else if val.Type() == types.Function {
+				fn = val.(*Function)
+			} else {
+				return nil, fmt.Errorf("Value of %s is not a function (%s)",
+					v,
+					val.Type())
+			}
+		default:
+			return nil, fmt.Errorf("Cannot apply a %s (%s)",
+				v.Type(),
+				v)
+		}
+
+		if val, err = in.Eval(l.Cdr.Cdr); err != nil {
+			return nil, fmt.Errorf("Errort evaluating %q: %s",
+				l.Cdr.Cdr,
+				l.Cdr.Cdr.Type())
+		}
+
+		var fncall = parser.List{
+			Car: fn,
+			Cdr: &parser.ConsCell{Car: val},
+		}
+
+		return in.Eval(fncall)
+	case "CAR":
+		switch v := l.Cdr.Car.(type) {
+		case parser.List:
+			return v.Car, nil
+		case parser.ConsCell:
+			return v.Car, nil
+		default:
+			return nil, fmt.Errorf("First argument to CAR must be a List or ConsCell, not a %T",
+				l.Cdr.Car)
+		}
 	default:
 		var msg = fmt.Sprintf("Special form %s is not implemented, yet",
 			form)
