@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 21. 12. 2024 by Benjamin Walkenhorst
 // (c) 2024 Benjamin Walkenhorst
-// Time-stamp: <2025-02-28 16:40:41 krylon>
+// Time-stamp: <2025-03-04 20:24:30 krylon>
 
 // Package parser provides the ... parser.
 package parser
@@ -50,6 +50,7 @@ type LispValue interface {
 
 // Symbol is a symbol.
 type Symbol struct {
+	Pos lexer.Position
 	Sym string `parser:"@Symbol"`
 }
 
@@ -73,6 +74,7 @@ func (s Symbol) Equal(other LispValue) bool {
 
 // Integer is a signed 64-bit integer
 type Integer struct {
+	Pos lexer.Position
 	Int int64 `parser:"@Integer"`
 }
 
@@ -92,6 +94,7 @@ func (i Integer) Equal(other LispValue) bool {
 
 // String is a ... string.
 type String struct {
+	Pos lexer.Position
 	Str string `parser:"@String"`
 }
 
@@ -113,6 +116,7 @@ func (s String) Equal(other LispValue) bool {
 
 // ConsCell is the basic building block of Lisp Lists.
 type ConsCell struct {
+	Pos lexer.Position
 	Car LispValue `parser:"@@"`
 	Cdr *ConsCell `parser:"@@*"`
 }
@@ -157,6 +161,7 @@ func (c ConsCell) Equal(other LispValue) bool {
 
 // List is a Lisp list.
 type List struct {
+	Pos lexer.Position
 	Car LispValue `parser:"OpenParen @@?"`
 	Cdr *ConsCell `parser:"(@@*)? CloseParen"`
 	// Items []LispValue `parser:"OpenParen @@* CloseParen"`
@@ -258,6 +263,7 @@ func (l List) Equal(other LispValue) bool {
 	}
 } // func (l List) Equal(other LispValue) bool
 
+// At accesses the nth element of the List.
 func (l List) At(idx int) (LispValue, bool) {
 	if idx < 0 {
 		panic("Index must be >= 0")
